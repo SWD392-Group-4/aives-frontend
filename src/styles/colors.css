@@ -1,0 +1,104 @@
+/*
+ * AIVES - BẢNG MÀU DÙNG CHUNG (theme "Electric EdTech Lumina" từ Google Stitch)
+ *
+ * Đây là NGUỒN MÀU DUY NHẤT của frontend. Không viết mã hex trong component.
+ * Muốn đổi màu cho toàn app thì chỉ sửa ở file này.
+ *
+ * Cách dùng: mỗi biến --color-<tên> tự sinh ra class Tailwind tương ứng.
+ *   --color-primary            ->  bg-primary, text-primary, border-primary, ring-primary...
+ *   --color-surface-container  ->  bg-surface-container
+ *   Độ trong suốt: bg-primary/10, text-on-primary/80
+ *   Trong CSS thường: color: var(--color-primary);
+ */
+
+@theme {
+  /* ---------- 4 màu gốc của thương hiệu (đúng với bảng màu trên Stitch) ---------- */
+  --color-brand-blue: #0062ff; /* Primary   */
+  --color-brand-green: #00c676; /* Secondary */
+  --color-brand-orange: #ff7a00; /* Tertiary  */
+  --color-brand-navy: #0b1538; /* Neutral   */
+
+  /* ---------- Primary: xanh điện - nút chính, link, hero ---------- */
+  --color-primary: #004cca;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #0062ff;
+  --color-on-primary-container: #f3f3ff;
+  --color-primary-fixed: #dbe1ff;
+  --color-primary-fixed-dim: #b4c5ff;
+  --color-on-primary-fixed: #00174b;
+  --color-on-primary-fixed-variant: #003ea8;
+  --color-inverse-primary: #b4c5ff;
+  --color-surface-tint: #0053da;
+
+  /* ---------- Secondary: xanh lá - thành công, trạng thái đạt ---------- */
+  --color-secondary: #006d3e;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #62fea7;
+  --color-on-secondary-container: #007443;
+  --color-secondary-fixed: #62fea7;
+  --color-secondary-fixed-dim: #3ee18e;
+  --color-on-secondary-fixed: #00210f;
+  --color-on-secondary-fixed-variant: #00522e;
+
+  /* ---------- Tertiary: cam - nhấn mạnh, cảnh báo nhẹ ---------- */
+  --color-tertiary: #8e4100;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #b35400;
+  --color-on-tertiary-container: #fff1eb;
+  --color-tertiary-fixed: #ffdbc8;
+  --color-tertiary-fixed-dim: #ffb68b;
+  --color-on-tertiary-fixed: #321200;
+  --color-on-tertiary-fixed-variant: #753400;
+
+  /* ---------- Error: lỗi form, thao tác nguy hiểm ---------- */
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* ---------- Nền và bề mặt (từ sáng nhất đến đậm nhất) ---------- */
+  --color-background: #faf8ff;
+  --color-on-background: #0f193c;
+  --color-surface: #faf8ff;
+  --color-surface-bright: #faf8ff;
+  --color-surface-dim: #d1d8ff;
+  --color-surface-container-lowest: #ffffff; /* thẻ, form */
+  --color-surface-container-low: #f3f2ff; /* ô nhập liệu */
+  --color-surface-container: #ebedff;
+  --color-surface-container-high: #e4e7ff;
+  --color-surface-container-highest: #dce1ff;
+  --color-surface-variant: #dce1ff;
+  --color-inverse-surface: #252e52;
+  --color-inverse-on-surface: #efefff;
+
+  /* ---------- Chữ và viền ---------- */
+  --color-on-surface: #0f193c; /* chữ chính */
+  --color-on-surface-variant: #424656; /* chữ phụ */
+  --color-outline: #737687; /* icon mờ, placeholder */
+  --color-outline-variant: #c2c6d9; /* đường kẻ */
+
+  /* ---------- Gradient nền hero (trên -> dưới) ---------- */
+  --color-hero-from: #0051e0;
+  --color-hero-to: #0048c2;
+
+  /* ---------- Gradient thẻ tính năng (trên -> dưới) ---------- */
+  --color-track-orange-from: #ff9e44;
+  --color-track-orange-to: #ff7a00;
+  --color-track-blue-from: #2d79ff;
+  --color-track-blue-to: #0052cc;
+  --color-track-green-from: #00d67c;
+  --color-track-green-to: #00a651;
+  --color-track-cyan-from: #00c2ff;
+  --color-track-cyan-to: #0070f3;
+  --color-track-indigo-from: #6366f1;
+  --color-track-indigo-to: #3730a3;
+  --color-track-amber-from: #f59e0b;
+  --color-track-amber-to: #b45309;
+
+  /* ---------- Màu nhấn cho icon đặt trên nền xanh đậm ---------- */
+  --color-accent-amber: #fcd34d;
+  --color-accent-cyan: #a5f3fc;
+
+  /* ---------- Nền phía sau ảnh linh vật ---------- */
+  --color-mascot-backdrop: #e6e9ef;
+}
