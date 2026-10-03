@@ -5,6 +5,7 @@ import Icon from './Icon.jsx'
 /**
  * Ô nhập liệu dùng chung cho các form: có nhãn, icon bên trái, thông báo lỗi.
  * Với type="password" sẽ tự có nút hiện/ẩn mật khẩu.
+ * Thuộc tính khác của thẻ input (min, max, maxLength, disabled, inputMode...) truyền qua inputProps.
  */
 function TextField({
   id,
@@ -18,6 +19,8 @@ function TextField({
   hint,
   error,
   required = false,
+  inputProps = {},
+  inputClassName = '',
 }) {
   const { t } = useLanguage()
   const [showPassword, setShowPassword] = useState(false)
@@ -49,7 +52,8 @@ function TextField({
           autoComplete={autoComplete}
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={describedBy}
-          className={`w-full rounded-2xl bg-surface-container-low py-3.5 text-body-md text-on-surface shadow-sm outline-none transition-all placeholder:text-outline focus:bg-surface-container-lowest focus:ring-2 ${
+          {...inputProps}
+          className={`w-full rounded-2xl bg-surface-container-low py-3.5 text-body-md text-on-surface shadow-sm outline-none transition-all placeholder:text-outline focus:bg-surface-container-lowest focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60 ${inputClassName} ${
             icon ? 'pl-12' : 'pl-4'
           } ${isPassword ? 'pr-12' : 'pr-4'} ${
             error ? 'ring-2 ring-error focus:ring-error' : 'focus:ring-primary-container'

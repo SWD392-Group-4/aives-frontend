@@ -29,6 +29,12 @@ function Navbar({ showHomeSections = false }) {
   const { t } = useLanguage()
   const navigate = useNavigate()
   const isAdmin = user?.role === ROLES.ADMIN
+  // Liên kết tới phần phiên thi, tuỳ role: sinh viên vào thi, giảng viên / admin quản lý phiên.
+  const examLink = !user
+    ? null
+    : user.role === ROLES.STUDENT
+      ? { to: '/exam/join', labelKey: 'nav.joinExam', icon: 'login' }
+      : { to: '/exam-sessions', labelKey: 'nav.examSessions', icon: 'event_note' }
 
   const handleLogout = () => {
     // Về trang chủ trước rồi mới đăng xuất, để trang đang mở (hồ sơ, quản trị)
@@ -53,6 +59,11 @@ function Navbar({ showHomeSections = false }) {
                 {t(link.labelKey)}
               </a>
             ))}
+          {examLink && (
+            <NavLink to={examLink.to} className={navLinkClass}>
+              {t(examLink.labelKey)}
+            </NavLink>
+          )}
           {isAdmin && (
             <NavLink to="/admin/users" className={navLinkClass}>
               {t('nav.manageAccounts')}
@@ -65,6 +76,13 @@ function Navbar({ showHomeSections = false }) {
 
           {user ? (
             <>
+              <Link
+                to={examLink.to}
+                aria-label={t(examLink.labelKey)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-surface-container lg:hidden"
+              >
+                <Icon name={examLink.icon} className="text-xl" />
+              </Link>
               {isAdmin && (
                 <Link
                   to="/admin/users"

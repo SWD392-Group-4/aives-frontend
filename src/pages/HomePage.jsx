@@ -4,6 +4,7 @@ import Footer from '../components/Footer.jsx'
 import Icon from '../components/Icon.jsx'
 import Mascot from '../components/Mascot.jsx'
 import Navbar from '../components/Navbar.jsx'
+import { ROLES } from '../constants/roles.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { useLanguage } from '../hooks/useLanguage.js'
 
@@ -99,10 +100,19 @@ function HomePage() {
             </div>
 
             {user ? (
-              <p className="mt-10 inline-flex items-center gap-2 rounded-full bg-on-primary/15 px-6 py-3 text-label-lg backdrop-blur-md">
-                <Icon name="waving_hand" filled className="text-xl text-accent-amber" />
-                {t('home.greeting', { name: user.fullName })}
-              </p>
+              <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+                <p className="inline-flex items-center gap-2 rounded-full bg-on-primary/15 px-6 py-3 text-label-lg backdrop-blur-md">
+                  <Icon name="waving_hand" filled className="text-xl text-accent-amber" />
+                  {t('home.greeting', { name: user.fullName })}
+                </p>
+                <Link
+                  to={user.role === ROLES.STUDENT ? '/exam/join' : '/exam-sessions'}
+                  className="group inline-flex items-center justify-center rounded-full bg-surface-container-lowest px-7 py-3 text-label-lg text-primary-container shadow-xl shadow-on-primary/40 transition-all duration-200 hover:scale-105"
+                >
+                  {user.role === ROLES.STUDENT ? t('home.ctaJoinExam') : t('home.ctaManageSessions')}
+                  <Icon name="arrow_forward" className="ml-2 text-xl transition-transform group-hover:translate-x-1" />
+                </Link>
+              </div>
             ) : (
               <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Link
