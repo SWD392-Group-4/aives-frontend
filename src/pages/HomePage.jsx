@@ -5,121 +5,58 @@ import Icon from '../components/Icon.jsx'
 import Mascot from '../components/Mascot.jsx'
 import Navbar from '../components/Navbar.jsx'
 import { useAuth } from '../hooks/useAuth.js'
+import { useLanguage } from '../hooks/useLanguage.js'
 
-const HERO_BADGES = [
-  { icon: 'auto_awesome', iconClass: 'text-accent-amber', label: 'AI hỏi xoáy theo câu trả lời' },
-  { icon: 'verified', iconClass: 'text-secondary-fixed', label: 'Chấm điểm theo rubric' },
-  { icon: 'mic', iconClass: 'text-accent-cyan', label: 'Vấn đáp bằng giọng nói' },
+/*
+ * Phần chữ của trang nằm trong bản dịch (src/i18n/translations, nhóm `home`).
+ * Các mảng dưới đây chỉ giữ icon và màu, xếp cùng thứ tự với mảng chữ tương ứng.
+ */
+const HERO_BADGE_STYLES = [
+  { icon: 'auto_awesome', iconClass: 'text-accent-amber' },
+  { icon: 'verified', iconClass: 'text-secondary-fixed' },
+  { icon: 'mic', iconClass: 'text-accent-cyan' },
 ]
 
-const HERO_FACTS = [
-  { value: '3 vai trò', label: ['Sinh viên, giảng viên', 'và quản trị viên'] },
-  { value: 'Tiếng Việt', label: ['AI đọc câu hỏi,', 'sinh viên trả lời bằng lời'] },
-  { value: '100%', label: ['Điểm cuối cùng', 'do giảng viên chốt'] },
+const FEATURE_STYLES = [
+  { icon: 'record_voice_over', gradient: 'from-track-orange-from to-track-orange-to', glow: 'hover:shadow-track-orange-to/35' },
+  { icon: 'menu_book', gradient: 'from-track-blue-from to-track-blue-to', glow: 'hover:shadow-track-blue-to/35' },
+  { icon: 'psychology', gradient: 'from-track-green-from to-track-green-to', glow: 'hover:shadow-track-green-to/35' },
+  { icon: 'fact_check', gradient: 'from-track-cyan-from to-track-cyan-to', glow: 'hover:shadow-track-cyan-to/35' },
+  { icon: 'approval', gradient: 'from-track-indigo-from to-track-indigo-to', glow: 'hover:shadow-track-indigo-to/35' },
+  { icon: 'analytics', gradient: 'from-track-amber-from to-track-amber-to', glow: 'hover:shadow-track-amber-to/35' },
 ]
 
-const FEATURES = [
-  {
-    icon: 'record_voice_over',
-    title: 'Vấn đáp bằng giọng nói',
-    description: 'AI đọc câu hỏi, sinh viên trả lời bằng lời nói và hệ thống tự chuyển thành văn bản.',
-    tag: '01 / Giọng nói',
-    gradient: 'from-track-orange-from to-track-orange-to',
-    glow: 'hover:shadow-track-orange-to/35',
-  },
-  {
-    icon: 'menu_book',
-    title: 'Ngân hàng câu hỏi',
-    description: 'Giảng viên soạn câu hỏi theo từng bài học, chủ đề và gắn rubric chấm điểm cho mỗi câu.',
-    tag: '02 / Câu hỏi',
-    gradient: 'from-track-blue-from to-track-blue-to',
-    glow: 'hover:shadow-track-blue-to/35',
-  },
-  {
-    icon: 'psychology',
-    title: 'Hỏi xoáy thích ứng',
-    description: 'AI đọc câu trả lời rồi hỏi tiếp khi ý còn thiếu, chưa rõ hoặc mâu thuẫn.',
-    tag: '03 / Hỏi xoáy',
-    gradient: 'from-track-green-from to-track-green-to',
-    glow: 'hover:shadow-track-green-to/35',
-  },
-  {
-    icon: 'fact_check',
-    title: 'Gợi ý điểm theo rubric',
-    description: 'AI đối chiếu câu trả lời với từng tiêu chí, đề xuất điểm kèm nhận xét và trích dẫn.',
-    tag: '04 / Rubric',
-    gradient: 'from-track-cyan-from to-track-cyan-to',
-    glow: 'hover:shadow-track-cyan-to/35',
-  },
-  {
-    icon: 'approval',
-    title: 'Giảng viên chốt điểm',
-    description: 'Giảng viên xem lại nội dung hỏi đáp, sửa điểm nếu cần rồi mới công bố kết quả.',
-    tag: '05 / Phê duyệt',
-    gradient: 'from-track-indigo-from to-track-indigo-to',
-    glow: 'hover:shadow-track-indigo-to/35',
-  },
-  {
-    icon: 'analytics',
-    title: 'Kết quả và phúc khảo',
-    description: 'Sinh viên xem điểm từng câu, đọc nhận xét và gửi phúc khảo khi chưa đồng ý.',
-    tag: '06 / Kết quả',
-    gradient: 'from-track-amber-from to-track-amber-to',
-    glow: 'hover:shadow-track-amber-to/35',
-  },
-]
-
-const STEPS = [
-  {
-    icon: 'edit_note',
-    title: 'Soạn câu hỏi và rubric',
-    description:
-      'Giảng viên tạo câu hỏi theo bài học, gắn rubric gồm các tiêu chí và thang điểm, rồi chọn câu hỏi đưa vào đề thi.',
-    note: 'Dành cho giảng viên',
-    noteIcon: 'check_circle',
-    iconBox: 'bg-primary-fixed text-primary',
-    accent: 'text-primary',
-  },
-  {
-    icon: 'forum',
-    title: 'Vào phòng thi, trả lời AI',
-    description:
-      'Sinh viên bật micro và trả lời từng câu. AI nghe câu trả lời, hỏi xoáy thêm khi cần rồi chuyển sang câu tiếp theo.',
-    note: 'Dành cho sinh viên',
-    noteIcon: 'mic',
-    iconBox: 'bg-secondary-container text-secondary',
-    accent: 'text-secondary',
-  },
-  {
-    icon: 'verified_user',
-    title: 'Nhận điểm sau khi duyệt',
-    description:
-      'AI gợi ý điểm theo từng tiêu chí. Giảng viên rà soát, chốt điểm chính thức và sinh viên xem kết quả.',
-    note: 'Minh bạch, có đối chiếu',
-    noteIcon: 'task_alt',
-    iconBox: 'bg-tertiary-fixed text-tertiary',
-    accent: 'text-tertiary',
-  },
+const STEP_STYLES = [
+  { icon: 'edit_note', noteIcon: 'check_circle', iconBox: 'bg-primary-fixed text-primary', accent: 'text-primary' },
+  { icon: 'forum', noteIcon: 'mic', iconBox: 'bg-secondary-container text-secondary', accent: 'text-secondary' },
+  { icon: 'verified_user', noteIcon: 'task_alt', iconBox: 'bg-tertiary-fixed text-tertiary', accent: 'text-tertiary' },
 ]
 
 const SAMPLE_SCORES = [
-  { value: '9.2 / 10', label: 'Kiến thức chuyên môn', color: 'text-primary' },
-  { value: '8.8 / 10', label: 'Phản xạ đối đáp', color: 'text-secondary' },
-  { value: '8.5 / 10', label: 'Tư duy phản biện', color: 'text-tertiary-container' },
-  { value: '9.0 / 10', label: 'Diễn đạt và bố cục', color: 'text-primary' },
+  { value: '9.2 / 10', color: 'text-primary' },
+  { value: '8.8 / 10', color: 'text-secondary' },
+  { value: '8.5 / 10', color: 'text-tertiary-container' },
+  { value: '9.0 / 10', color: 'text-primary' },
 ]
 
 function HomePage() {
   const { user } = useAuth()
+  const { t } = useLanguage()
   const railRef = useRef(null)
 
   const scrollRail = (direction) => {
     railRef.current?.scrollBy({ left: direction * 300, behavior: 'smooth' })
   }
 
+  const badges = t('home.badges')
+  const facts = t('home.facts')
+  const features = t('home.features')
+  const steps = t('home.steps')
+  const criteria = t('home.gradingCriteria')
+
   return (
     <>
-      <Navbar />
+      <Navbar showHomeSections />
 
       <main className="w-full bg-background pt-20">
         {/* ============ HERO ============ */}
@@ -135,23 +72,22 @@ function HomePage() {
 
           <div className="relative z-10 mx-auto flex max-w-6xl flex-col items-center px-4 text-center sm:px-6">
             <ul className="mb-6 flex flex-wrap items-center justify-center gap-3 sm:mb-8">
-              {HERO_BADGES.map((badge) => (
+              {HERO_BADGE_STYLES.map((badge, index) => (
                 <li
-                  key={badge.label}
+                  key={badge.icon}
                   className="inline-flex items-center gap-1.5 rounded-full bg-on-primary/15 px-3.5 py-1.5 text-label-sm shadow-sm backdrop-blur-md"
                 >
                   <Icon name={badge.icon} filled className={`text-base ${badge.iconClass}`} />
-                  {badge.label}
+                  {badges[index]}
                 </li>
               ))}
             </ul>
 
             <h1 className="max-w-4xl text-display-hero-mobile text-balance drop-shadow-sm md:text-display-hero">
-              Nền tảng thi vấn đáp thông minh cùng AI
+              {t('home.title')}
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-body-md text-on-primary/85 md:text-body-lg">
-              AI đặt câu hỏi, hỏi xoáy theo câu trả lời của sinh viên và gợi ý điểm theo rubric. Giảng viên luôn là
-              người chốt điểm cuối cùng.
+              {t('home.subtitle')}
             </p>
 
             <div className="relative mt-10 flex items-center justify-center">
@@ -165,7 +101,7 @@ function HomePage() {
             {user ? (
               <p className="mt-10 inline-flex items-center gap-2 rounded-full bg-on-primary/15 px-6 py-3 text-label-lg backdrop-blur-md">
                 <Icon name="waving_hand" filled className="text-xl text-accent-amber" />
-                Xin chào, {user.fullName}
+                {t('home.greeting', { name: user.fullName })}
               </p>
             ) : (
               <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -173,7 +109,7 @@ function HomePage() {
                   to="/register"
                   className="group inline-flex items-center justify-center rounded-full bg-surface-container-lowest px-10 py-4 text-label-lg tracking-wide text-primary-container shadow-xl shadow-on-primary/40 transition-all duration-200 hover:scale-105"
                 >
-                  BẮT ĐẦU NGAY
+                  {t('home.ctaStart')}
                   <Icon name="arrow_forward" className="ml-2 text-xl transition-transform group-hover:translate-x-1" />
                 </Link>
                 <Link
@@ -181,18 +117,18 @@ function HomePage() {
                   className="inline-flex items-center justify-center rounded-full bg-on-primary/10 px-7 py-4 text-label-md backdrop-blur-md transition-colors hover:bg-on-primary/20"
                 >
                   <Icon name="login" className="mr-2 text-xl" />
-                  Tôi đã có tài khoản
+                  {t('home.ctaHaveAccount')}
                 </Link>
               </div>
             )}
 
             <dl className="mt-12 flex w-full max-w-4xl flex-wrap items-center justify-around gap-6 border-t border-on-primary/15 pt-8">
-              {HERO_FACTS.map((fact) => (
+              {facts.map((fact) => (
                 <div key={fact.value} className="flex items-center gap-3">
                   <dt className="order-2 text-left text-body-sm leading-tight text-on-primary/75">
-                    {fact.label[0]}
+                    {fact.lines[0]}
                     <br />
-                    {fact.label[1]}
+                    {fact.lines[1]}
                   </dt>
                   <dd className="order-1 text-headline-md">{fact.value}</dd>
                 </div>
@@ -208,22 +144,20 @@ function HomePage() {
               <div className="max-w-2xl">
                 <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-surface-container-high px-3 py-1 text-label-sm text-primary">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
-                  TÍNH NĂNG CHÍNH
+                  {t('home.featuresBadge')}
                 </div>
                 <h2 className="text-headline-xl-mobile text-balance text-on-surface md:text-headline-xl">
-                  Trọn vẹn một buổi thi vấn đáp, từ ra đề đến chốt điểm
+                  {t('home.featuresTitle')}
                 </h2>
               </div>
-              <p className="max-w-md text-body-md text-on-surface-variant lg:pb-1">
-                AIVES hỗ trợ giảng viên ở những khâu tốn thời gian nhất: đặt câu hỏi, hỏi sâu và chấm theo rubric.
-              </p>
+              <p className="max-w-md text-body-md text-on-surface-variant lg:pb-1">{t('home.featuresIntro')}</p>
             </div>
 
             <div className="relative w-full">
               <button
                 type="button"
                 onClick={() => scrollRail(-1)}
-                aria-label="Xem thẻ trước"
+                aria-label={t('home.prevCard')}
                 className="absolute top-1/2 -left-2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface-container-lowest shadow-lg transition hover:bg-surface-container-low sm:flex lg:-left-5"
               >
                 <Icon name="chevron_left" className="text-2xl text-primary" />
@@ -231,7 +165,7 @@ function HomePage() {
               <button
                 type="button"
                 onClick={() => scrollRail(1)}
-                aria-label="Xem thẻ tiếp theo"
+                aria-label={t('home.nextCard')}
                 className="absolute top-1/2 -right-2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface-container-lowest shadow-lg transition hover:bg-surface-container-low sm:flex lg:-right-5"
               >
                 <Icon name="chevron_right" className="text-2xl text-primary" />
@@ -241,19 +175,21 @@ function HomePage() {
                 ref={railRef}
                 className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-1 pt-2 pb-8 md:gap-5"
               >
-                {FEATURES.map((feature) => (
+                {FEATURE_STYLES.map((style, index) => (
                   <li
-                    key={feature.title}
-                    className={`flex min-h-[340px] w-[260px] flex-none snap-start flex-col justify-between rounded-3xl bg-linear-to-b p-6 text-on-primary transition-all duration-300 hover:-translate-y-2 hover:shadow-xl sm:w-[280px] sm:p-7 ${feature.gradient} ${feature.glow}`}
+                    key={style.icon}
+                    className={`flex min-h-[340px] w-[260px] flex-none snap-start flex-col justify-between rounded-3xl bg-linear-to-b p-6 text-on-primary transition-all duration-300 hover:-translate-y-2 hover:shadow-xl sm:w-[280px] sm:p-7 ${style.gradient} ${style.glow}`}
                   >
                     <div>
                       <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-2xl bg-on-primary/20 backdrop-blur-sm">
-                        <Icon name={feature.icon} className="text-2xl" />
+                        <Icon name={style.icon} className="text-2xl" />
                       </div>
-                      <h3 className="mb-3 text-headline-md tracking-tight">{feature.title}</h3>
-                      <p className="text-body-sm leading-relaxed text-on-primary/90">{feature.description}</p>
+                      <h3 className="mb-3 text-headline-md tracking-tight">{features[index].title}</h3>
+                      <p className="text-body-sm leading-relaxed text-on-primary/90">{features[index].description}</p>
                     </div>
-                    <div className="pt-6 text-label-sm tracking-wider text-on-primary/80 uppercase">{feature.tag}</div>
+                    <div className="pt-6 text-label-sm tracking-wider text-on-primary/80 uppercase">
+                      {features[index].tag}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -266,20 +202,18 @@ function HomePage() {
           <div className="mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-12">
             <div className="mx-auto mb-14 max-w-2xl">
               <span className="mb-3 inline-block rounded-full bg-primary/10 px-4 py-1.5 text-label-sm text-primary">
-                QUY TRÌNH TINH GỌN
+                {t('home.stepsBadge')}
               </span>
               <h2 className="text-headline-xl-mobile text-balance text-on-surface md:text-headline-xl">
-                Một buổi thi vấn đáp chỉ với 3 bước
+                {t('home.stepsTitle')}
               </h2>
-              <p className="mt-3 text-body-md text-on-surface-variant">
-                Chạy ngay trên trình duyệt, chỉ cần micro để trả lời.
-              </p>
+              <p className="mt-3 text-body-md text-on-surface-variant">{t('home.stepsIntro')}</p>
             </div>
 
             <ol className="grid grid-cols-1 gap-6 text-left md:grid-cols-3 lg:gap-8">
-              {STEPS.map((step, index) => (
+              {STEP_STYLES.map((style, index) => (
                 <li
-                  key={step.title}
+                  key={style.icon}
                   className="relative flex flex-col justify-between overflow-hidden rounded-3xl bg-surface-container-lowest p-8 shadow-sm transition-shadow hover:shadow-md"
                 >
                   <div
@@ -289,18 +223,18 @@ function HomePage() {
                     0{index + 1}
                   </div>
                   <div className="relative">
-                    <div className={`mb-6 flex h-12 w-12 items-center justify-center rounded-2xl ${step.iconBox}`}>
-                      <Icon name={step.icon} className="text-2xl" />
+                    <div className={`mb-6 flex h-12 w-12 items-center justify-center rounded-2xl ${style.iconBox}`}>
+                      <Icon name={style.icon} className="text-2xl" />
                     </div>
-                    <div className={`mb-1 text-label-sm font-bold tracking-wider uppercase ${step.accent}`}>
-                      Bước 0{index + 1}
+                    <div className={`mb-1 text-label-sm font-bold tracking-wider uppercase ${style.accent}`}>
+                      {t('home.stepLabel', { number: `0${index + 1}` })}
                     </div>
-                    <h3 className="mb-3 text-headline-sm text-on-surface">{step.title}</h3>
-                    <p className="text-body-sm leading-relaxed text-on-surface-variant">{step.description}</p>
+                    <h3 className="mb-3 text-headline-sm text-on-surface">{steps[index].title}</h3>
+                    <p className="text-body-sm leading-relaxed text-on-surface-variant">{steps[index].description}</p>
                   </div>
-                  <div className={`relative mt-6 flex items-center gap-1 pt-4 text-label-sm ${step.accent}`}>
-                    {step.note}
-                    <Icon name={step.noteIcon} className="text-base" />
+                  <div className={`relative mt-6 flex items-center gap-1 pt-4 text-label-sm ${style.accent}`}>
+                    {steps[index].note}
+                    <Icon name={style.noteIcon} className="text-base" />
                   </div>
                 </li>
               ))}
@@ -312,7 +246,7 @@ function HomePage() {
                   to="/register"
                   className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-label-md text-on-primary shadow-md transition-all duration-200 hover:bg-surface-tint hover:shadow-lg"
                 >
-                  Tạo tài khoản sinh viên
+                  {t('home.stepsCta')}
                   <Icon name="arrow_forward" className="text-lg" />
                 </Link>
               </div>
@@ -326,34 +260,31 @@ function HomePage() {
             <div className="flex flex-col items-center gap-10 rounded-3xl bg-surface-container p-6 sm:p-12 lg:flex-row">
               <div className="flex-1">
                 <span className="rounded-full bg-surface-container-highest px-3.5 py-1 text-label-sm text-primary">
-                  CHẤM ĐIỂM THEO RUBRIC
+                  {t('home.gradingBadge')}
                 </span>
-                <h2 className="mt-4 text-headline-lg text-on-surface">Điểm số rõ ràng theo từng tiêu chí</h2>
-                <p className="mt-3 text-body-md text-on-surface-variant">
-                  Mỗi câu trả lời được chấm theo các tiêu chí giảng viên đặt ra. AI đề xuất điểm kèm trích dẫn từ lời
-                  nói của sinh viên, giảng viên xem lại rồi mới chốt.
-                </p>
+                <h2 className="mt-4 text-headline-lg text-on-surface">{t('home.gradingTitle')}</h2>
+                <p className="mt-3 text-body-md text-on-surface-variant">{t('home.gradingIntro')}</p>
                 <ul className="mt-6 grid grid-cols-2 gap-4">
-                  {SAMPLE_SCORES.map((score) => (
-                    <li key={score.label} className="rounded-2xl bg-surface-container-lowest p-3.5 shadow-sm">
+                  {SAMPLE_SCORES.map((score, index) => (
+                    <li key={criteria[index]} className="rounded-2xl bg-surface-container-lowest p-3.5 shadow-sm">
                       <div className={`text-headline-sm ${score.color}`}>{score.value}</div>
-                      <div className="text-body-sm text-on-surface-variant">{score.label}</div>
+                      <div className="text-body-sm text-on-surface-variant">{criteria[index]}</div>
                     </li>
                   ))}
                 </ul>
-                <p className="mt-3 text-body-sm text-on-surface-variant">Số liệu chỉ để minh hoạ.</p>
+                <p className="mt-3 text-body-sm text-on-surface-variant">{t('home.gradingSampleNote')}</p>
               </div>
 
               <div className="flex w-full flex-col items-center justify-center rounded-2xl bg-surface-container-lowest p-6 shadow-sm lg:w-96">
                 <div className="mb-2 flex w-full items-center justify-between border-b border-surface-container pb-3">
                   <div className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full bg-secondary" />
-                    <span className="text-label-sm text-on-surface">Bài thi mẫu</span>
+                    <span className="text-label-sm text-on-surface">{t('home.sampleExam')}</span>
                   </div>
-                  <span className="text-label-sm font-bold text-primary">Điểm: 8.9</span>
+                  <span className="text-label-sm font-bold text-primary">{t('home.sampleScore', { score: '8.9' })}</span>
                 </div>
 
-                <svg viewBox="0 0 240 240" className="my-2 h-56 w-56" role="img" aria-label="Biểu đồ minh hoạ điểm theo 4 tiêu chí">
+                <svg viewBox="0 0 240 240" className="my-2 h-56 w-56" role="img" aria-label={t('home.sampleChartLabel')}>
                   <g className="fill-none stroke-surface-container-highest" strokeWidth="1.5">
                     <polygon points="120,30 210,120 120,210 30,120" />
                     <polygon points="120,60 180,120 120,180 60,120" strokeDasharray="3,3" />
@@ -377,8 +308,8 @@ function HomePage() {
                 </svg>
 
                 <div className="flex w-full items-center justify-between pt-2 text-body-sm text-on-surface-variant">
-                  <span>Thời lượng: 14 phút</span>
-                  <span>Số câu hỏi: 5 câu</span>
+                  <span>{t('home.sampleDuration')}</span>
+                  <span>{t('home.sampleQuestions')}</span>
                 </div>
               </div>
             </div>

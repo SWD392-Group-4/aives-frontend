@@ -1,12 +1,18 @@
 import { Link } from 'react-router-dom'
+import { useLanguage } from '../hooks/useLanguage.js'
 
-/** Logo AIVES.AI, bấm vào để về trang chủ. */
-function Logo({ className = '' }) {
+/**
+ * Logo AIVES.AI, bấm vào để về trang chủ.
+ * compact: ẩn chữ trên màn hình nhỏ, chỉ còn biểu tượng (dùng trong navbar).
+ */
+function Logo({ className = '', compact = false }) {
+  const { t } = useLanguage()
+
   return (
     <Link
       to="/"
-      aria-label="AIVES - về trang chủ"
-      className={`inline-flex items-center gap-2.5 rounded-xl ${className}`}
+      aria-label={t('brand.logoLabel')}
+      className={`inline-flex shrink-0 items-center gap-2.5 rounded-xl ${className}`}
     >
       <svg viewBox="0 0 40 40" fill="none" className="h-9 w-9 shrink-0" aria-hidden="true">
         <rect x="2" y="2" width="36" height="36" rx="12" className="fill-brand-blue" />
@@ -26,7 +32,7 @@ function Logo({ className = '' }) {
         />
         <circle cx="28" cy="10" r="3" className="fill-brand-green" />
       </svg>
-      <span className="text-headline-md font-extrabold tracking-tight">
+      <span className={`text-headline-md font-extrabold tracking-tight ${compact ? 'hidden sm:inline' : ''}`}>
         <span className="text-primary-container">AIVES</span>
         <span className="text-secondary">.AI</span>
       </span>

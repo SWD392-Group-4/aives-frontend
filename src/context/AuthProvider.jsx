@@ -50,9 +50,16 @@ function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
+  // Gọi sau khi cập nhật hồ sơ để navbar và các trang khác thấy thông tin mới.
+  const updateUser = useCallback((nextUser) => {
+    const session = loadSession()
+    if (session) saveSession({ ...session, user: nextUser })
+    setUser(nextUser)
+  }, [])
+
   const value = useMemo(
-    () => ({ user, isAuthenticated: user !== null, login, logout }),
-    [user, login, logout],
+    () => ({ user, isAuthenticated: user !== null, login, logout, updateUser }),
+    [user, login, logout, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

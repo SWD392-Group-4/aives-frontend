@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLanguage } from '../hooks/useLanguage.js'
 import Icon from './Icon.jsx'
 
 /**
@@ -18,6 +19,7 @@ function TextField({
   error,
   required = false,
 }) {
+  const { t } = useLanguage()
   const [showPassword, setShowPassword] = useState(false)
   const isPassword = type === 'password'
   const inputType = isPassword && showPassword ? 'text' : type
@@ -57,7 +59,7 @@ function TextField({
           <button
             type="button"
             onClick={() => setShowPassword((shown) => !shown)}
-            aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+            aria-label={showPassword ? t('field.hidePassword') : t('field.showPassword')}
             className="absolute right-2 flex h-10 w-10 items-center justify-center rounded-full text-outline transition-colors hover:text-on-surface"
           >
             <Icon name={showPassword ? 'visibility_off' : 'visibility'} className="text-xl" />

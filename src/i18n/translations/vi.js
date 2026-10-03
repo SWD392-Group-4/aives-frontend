@@ -1,0 +1,346 @@
+/**
+ * Toàn bộ chữ tiếng Việt của giao diện.
+ * Thêm chữ mới: thêm cùng một khoá ở cả vi.js và en.js, rồi gọi t('nhom.khoa') trong component.
+ * Chỗ có {ten} là biến, truyền vào bằng t('khoa', { ten: giaTri }).
+ */
+const vi = {
+  app: {
+    title: 'AIVES - Thi vấn đáp cùng AI',
+  },
+
+  common: {
+    home: 'Trang chủ',
+    login: 'Đăng nhập',
+    register: 'Đăng ký',
+    logout: 'Đăng xuất',
+    cancel: 'Huỷ',
+    close: 'Đóng',
+    retry: 'Thử lại',
+  },
+
+  language: {
+    label: 'Ngôn ngữ',
+    vi: 'Tiếng Việt',
+    en: 'Tiếng Anh',
+  },
+
+  roles: {
+    ADMIN: 'Quản trị viên',
+    LECTURER: 'Giảng viên',
+    STUDENT: 'Sinh viên',
+  },
+
+  brand: {
+    logoLabel: 'AIVES - về trang chủ',
+    mascotAlt: 'Linh vật robot AIVES',
+  },
+
+  nav: {
+    main: 'Điều hướng chính',
+    features: 'Tính năng',
+    process: 'Quy trình',
+    grading: 'Chấm điểm',
+    manageAccounts: 'Quản lý tài khoản',
+    profileOf: 'Hồ sơ cá nhân của {name}',
+  },
+
+  field: {
+    showPassword: 'Hiện mật khẩu',
+    hidePassword: 'Ẩn mật khẩu',
+  },
+
+  validation: {
+    fullNameRequired: 'Vui lòng nhập họ và tên.',
+    emailRequired: 'Vui lòng nhập email.',
+    emailInvalid: 'Email chưa đúng định dạng, ví dụ: ten@fpt.edu.vn',
+    passwordRequired: 'Vui lòng nhập mật khẩu.',
+    passwordMin: 'Mật khẩu cần ít nhất {min} ký tự.',
+    confirmRequired: 'Vui lòng nhập lại mật khẩu.',
+    confirmMismatch: 'Mật khẩu nhập lại chưa khớp.',
+    currentPasswordRequired: 'Vui lòng nhập mật khẩu hiện tại.',
+    newPasswordMin: 'Mật khẩu mới cần ít nhất {min} ký tự.',
+    newPasswordSame: 'Mật khẩu mới phải khác mật khẩu hiện tại.',
+    confirmNewRequired: 'Vui lòng nhập lại mật khẩu mới.',
+  },
+
+  // Lỗi từ backend, tra theo ErrorCode. Mã nào không có ở đây thì hiện message backend trả về.
+  errors: {
+    NETWORK_ERROR: 'Không kết nối được máy chủ. Hãy kiểm tra backend đã chạy ở cổng 8080 chưa.',
+    SERVER_UNAVAILABLE: 'Máy chủ không phản hồi. Hãy kiểm tra backend đã chạy ở cổng 8080 chưa.',
+    UNKNOWN_ERROR: 'Có lỗi xảy ra, vui lòng thử lại.',
+    VALIDATION_ERROR: 'Dữ liệu gửi lên không hợp lệ.',
+    BAD_REQUEST: 'Yêu cầu không hợp lệ.',
+    INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',
+    ACCOUNT_DISABLED: 'Tài khoản đã bị vô hiệu hoá. Hãy liên hệ quản trị viên.',
+    UNAUTHENTICATED: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.',
+    ACCESS_DENIED: 'Bạn không có quyền thực hiện thao tác này.',
+    EMAIL_ALREADY_EXISTS: 'Email đã tồn tại.',
+    STUDENT_CODE_ALREADY_EXISTS: 'Mã số sinh viên đã tồn tại.',
+    WRONG_CURRENT_PASSWORD: 'Mật khẩu hiện tại không đúng.',
+    CANNOT_DELETE_SELF: 'Không thể tự xoá tài khoản đang đăng nhập.',
+    CANNOT_DISABLE_SELF: 'Không thể tự vô hiệu hoá tài khoản đang đăng nhập.',
+    USER_NOT_FOUND: 'Không tìm thấy người dùng.',
+    NOT_FOUND: 'Không tìm thấy tài nguyên.',
+    DATA_CONFLICT: 'Dữ liệu bị trùng hoặc vi phạm ràng buộc.',
+    INTERNAL_ERROR: 'Lỗi hệ thống, vui lòng thử lại sau.',
+  },
+
+  home: {
+    badges: ['AI hỏi xoáy theo câu trả lời', 'Chấm điểm theo rubric', 'Vấn đáp bằng giọng nói'],
+    title: 'Nền tảng thi vấn đáp thông minh cùng AI',
+    subtitle:
+      'AI đặt câu hỏi, hỏi xoáy theo câu trả lời của sinh viên và gợi ý điểm theo rubric. Giảng viên luôn là người chốt điểm cuối cùng.',
+    ctaStart: 'BẮT ĐẦU NGAY',
+    ctaHaveAccount: 'Tôi đã có tài khoản',
+    greeting: 'Xin chào, {name}',
+    facts: [
+      { value: '3 vai trò', lines: ['Sinh viên, giảng viên', 'và quản trị viên'] },
+      { value: 'Tiếng Việt', lines: ['AI đọc câu hỏi,', 'sinh viên trả lời bằng lời'] },
+      { value: '100%', lines: ['Điểm cuối cùng', 'do giảng viên chốt'] },
+    ],
+
+    featuresBadge: 'TÍNH NĂNG CHÍNH',
+    featuresTitle: 'Trọn vẹn một buổi thi vấn đáp, từ ra đề đến chốt điểm',
+    featuresIntro:
+      'AIVES hỗ trợ giảng viên ở những khâu tốn thời gian nhất: đặt câu hỏi, hỏi sâu và chấm theo rubric.',
+    prevCard: 'Xem thẻ trước',
+    nextCard: 'Xem thẻ tiếp theo',
+    features: [
+      {
+        title: 'Vấn đáp bằng giọng nói',
+        description: 'AI đọc câu hỏi, sinh viên trả lời bằng lời nói và hệ thống tự chuyển thành văn bản.',
+        tag: '01 / Giọng nói',
+      },
+      {
+        title: 'Ngân hàng câu hỏi',
+        description: 'Giảng viên soạn câu hỏi theo từng bài học, chủ đề và gắn rubric chấm điểm cho mỗi câu.',
+        tag: '02 / Câu hỏi',
+      },
+      {
+        title: 'Hỏi xoáy thích ứng',
+        description: 'AI đọc câu trả lời rồi hỏi tiếp khi ý còn thiếu, chưa rõ hoặc mâu thuẫn.',
+        tag: '03 / Hỏi xoáy',
+      },
+      {
+        title: 'Gợi ý điểm theo rubric',
+        description: 'AI đối chiếu câu trả lời với từng tiêu chí, đề xuất điểm kèm nhận xét và trích dẫn.',
+        tag: '04 / Rubric',
+      },
+      {
+        title: 'Giảng viên chốt điểm',
+        description: 'Giảng viên xem lại nội dung hỏi đáp, sửa điểm nếu cần rồi mới công bố kết quả.',
+        tag: '05 / Phê duyệt',
+      },
+      {
+        title: 'Kết quả và phúc khảo',
+        description: 'Sinh viên xem điểm từng câu, đọc nhận xét và gửi phúc khảo khi chưa đồng ý.',
+        tag: '06 / Kết quả',
+      },
+    ],
+
+    stepsBadge: 'QUY TRÌNH TINH GỌN',
+    stepsTitle: 'Một buổi thi vấn đáp chỉ với 3 bước',
+    stepsIntro: 'Chạy ngay trên trình duyệt, chỉ cần micro để trả lời.',
+    stepLabel: 'Bước {number}',
+    steps: [
+      {
+        title: 'Soạn câu hỏi và rubric',
+        description:
+          'Giảng viên tạo câu hỏi theo bài học, gắn rubric gồm các tiêu chí và thang điểm, rồi chọn câu hỏi đưa vào đề thi.',
+        note: 'Dành cho giảng viên',
+      },
+      {
+        title: 'Vào phòng thi, trả lời AI',
+        description:
+          'Sinh viên bật micro và trả lời từng câu. AI nghe câu trả lời, hỏi xoáy thêm khi cần rồi chuyển sang câu tiếp theo.',
+        note: 'Dành cho sinh viên',
+      },
+      {
+        title: 'Nhận điểm sau khi duyệt',
+        description:
+          'AI gợi ý điểm theo từng tiêu chí. Giảng viên rà soát, chốt điểm chính thức và sinh viên xem kết quả.',
+        note: 'Minh bạch, có đối chiếu',
+      },
+    ],
+    stepsCta: 'Tạo tài khoản sinh viên',
+
+    gradingBadge: 'CHẤM ĐIỂM THEO RUBRIC',
+    gradingTitle: 'Điểm số rõ ràng theo từng tiêu chí',
+    gradingIntro:
+      'Mỗi câu trả lời được chấm theo các tiêu chí giảng viên đặt ra. AI đề xuất điểm kèm trích dẫn từ lời nói của sinh viên, giảng viên xem lại rồi mới chốt.',
+    gradingCriteria: ['Kiến thức chuyên môn', 'Phản xạ đối đáp', 'Tư duy phản biện', 'Diễn đạt và bố cục'],
+    gradingSampleNote: 'Số liệu chỉ để minh hoạ.',
+    sampleExam: 'Bài thi mẫu',
+    sampleScore: 'Điểm: {score}',
+    sampleChartLabel: 'Biểu đồ minh hoạ điểm theo 4 tiêu chí',
+    sampleDuration: 'Thời lượng: 14 phút',
+    sampleQuestions: 'Số câu hỏi: 5 câu',
+  },
+
+  auth: {
+    panelBadge: 'AI vấn đáp thông minh',
+    panelTitleLine1: 'Chinh phục',
+    panelTitleHighlight: 'kỳ thi vấn đáp',
+    panelTitleLine3: 'cùng AIVES',
+    panelIntro: 'Trả lời bằng giọng nói, được AI hỏi sâu theo đúng câu trả lời của bạn như trước một hội đồng thật.',
+    chipFollowUpTitle: 'Hỏi xoáy thích ứng',
+    chipFollowUpText: 'Theo câu trả lời của bạn',
+    chipVoiceTitle: 'Hỏi đáp bằng lời',
+    chipVoiceText: 'Nghe câu hỏi, nói câu trả lời',
+    forRoles: 'Dành cho',
+  },
+
+  login: {
+    title: 'Đăng nhập',
+    intro: 'Chào mừng bạn quay lại AIVES. Dùng chung cho sinh viên, giảng viên và quản trị viên.',
+    email: 'Email',
+    emailPlaceholder: 'ten@fpt.edu.vn',
+    password: 'Mật khẩu',
+    passwordPlaceholder: 'Nhập mật khẩu của bạn',
+    submit: 'Đăng nhập',
+    submitting: 'Đang đăng nhập...',
+    registered: 'Đăng ký thành công.',
+    registeredStudentCode: 'Mã số sinh viên của bạn là {code}.',
+    registeredNext: 'Hãy đăng nhập bằng tài khoản vừa tạo.',
+    passwordChanged: 'Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.',
+    noAccount: 'Chưa có tài khoản sinh viên?',
+    registerNow: 'Đăng ký ngay',
+    lecturerNote: 'Tài khoản giảng viên do quản trị viên cấp.',
+  },
+
+  register: {
+    panelBadge: 'Thi vấn đáp cùng AI',
+    panelTitle: 'Khởi đầu cùng',
+    panelIntro: 'Tạo tài khoản sinh viên để vào phòng thi vấn đáp và xem kết quả của bạn.',
+    highlights: [
+      {
+        title: 'Thi vấn đáp 1-1 với AI',
+        description: 'Nghe câu hỏi, trả lời bằng giọng nói và được hỏi sâu thêm theo chính câu trả lời của bạn.',
+      },
+      {
+        title: 'Câu hỏi bám sát bài học',
+        description: 'Đề thi do giảng viên soạn theo từng bài học và chủ đề của môn.',
+      },
+      {
+        title: 'Điểm rõ theo từng tiêu chí',
+        description: 'Xem điểm, nhận xét cho từng câu và gửi phúc khảo khi chưa đồng ý với kết quả.',
+      },
+    ],
+    badge: 'Dành cho sinh viên',
+    title: 'Tạo tài khoản sinh viên',
+    intro: 'Điền thông tin bên dưới để bắt đầu thi vấn đáp cùng AI.',
+    fullName: 'Họ và tên',
+    fullNamePlaceholder: 'Nguyễn Văn An',
+    email: 'Email',
+    emailPlaceholder: 'ten@fpt.edu.vn',
+    emailHint: 'Email này dùng để đăng nhập. Mã số sinh viên sẽ được hệ thống cấp tự động.',
+    password: 'Mật khẩu',
+    passwordPlaceholder: 'Tối thiểu {min} ký tự',
+    confirmPassword: 'Nhập lại mật khẩu',
+    confirmPlaceholder: 'Nhập lại mật khẩu',
+    submit: 'Đăng ký tài khoản',
+    submitting: 'Đang đăng ký...',
+    haveAccount: 'Đã có tài khoản?',
+    loginNow: 'Đăng nhập ngay',
+  },
+
+  admin: {
+    badge: 'Quản trị viên',
+    title: 'Quản lý tài khoản',
+    intro: 'Xem danh sách người dùng, tạo tài khoản và vô hiệu hoá tài khoản khi cần.',
+    createButton: 'Tạo tài khoản',
+    closeNotice: 'Đóng thông báo',
+
+    statTotal: 'Tổng số tài khoản',
+    statLecturers: 'Giảng viên',
+    statStudents: 'Sinh viên',
+    statDisabled: 'Đã vô hiệu hoá',
+
+    filterLabel: 'Lọc theo vai trò',
+    tabAll: 'Tất cả',
+    searchLabel: 'Tìm tài khoản',
+    searchPlaceholder: 'Tìm theo họ tên, email, mã tài khoản, mã số sinh viên',
+
+    loading: 'Đang tải danh sách tài khoản...',
+    empty: 'Không có tài khoản nào khớp với bộ lọc.',
+    showing: 'Hiển thị {shown} trên {total} tài khoản.',
+
+    colUser: 'Người dùng',
+    colId: 'Mã tài khoản',
+    colRole: 'Vai trò',
+    colStudentCode: 'Mã số sinh viên',
+    colStatus: 'Trạng thái',
+    colCreatedAt: 'Ngày tạo',
+    colActions: 'Thao tác',
+    you: '(bạn)',
+    statusActive: 'Đang hoạt động',
+    statusDisabled: 'Đã vô hiệu hoá',
+
+    disableAction: 'Vô hiệu hoá tài khoản {name}',
+    enableAction: 'Kích hoạt lại tài khoản {name}',
+    deleteAction: 'Xoá tài khoản {name}',
+    disableTooltip: 'Vô hiệu hoá',
+    enableTooltip: 'Kích hoạt lại',
+    deleteTooltip: 'Xoá tài khoản',
+    selfDisableTooltip: 'Không thể tự vô hiệu hoá tài khoản đang đăng nhập',
+    selfDeleteTooltip: 'Không thể tự xoá tài khoản đang đăng nhập',
+
+    createTitle: 'Tạo tài khoản mới',
+    roleLegend: 'Vai trò',
+    studentHint: 'Mã số sinh viên được hệ thống cấp tự động.',
+    lecturerHint: 'Giảng viên chỉ có thể được tạo tại đây.',
+    fullName: 'Họ và tên',
+    fullNamePlaceholder: 'Nguyễn Văn An',
+    email: 'Email',
+    initialPassword: 'Mật khẩu ban đầu',
+    passwordPlaceholder: 'Tối thiểu {min} ký tự',
+    passwordHint: 'Người dùng có thể tự đổi mật khẩu trong trang hồ sơ.',
+    createSubmit: 'Tạo tài khoản',
+    creating: 'Đang tạo...',
+
+    disableTitle: 'Vô hiệu hoá tài khoản?',
+    disableMessage:
+      'Tài khoản {name} ({email}) sẽ không đăng nhập được nữa và bị đăng xuất khỏi phiên đang dùng. Bạn có thể kích hoạt lại bất cứ lúc nào.',
+    disableConfirm: 'Vô hiệu hoá',
+    disabling: 'Đang vô hiệu hoá...',
+
+    deleteTitle: 'Xoá tài khoản?',
+    deleteMessage: 'Tài khoản {name} ({email}) sẽ bị xoá và không khôi phục được.',
+    deleteKeep: 'Giữ lại',
+    deleteConfirm: 'Xoá tài khoản',
+    deleting: 'Đang xoá...',
+
+    noticeStudentCreated: 'Đã tạo tài khoản sinh viên {name}. Mã số sinh viên: {code}.',
+    noticeLecturerCreated: 'Đã tạo tài khoản giảng viên {name}. Mã tài khoản: {id}.',
+    noticeDisabled: 'Đã vô hiệu hoá tài khoản {name}.',
+    noticeEnabled: 'Đã kích hoạt lại tài khoản {name}.',
+    noticeDeleted: 'Đã xoá tài khoản {name}.',
+  },
+
+  profile: {
+    title: 'Hồ sơ cá nhân',
+    intro: 'Xem thông tin tài khoản, đổi họ tên và mật khẩu.',
+    email: 'Email',
+    accountId: 'Mã tài khoản',
+    studentCode: 'Mã số sinh viên',
+    createdAt: 'Ngày tạo',
+
+    infoTitle: 'Thông tin cá nhân',
+    infoIntro: 'Email và mã tài khoản không đổi được. Bạn chỉ có thể sửa họ tên.',
+    fullName: 'Họ và tên',
+    save: 'Lưu thay đổi',
+    saving: 'Đang lưu...',
+    saved: 'Đã cập nhật hồ sơ.',
+
+    passwordTitle: 'Đổi mật khẩu',
+    passwordIntro: 'Sau khi đổi mật khẩu, bạn sẽ được đăng xuất và cần đăng nhập lại bằng mật khẩu mới.',
+    currentPassword: 'Mật khẩu hiện tại',
+    newPassword: 'Mật khẩu mới',
+    newPasswordPlaceholder: 'Tối thiểu {min} ký tự',
+    confirmPassword: 'Nhập lại mật khẩu mới',
+    changePassword: 'Đổi mật khẩu',
+    changing: 'Đang đổi...',
+  },
+}
+
+export default vi

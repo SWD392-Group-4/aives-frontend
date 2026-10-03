@@ -41,10 +41,11 @@ export async function apiRequest(path, { method = 'GET', body, auth = true } = {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
   } catch {
+    // Câu hiện cho người dùng được dịch theo `code` (xem src/i18n/errorMessage.js).
     throw new ApiError({
       status: 0,
       code: 'NETWORK_ERROR',
-      message: 'Không kết nối được máy chủ. Hãy kiểm tra backend đã chạy ở cổng 8080 chưa.',
+      message: 'Không kết nối được máy chủ.',
     })
   }
 
@@ -53,14 +54,12 @@ export async function apiRequest(path, { method = 'GET', body, auth = true } = {
 
   if (!response.ok || payload?.success === false) {
     const isValidation = payload?.code === 'VALIDATION_ERROR'
+    // Không có payload JSON: lỗi 5xx thường là backend chưa chạy (proxy trả 502).
+    const fallbackCode = response.status >= 500 ? 'SERVER_UNAVAILABLE' : 'UNKNOWN_ERROR'
     throw new ApiError({
       status: response.status,
-      code: payload?.code ?? 'UNKNOWN_ERROR',
-      message:
-        payload?.message ??
-        (response.status >= 500
-          ? 'Máy chủ không phản hồi. Hãy kiểm tra backend đã chạy ở cổng 8080 chưa.'
-          : 'Có lỗi xảy ra, vui lòng thử lại.'),
+      code: payload?.code ?? fallbackCode,
+      message: payload?.message ?? 'Có lỗi xảy ra, vui lòng thử lại.',
       fieldErrors: isValidation ? payload?.data : undefined,
     })
   }
