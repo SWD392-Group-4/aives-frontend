@@ -3,7 +3,7 @@ import Icon from './Icon.jsx'
 
 /**
  * Nút sao chép một chuỗi vào clipboard. Bấm xong đổi thành dấu tick trong 1,5 giây.
- * Ví dụ: <CopyButton value={session.examCode} label={t('sessions.copyCode')} copiedLabel={t('sessions.copied')} />
+ * Ví dụ: <CopyButton value={session.id} label={t('sessions.copyCode')} copiedLabel={t('sessions.copied')} />
  */
 function CopyButton({ value, label, copiedLabel, className = '' }) {
   const [copied, setCopied] = useState(false)

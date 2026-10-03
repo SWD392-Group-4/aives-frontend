@@ -228,7 +228,6 @@ function ProfilePage() {
   const details = [
     { label: t('profile.email'), value: user.email, icon: 'mail' },
     { label: t('profile.accountId'), value: user.id, icon: 'fingerprint' },
-    ...(user.studentCode ? [{ label: t('profile.studentCode'), value: user.studentCode, icon: 'badge' }] : []),
     { label: t('profile.createdAt'), value: formatDate(user.createdAt, locale), icon: 'calendar_today' },
   ]
 

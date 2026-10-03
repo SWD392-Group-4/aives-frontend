@@ -9,10 +9,7 @@ export function getUsers() {
   return apiRequest('/admin/users')
 }
 
-/**
- * POST /admin/users -> tài khoản vừa tạo.
- * Với role STUDENT, không gửi studentCode thì backend tự sinh mã ngẫu nhiên.
- */
+/** POST /admin/users -> tài khoản vừa tạo. */
 export function createUser({ email, password, fullName, role }) {
   return apiRequest('/admin/users', {
     method: 'POST',

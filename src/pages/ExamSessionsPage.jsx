@@ -310,7 +310,7 @@ function SessionFormModal({ session, onClose, onSaved }) {
 function CredentialsModal({ title, intro, session, onClose }) {
   const { t } = useLanguage()
   const rows = [
-    { label: t('sessions.examCodeLabel'), value: session.examCode, copyLabel: t('sessions.copyCode'), valueClass: 'text-headline-sm' },
+    { label: t('sessions.examCodeLabel'), value: session.id, copyLabel: t('sessions.copyCode'), valueClass: 'text-headline-sm' },
     { label: t('sessions.passcodeLabel'), value: session.passcode, copyLabel: t('sessions.copyPasscode'), valueClass: 'text-headline-lg tracking-[0.3em]' },
   ]
 
@@ -606,8 +606,8 @@ function ExamSessionsPage() {
                           {/* Mã phiên ở dòng trên, mã truy cập (mặc định ẩn) ở dòng dưới */}
                           <td className="px-4 py-4">
                             <div className="flex items-center gap-1 whitespace-nowrap tabular-nums">
-                              {item.examCode}
-                              <CopyButton value={item.examCode} label={t('sessions.copyCode')} copiedLabel={t('sessions.copied')} />
+                              {item.id}
+                              <CopyButton value={item.id} label={t('sessions.copyCode')} copiedLabel={t('sessions.copied')} />
                             </div>
                             <div className="flex items-center gap-1 whitespace-nowrap">
                               <span className="text-body-sm text-on-surface-variant">{t('sessions.passcodeLabel')}:</span>
@@ -759,7 +759,7 @@ function ExamSessionsPage() {
           title={willCancel ? t('sessions.cancelTitle') : t('sessions.deleteTitle')}
           message={t(willCancel ? 'sessions.cancelMessage' : 'sessions.deleteMessage', {
             title: sessionToDelete.title,
-            code: sessionToDelete.examCode,
+            code: sessionToDelete.id,
             count: sessionToDelete.attemptCount,
           })}
           cancelLabel={t('sessions.deleteKeep')}

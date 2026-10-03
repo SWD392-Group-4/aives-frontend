@@ -85,12 +85,8 @@ function RegisterPage() {
         password: form.password,
         fullName: form.fullName.trim(),
       })
-      // Backend không tự đăng nhập sau khi đăng ký, nên chuyển sang trang đăng nhập
-      // và báo cho sinh viên mã số vừa được hệ thống cấp.
-      navigate('/login', {
-        replace: true,
-        state: { registeredEmail: user.email, registeredStudentCode: user.studentCode },
-      })
+      // Backend không tự đăng nhập sau khi đăng ký, nên chuyển sang trang đăng nhập.
+      navigate('/login', { replace: true, state: { registeredEmail: user.email } })
     } catch (error) {
       if (error.code === 'EMAIL_ALREADY_EXISTS') {
         setErrors({ email: getErrorMessage(error, language) })

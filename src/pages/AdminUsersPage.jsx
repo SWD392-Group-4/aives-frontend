@@ -311,7 +311,7 @@ function AdminUsersPage() {
     return users.filter((item) => {
       if (roleFilter && item.role !== roleFilter) return false
       if (!term) return true
-      return [item.fullName, item.email, item.id, item.studentCode]
+      return [item.fullName, item.email, item.id]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(term))
     })
@@ -326,10 +326,10 @@ function AdminUsersPage() {
     setShowCreate(false)
     setNotice({
       type: 'success',
-      text:
-        created.role === ROLES.STUDENT
-          ? t('admin.noticeStudentCreated', { name: created.fullName, code: created.studentCode })
-          : t('admin.noticeLecturerCreated', { name: created.fullName, id: created.id }),
+      text: t(created.role === ROLES.STUDENT ? 'admin.noticeStudentCreated' : 'admin.noticeLecturerCreated', {
+        name: created.fullName,
+        id: created.id,
+      }),
     })
   }
 
@@ -497,13 +497,12 @@ function AdminUsersPage() {
               <p className="px-6 py-16 text-center text-body-md text-on-surface-variant">{t('admin.empty')}</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[860px] text-left">
+                <table className="w-full min-w-[740px] text-left">
                   <thead className="bg-surface-container text-label-sm tracking-wider text-on-surface-variant uppercase">
                     <tr>
                       <th scope="col" className="px-6 py-4">{t('admin.colUser')}</th>
                       <th scope="col" className="px-4 py-4">{t('admin.colId')}</th>
                       <th scope="col" className="px-4 py-4">{t('admin.colRole')}</th>
-                      <th scope="col" className="px-4 py-4">{t('admin.colStudentCode')}</th>
                       <th scope="col" className="px-4 py-4">{t('admin.colStatus')}</th>
                       <th scope="col" className="px-4 py-4">{t('admin.colCreatedAt')}</th>
                       <th scope="col" className="px-6 py-4 text-right">{t('admin.colActions')}</th>
@@ -538,7 +537,6 @@ function AdminUsersPage() {
                               {t(`roles.${item.role}`)}
                             </span>
                           </td>
-                          <td className="px-4 py-4 tabular-nums">{item.studentCode ?? '-'}</td>
                           <td className="px-4 py-4">
                             <span className="inline-flex items-center gap-1.5 text-body-sm whitespace-nowrap">
                               <span className={`h-2 w-2 rounded-full ${item.active ? 'bg-brand-green' : 'bg-outline'}`} />

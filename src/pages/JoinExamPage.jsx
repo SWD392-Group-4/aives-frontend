@@ -16,16 +16,16 @@ const PASSCODE_LENGTH = 6
 
 // Lỗi của backend thuộc về ô nào trong form. Các lỗi khác hiện ở cuối form.
 const ERROR_CODE_FIELDS = {
-  EXAM_CODE_INVALID_FORMAT: 'examCode',
+  EXAM_CODE_INVALID_FORMAT: 'examId',
   EXAM_PASSCODE_INVALID_FORMAT: 'passcode',
 }
 
 function validate(form, t) {
   const errors = {}
-  if (!form.examCode) {
-    errors.examCode = t('join.validation.examCodeRequired')
-  } else if (!EXAM_CODE_PATTERN.test(form.examCode)) {
-    errors.examCode = t('join.validation.examCodeFormat')
+  if (!form.examId) {
+    errors.examId = t('join.validation.examCodeRequired')
+  } else if (!EXAM_CODE_PATTERN.test(form.examId)) {
+    errors.examId = t('join.validation.examCodeFormat')
   }
   if (!form.passcode) {
     errors.passcode = t('join.validation.passcodeRequired')
@@ -39,7 +39,7 @@ function validate(form, t) {
 function JoinExamPage() {
   const { t, language } = useLanguage()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ examCode: '', passcode: '' })
+  const [form, setForm] = useState({ examId: '', passcode: '' })
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -50,7 +50,7 @@ function JoinExamPage() {
     // Mã phiên luôn viết hoa, không có khoảng trắng; mã truy cập chỉ gồm chữ số.
     // Cắt độ dài ở đây chứ không dùng maxLength của input: maxLength cắt trước khi bỏ khoảng trắng,
     // nên dán mã có dấu cách ở đầu sẽ bị mất ký tự cuối.
-    if (name === 'examCode') value = value.replace(/\s/g, '').toUpperCase().slice(0, EXAM_CODE_LENGTH)
+    if (name === 'examId') value = value.replace(/\s/g, '').toUpperCase().slice(0, EXAM_CODE_LENGTH)
     if (name === 'passcode') value = value.replace(/\D/g, '').slice(0, PASSCODE_LENGTH)
     setForm((current) => ({ ...current, [name]: value }))
     setErrors((current) => ({ ...current, [name]: undefined }))
@@ -99,14 +99,14 @@ function JoinExamPage() {
 
           <form className="mt-6 space-y-5" onSubmit={handleSubmit} noValidate>
             <TextField
-              id="examCode"
+              id="examId"
               label={t('join.examCode')}
               icon="tag"
-              value={form.examCode}
+              value={form.examId}
               onChange={handleChange}
               placeholder={t('join.examCodePlaceholder')}
               autoComplete="off"
-              error={errors.examCode}
+              error={errors.examId}
               required
               inputProps={{ autoCapitalize: 'characters', spellCheck: false }}
               inputClassName="tabular-nums"

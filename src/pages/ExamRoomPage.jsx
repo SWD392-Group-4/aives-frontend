@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import ConfirmModal from '../components/ConfirmModal.jsx'
 import Icon from '../components/Icon.jsx'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import Logo from '../components/Logo.jsx'
 import { useLanguage } from '../hooks/useLanguage.js'
 import { getErrorMessage } from '../i18n/errorMessage.js'
-import { getExamAttempt } from '../services/examSessionService.js'
+import { finishExamAttempt, getExamAttempt } from '../services/examSessionService.js'
 import { formatDateTime } from '../utils/dateTime.js'
 
 // Hỏi lại máy chủ mỗi 60 giây để đồng hồ không lệch và biết phiên có bị huỷ không.
@@ -40,6 +41,18 @@ function useExamCountdown(attemptId) {
   const [sync, setSync] = useState(null)
   const [remainingSeconds, setRemainingSeconds] = useState(null)
 
+  // Nhận lượt thi mới nhất từ máy chủ (lúc tải trang, đồng bộ định kỳ, hoặc sau khi bấm kết thúc).
+  const applyAttempt = useCallback((data) => {
+    // Đã kết thúc (bấm kết thúc sớm hoặc hết giờ) thì không còn thời gian, dù chưa tới deadlineAt.
+    const remainingMs =
+      data.status === 'COMPLETED'
+        ? 0
+        : Math.max(new Date(data.deadlineAt).getTime() - new Date(data.serverTime).getTime(), 0)
+    setAttempt(data)
+    setSync({ remainingMs, at: performance.now() })
+    setRemainingSeconds(Math.ceil(remainingMs / 1000))
+  }, [])
+
   // Tải lượt thi, tải lại định kỳ và khi quay lại tab.
   useEffect(() => {
     let cancelled = false
@@ -50,11 +63,8 @@ function useExamCountdown(attemptId) {
         .then((data) => {
           if (cancelled) return
           hasLoaded = true
-          const remainingMs = Math.max(new Date(data.deadlineAt).getTime() - new Date(data.serverTime).getTime(), 0)
-          setAttempt(data)
           setError(null)
-          setSync({ remainingMs, at: performance.now() })
-          setRemainingSeconds(Math.ceil(remainingMs / 1000))
+          applyAttempt(data)
         })
         .catch((apiError) => {
           if (cancelled) return
@@ -75,7 +85,7 @@ function useExamCountdown(attemptId) {
       clearInterval(intervalId)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [attemptId])
+  }, [attemptId, applyAttempt])
 
   // Cập nhật số giây còn lại. Tính lại từ mốc đồng bộ ở mỗi nhịp, nên tab bị trình duyệt làm chậm cũng không lệch.
   useEffect(() => {
@@ -91,16 +101,28 @@ function useExamCountdown(attemptId) {
     return () => clearInterval(intervalId)
   }, [sync])
 
-  return { attempt, error, remainingSeconds }
+  return { attempt, error, remainingSeconds, applyAttempt }
 }
 
 /** Khung chung của phòng thi: thanh trên cùng gọn, không có menu để sinh viên tập trung. */
 function RoomLayout({ children }) {
+  const { t } = useLanguage()
   return (
     <div className="flex min-h-screen w-full flex-col bg-linear-to-b from-hero-from via-primary-container to-hero-to text-on-primary">
-      <header className="mx-auto flex h-20 w-full max-w-5xl items-center justify-between px-4 sm:px-6">
-        <div className="rounded-full bg-surface-container-lowest px-4 py-2">
-          <Logo compact />
+      <header className="mx-auto flex h-20 w-full max-w-5xl items-center justify-between gap-2 px-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2">
+          {/* Rời phòng thi không dừng đồng hồ: máy chủ vẫn tính giờ, vào lại bằng mã phiên + mã truy cập. */}
+          <Link
+            to="/exam/join"
+            title={t('room.backHint')}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface-container-lowest px-4 py-2.5 text-label-md text-primary transition-colors hover:bg-surface-container"
+          >
+            <Icon name="arrow_back" className="text-lg" />
+            {t('room.back')}
+          </Link>
+          <div className="hidden rounded-full bg-surface-container-lowest px-4 py-2 sm:block">
+            <Logo compact />
+          </div>
         </div>
         <div className="rounded-full bg-surface-container-lowest px-2 py-1">
           <LanguageSwitch />
@@ -137,7 +159,15 @@ function RoomLinks() {
 function ExamRoomPage() {
   const { attemptId } = useParams()
   const { t, language, locale } = useLanguage()
-  const { attempt, error, remainingSeconds } = useExamCountdown(attemptId)
+  const { attempt, error, remainingSeconds, applyAttempt } = useExamCountdown(attemptId)
+  const [confirmingFinish, setConfirmingFinish] = useState(false)
+
+  // Gọi từ hộp thoại xác nhận, lỗi sẽ hiện ngay trong hộp thoại.
+  const handleFinish = async () => {
+    const finished = await finishExamAttempt(attemptId)
+    setConfirmingFinish(false)
+    applyAttempt(finished)
+  }
 
   if (error) {
     return (
@@ -168,16 +198,27 @@ function ExamRoomPage() {
   }
 
   if (remainingSeconds === 0) {
+    // Kết thúc trước hạn nghĩa là sinh viên tự bấm "Kết thúc bài thi"; còn lại là hết giờ.
+    const endedEarly =
+      Boolean(attempt.completedAt) && new Date(attempt.completedAt).getTime() < new Date(attempt.deadlineAt).getTime()
     return (
       <RoomLayout>
         <section className="w-full max-w-md rounded-[2rem] bg-surface-container-lowest p-8 text-center text-on-surface shadow-2xl">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-tertiary-fixed text-tertiary">
-            <Icon name="timer_off" filled className="text-4xl" />
+          <div
+            className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${
+              endedEarly ? 'bg-secondary-container text-secondary' : 'bg-tertiary-fixed text-tertiary'
+            }`}
+          >
+            <Icon name={endedEarly ? 'task_alt' : 'timer_off'} filled className="text-4xl" />
           </div>
-          <h1 className="mt-5 text-headline-lg">{t('room.finishedTitle')}</h1>
-          <p className="mt-2 text-body-md text-on-surface-variant">{t('room.finishedMessage')}</p>
+          <h1 className="mt-5 text-headline-lg">{endedEarly ? t('room.submittedTitle') : t('room.finishedTitle')}</h1>
+          <p className="mt-2 text-body-md text-on-surface-variant">
+            {endedEarly
+              ? t('room.submittedMessage', { time: formatDateTime(attempt.completedAt, locale) })
+              : t('room.finishedMessage')}
+          </p>
           <p className="mt-4 text-label-md text-on-surface">{attempt.title}</p>
-          <p className="text-body-sm text-on-surface-variant tabular-nums">{attempt.examCode}</p>
+          <p className="text-body-sm text-on-surface-variant tabular-nums">{attempt.examId}</p>
           <RoomLinks />
         </section>
       </RoomLayout>
@@ -196,7 +237,7 @@ function ExamRoomPage() {
   const barColor = isDanger ? 'bg-error' : isWarning ? 'bg-brand-orange' : 'bg-primary-container'
 
   const details = [
-    { label: t('room.examCode'), value: attempt.examCode },
+    { label: t('room.examCode'), value: attempt.examId },
     { label: t('room.duration'), value: t('room.minutes', { count: attempt.durationMinutes }) },
     { label: t('room.startedAt'), value: formatDateTime(attempt.startedAt, locale) },
     { label: t('room.deadlineAt'), value: formatDateTime(attempt.deadlineAt, locale) },
@@ -243,11 +284,33 @@ function ExamRoomPage() {
           ))}
         </dl>
 
+        <button
+          type="button"
+          onClick={() => setConfirmingFinish(true)}
+          className="mt-8 inline-flex items-center justify-center gap-2 rounded-full bg-error px-8 py-3.5 text-label-lg text-on-error shadow-lg shadow-error/20 transition-opacity hover:opacity-90"
+        >
+          <Icon name="flag" className="text-xl" />
+          {t('room.finishButton')}
+        </button>
+
         <p className="mt-6 flex items-start justify-center gap-2 text-body-sm text-on-surface-variant">
           <Icon name="info" className="text-base text-primary" />
           {t('room.keepOpenNote')}
         </p>
       </section>
+
+      {confirmingFinish && (
+        <ConfirmModal
+          title={t('room.finishTitle')}
+          message={t('room.finishMessage')}
+          cancelLabel={t('room.finishKeep')}
+          confirmLabel={t('room.finishConfirm')}
+          pendingLabel={t('room.finishing')}
+          icon="flag"
+          onClose={() => setConfirmingFinish(false)}
+          onConfirm={handleFinish}
+        />
+      )}
     </RoomLayout>
   )
 }

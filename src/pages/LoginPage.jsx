@@ -31,9 +31,8 @@ function LoginPage() {
   const { t, language } = useLanguage()
   const location = useLocation()
   const navigate = useNavigate()
-  // Trang đăng ký chuyển sang đây kèm email và mã số sinh viên vừa tạo.
+  // Trang đăng ký chuyển sang đây kèm email vừa tạo.
   const registeredEmail = location.state?.registeredEmail ?? ''
-  const registeredStudentCode = location.state?.registeredStudentCode ?? ''
   // Trang hồ sơ chuyển sang đây sau khi đổi mật khẩu.
   const passwordChanged = location.state?.passwordChanged === true
 
@@ -194,13 +193,7 @@ function LoginPage() {
                     <span>{t('login.passwordChanged')}</span>
                   ) : (
                     <span>
-                      {t('login.registered')}{' '}
-                      {registeredStudentCode && (
-                        <>
-                          <strong>{t('login.registeredStudentCode', { code: registeredStudentCode })}</strong>{' '}
-                        </>
-                      )}
-                      {t('login.registeredNext')}
+                      {t('login.registered')} {t('login.registeredNext')}
                     </span>
                   )}
                 </p>

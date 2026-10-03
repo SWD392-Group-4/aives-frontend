@@ -15,7 +15,6 @@ export function login({ email, password }) {
 
 /**
  * POST /auth/register -> user vừa tạo (role luôn là STUDENT).
- * Mã số sinh viên do backend tự sinh ngẫu nhiên, trả về trong user.studentCode.
  */
 export function register({ email, password, fullName }) {
   return apiRequest('/auth/register', {
