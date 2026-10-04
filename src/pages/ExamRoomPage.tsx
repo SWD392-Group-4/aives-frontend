@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import ConfirmModal from '../components/ConfirmModal'
 import Icon from '../components/Icon'
 import LanguageSwitch from '../components/LanguageSwitch'
 import Logo from '../components/Logo'
 import { useLanguage } from '../hooks/useLanguage'
-import { getErrorMessage } from '../i18n/errorMessage'
 import { finishExamAttempt, getExamAttempt } from '../services/examSessionService'
 import { InterviewExchange, VivaAttempt } from '../types'
 import { formatDateTime } from '../utils/dateTime'
@@ -53,12 +52,10 @@ const SAMPLE_EXAM_QUESTIONS: ExamQuestionItem[] = [
 
 export default function ExamRoomPage() {
   const { attemptId } = useParams<{ attemptId: string }>()
-  const navigate = useNavigate()
-  const { t, locale } = useLanguage()
+  const { locale } = useLanguage()
 
   // Thông tin attempt
   const [attempt, setAttempt] = useState<VivaAttempt | null>(null)
-  const [error, setError] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [confirmingFinish, setConfirmingFinish] = useState(false)
 
@@ -71,19 +68,172 @@ export default function ExamRoomPage() {
   // Bộ đếm thời gian
   const [phaseSecondsLeft, setPhaseSecondsLeft] = useState(0)
   const [silenceSeconds, setSilenceSeconds] = useState(0)
-  const [isSpeaking, setIsSpeaking] = useState(false)
   const [liveTranscript, setLiveTranscript] = useState('')
   const [audioLevel, setAudioLevel] = useState(0)
 
   // Tham chiếu Web Speech & Media
   const recognitionRef = useRef<any>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
-  const analyserRef = useRef<AnalyserNode | null>(null)
   const microphoneRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
-  const silenceTimerRef = useRef<any>(null)
 
   const currentQuestion = SAMPLE_EXAM_QUESTIONS[currentQuestionIdx] || SAMPLE_EXAM_QUESTIONS[0]
+
+  // Bắt đầu đọc câu hỏi
+  const startQuestion = useCallback((qIdx: number) => {
+    setCurrentQuestionIdx(qIdx)
+    setFollowUpCount(0)
+    setPhase('TTS_PLAY')
+
+    const question = SAMPLE_EXAM_QUESTIONS[qIdx]
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+      const utter = new SpeechSynthesisUtterance(question.content)
+      utter.lang = 'vi-VN'
+      utter.rate = 1.0
+      utter.onend = () => {
+        setPhase('STUDENT_PREPARE')
+        setPhaseSecondsLeft(question.prepareSeconds)
+      }
+      utter.onerror = () => {
+        setPhase('STUDENT_PREPARE')
+        setPhaseSecondsLeft(question.prepareSeconds)
+      }
+      window.speechSynthesis.speak(utter)
+    } else {
+      setTimeout(() => {
+        setPhase('STUDENT_PREPARE')
+        setPhaseSecondsLeft(question.prepareSeconds)
+      }, 2500)
+    }
+  }, [])
+
+  // Bắt đầu trả lời
+  const startSpeakingPhase = useCallback(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
+    setPhase('STUDENT_SPEAKING')
+    setPhaseSecondsLeft(currentQuestion.answerSeconds)
+    setLiveTranscript('')
+    setSilenceSeconds(0)
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (SpeechRecognition) {
+      try {
+        const recognition = new SpeechRecognition()
+        recognition.continuous = true
+        recognition.interimResults = true
+        recognition.lang = 'vi-VN'
+
+        recognition.onresult = (event: any) => {
+          let full = ''
+          for (let i = 0; i < event.results.length; i++) {
+            full += event.results[i][0].transcript + ' '
+          }
+          setLiveTranscript(full.trim())
+        }
+        recognition.start()
+        recognitionRef.current = recognition
+      } catch (err) {
+        console.warn('SpeechRecognition start error', err)
+      }
+    }
+  }, [currentQuestion.answerSeconds])
+
+  // Kết thúc bài thi
+  const completeExam = useCallback(async () => {
+    setPhase('COMPLETED')
+    try {
+      if (attemptId) {
+        await finishExamAttempt(attemptId)
+      }
+    } catch {}
+  }, [attemptId])
+
+  // Kích hoạt hỏi xoáy thích ứng (BR-VIVA-001/002)
+  const triggerFollowUpQuestion = useCallback(
+    (currentFollowUp: number) => {
+      const nextFollowUp = currentFollowUp + 1
+      setFollowUpCount(nextFollowUp)
+      setPhase('TTS_PLAY')
+
+      const followUpText =
+        nextFollowUp === 1
+          ? 'Bạn giải thích rất hay. Nhưng nếu một lệnh bù trừ trong Saga bị thất bại tiếp thì hệ thống sẽ xử lý thế nào để đảm bảo dữ liệu?'
+          : 'Hãy cho biết thêm về giải pháp Dead Letter Queue trong tình huống này?'
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+        const utter = new SpeechSynthesisUtterance(followUpText)
+        utter.lang = 'vi-VN'
+        utter.rate = 1.0
+        utter.onend = () => {
+          setPhase('STUDENT_PREPARE')
+          setPhaseSecondsLeft(10)
+        }
+        utter.onerror = () => {
+          setPhase('STUDENT_PREPARE')
+          setPhaseSecondsLeft(10)
+        }
+        window.speechSynthesis.speak(utter)
+      } else {
+        setTimeout(() => {
+          setPhase('STUDENT_PREPARE')
+          setPhaseSecondsLeft(10)
+        }, 2000)
+      }
+    },
+    [],
+  )
+
+  // Nộp câu trả lời & AI đánh giá
+  const submitAnswer = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop()
+      } catch {}
+    }
+
+    setPhase('EVAL_AND_DECIDE')
+
+    const currentExchangeText = liveTranscript || 'Thí sinh đã trả lời bằng giọng nói và hệ thống đã ghi lại âm thanh.'
+
+    const newExchange: InterviewExchange = {
+      id: `EX_${Math.random().toString(36).substring(2, 9)}`,
+      attemptId: attemptId || '',
+      questionId: currentQuestion.id,
+      depth: followUpCount,
+      questionText: followUpCount === 0 ? currentQuestion.content : `[Hỏi xoáy ${followUpCount}] Làm rõ thêm câu trả lời trước đó?`,
+      transcript: currentExchangeText,
+      createdAt: '2026-10-04T08:10:00Z',
+    }
+
+    setExchanges((prev) => [...prev, newExchange])
+
+    // Phân tích câu trả lời (giả lập)
+    setTimeout(() => {
+      if (followUpCount < currentQuestion.maxFollowUps && followUpCount === 0) {
+        triggerFollowUpQuestion(followUpCount)
+      } else if (currentQuestionIdx + 1 < SAMPLE_EXAM_QUESTIONS.length) {
+        startQuestion(currentQuestionIdx + 1)
+      } else {
+        completeExam()
+      }
+    }, 2200)
+  }, [
+    attemptId,
+    currentQuestion.content,
+    currentQuestion.id,
+    currentQuestion.maxFollowUps,
+    currentQuestionIdx,
+    followUpCount,
+    liveTranscript,
+    startQuestion,
+    triggerFollowUpQuestion,
+    completeExam,
+  ])
 
   // Tải dữ liệu phiên thi
   useEffect(() => {
@@ -95,7 +245,7 @@ export default function ExamRoomPage() {
           setPhase('COMPLETED')
         }
       })
-      .catch((err: any) => {
+      .catch(() => {
         // Fallback mock nếu chưa có backend
         setAttempt({
           attemptId: attemptId,
@@ -104,9 +254,10 @@ export default function ExamRoomPage() {
           durationMinutes: 45,
           status: 'IN_PROGRESS',
           resultStatus: 'NONE',
-          startedAt: new Date().toISOString(),
-          deadlineAt: new Date(Date.now() + 45 * 60000).toISOString(),
-          serverTime: new Date().toISOString(),
+          startedAt: '2026-10-04T08:00:00Z',
+          deadlineAt: '2026-10-04T08:45:00Z',
+          completedAt: '2026-10-04T08:35:00Z',
+          serverTime: '2026-10-04T08:00:00Z',
           remainingSeconds: 45 * 60,
         })
       })
@@ -124,9 +275,6 @@ export default function ExamRoomPage() {
       }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
-      }
-      if (silenceTimerRef.current) {
-        clearInterval(silenceTimerRef.current)
       }
       if (recognitionRef.current) {
         try {
@@ -156,22 +304,17 @@ export default function ExamRoomPage() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [phase])
+  }, [phase, startSpeakingPhase, submitAnswer])
 
   // Phát hiện khoảng lặng (Silence Detection >= 10s -> Auto Submit theo BR-VIVA-003)
   useEffect(() => {
-    if (phase !== 'STUDENT_SPEAKING') {
-      setSilenceSeconds(0)
-      return
-    }
+    if (phase !== 'STUDENT_SPEAKING') return
 
     const interval = setInterval(() => {
-      // Nếu âm lượng mic thấp < 5 thì coi như khoảng lặng
       if (audioLevel < 5) {
         setSilenceSeconds((prev) => {
           const next = prev + 1
           if (next >= 10) {
-            // Tự động nộp bài vì im lặng quá 10s
             submitAnswer()
             return 0
           }
@@ -183,7 +326,7 @@ export default function ExamRoomPage() {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [phase, audioLevel])
+  }, [phase, audioLevel, submitAnswer])
 
   // Khởi động kiểm tra mic
   const handlePassMicCheck = async () => {
@@ -196,12 +339,10 @@ export default function ExamRoomPage() {
       audioContextRef.current = ctx
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 256
-      analyserRef.current = analyser
 
       const source = ctx.createMediaStreamSource(stream)
       source.connect(analyser)
 
-      // Bắt đầu visualizer
       const updateVolume = () => {
         const dataArray = new Uint8Array(analyser.frequencyBinCount)
         analyser.getByteFrequencyData(dataArray)
@@ -215,169 +356,10 @@ export default function ExamRoomPage() {
       }
       updateVolume()
 
-      // Chuyển sang đọc câu hỏi 1
       startQuestion(0)
-    } catch (err) {
+    } catch {
       alert('Vui lòng cho phép quyền truy cập Micro để tham gia phòng thi vấn đáp!')
     }
-  }
-
-  // Bắt đầu câu hỏi
-  const startQuestion = (qIdx: number) => {
-    setCurrentQuestionIdx(qIdx)
-    setFollowUpCount(0)
-    setPhase('TTS_PLAY')
-
-    const question = SAMPLE_EXAM_QUESTIONS[qIdx]
-
-    // Phát âm câu hỏi qua Web Speech API
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
-      const utter = new SpeechSynthesisUtterance(question.content)
-      utter.lang = 'vi-VN'
-      utter.rate = 1.0
-      utter.onend = () => {
-        // Kết thúc đọc câu hỏi -> Sang thời gian chuẩn bị
-        setPhase('STUDENT_PREPARE')
-        setPhaseSecondsLeft(question.prepareSeconds)
-      }
-      utter.onerror = () => {
-        setPhase('STUDENT_PREPARE')
-        setPhaseSecondsLeft(question.prepareSeconds)
-      }
-      window.speechSynthesis.speak(utter)
-    } else {
-      setTimeout(() => {
-        setPhase('STUDENT_PREPARE')
-        setPhaseSecondsLeft(question.prepareSeconds)
-      }, 2500)
-    }
-  }
-
-  // Bắt đầu trả lời (Mic active + Speech-to-Text)
-  const startSpeakingPhase = () => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
-    }
-    setPhase('STUDENT_SPEAKING')
-    setPhaseSecondsLeft(currentQuestion.answerSeconds)
-    setIsSpeaking(true)
-    setLiveTranscript('')
-    setSilenceSeconds(0)
-
-    // Khởi tạo STT trình duyệt nếu có
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (SpeechRecognition) {
-      try {
-        const recognition = new SpeechRecognition()
-        recognition.continuous = true
-        recognition.interimResults = true
-        recognition.lang = 'vi-VN'
-
-        recognition.onresult = (event: any) => {
-          let full = ''
-          for (let i = 0; i < event.results.length; i++) {
-            full += event.results[i][0].transcript + ' '
-          }
-          setLiveTranscript(full.trim())
-        }
-        recognition.start()
-        recognitionRef.current = recognition
-      } catch (err) {
-        console.warn('SpeechRecognition error', err)
-      }
-    }
-  }
-
-  // Nộp câu trả lời & AI đánh giá
-  const submitAnswer = () => {
-    setIsSpeaking(false)
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop()
-      } catch {}
-    }
-
-    setPhase('EVAL_AND_DECIDE')
-
-    const currentExchangeText = liveTranscript || 'Thí sinh đã trả lời bằng giọng nói và hệ thống đã ghi lại âm thanh.'
-
-    const newExchange: InterviewExchange = {
-      id: `EX_${Date.now()}`,
-      attemptId: attemptId || '',
-      questionId: currentQuestion.id,
-      depth: followUpCount,
-      questionText: followUpCount === 0 ? currentQuestion.content : `[Hỏi xoáy ${followUpCount}] Làm rõ thêm câu trả lời trước đó?`,
-      transcript: currentExchangeText,
-      createdAt: new Date().toISOString(),
-    }
-
-    const updatedExchanges = [...exchanges, newExchange]
-    setExchanges(updatedExchanges)
-
-    // Giả lập AI phân tích câu trả lời (BR-VIVA-001/002)
-    setTimeout(() => {
-      // Nếu chưa đạt trần follow up và là câu đầu tiên -> Giả lập 1 lượt hỏi xoáy
-      if (followUpCount < currentQuestion.maxFollowUps && followUpCount === 0) {
-        triggerFollowUpQuestion()
-      } else {
-        // Đạt yêu cầu hoặc hết quota -> Chuyển câu hỏi tiếp theo
-        goToNextQuestion()
-      }
-    }, 2200)
-  }
-
-  // Kích hoạt hỏi xoáy (Adaptive Follow-up)
-  const triggerFollowUpQuestion = () => {
-    const nextFollowUp = followUpCount + 1
-    setFollowUpCount(nextFollowUp)
-    setPhase('TTS_PLAY')
-
-    const followUpText =
-      nextFollowUp === 1
-        ? 'Bạn giải thích rất hay. Nhưng nếu một lệnh bù trừ trong Saga bị thất bại tiếp thì hệ thống sẽ xử lý thế nào để đảm bảo dữ liệu?'
-        : 'Hãy cho biết thêm về giải pháp Dead Letter Queue trong tình huống này?'
-
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
-      const utter = new SpeechSynthesisUtterance(followUpText)
-      utter.lang = 'vi-VN'
-      utter.rate = 1.0
-      utter.onend = () => {
-        setPhase('STUDENT_PREPARE')
-        setPhaseSecondsLeft(10) // 10 giây chuẩn bị cho câu hỏi xoáy
-      }
-      utter.onerror = () => {
-        setPhase('STUDENT_PREPARE')
-        setPhaseSecondsLeft(10)
-      }
-      window.speechSynthesis.speak(utter)
-    } else {
-      setTimeout(() => {
-        setPhase('STUDENT_PREPARE')
-        setPhaseSecondsLeft(10)
-      }, 2000)
-    }
-  }
-
-  // Chuyển sang câu hỏi chính tiếp theo
-  const goToNextQuestion = () => {
-    if (currentQuestionIdx + 1 < SAMPLE_EXAM_QUESTIONS.length) {
-      startQuestion(currentQuestionIdx + 1)
-    } else {
-      // Đã hoàn thành hết các câu hỏi
-      completeExam()
-    }
-  }
-
-  // Kết thúc bài thi
-  const completeExam = async () => {
-    setPhase('COMPLETED')
-    try {
-      if (attemptId) {
-        await finishExamAttempt(attemptId)
-      }
-    } catch {}
   }
 
   const handleFinishEarly = async () => {
@@ -685,7 +667,7 @@ export default function ExamRoomPage() {
               <div className="flex justify-between">
                 <span>Thời gian nộp:</span>
                 <span className="font-semibold text-on-surface">
-                  {formatDateTime(attempt?.completedAt || new Date().toISOString(), locale)}
+                  {formatDateTime(attempt?.completedAt, locale)}
                 </span>
               </div>
               <div className="flex justify-between">
