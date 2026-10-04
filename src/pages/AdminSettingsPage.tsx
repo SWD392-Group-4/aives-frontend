@@ -9,7 +9,6 @@ import { formatDateTime } from '../utils/dateTime'
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<SystemSetting[]>([])
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
-  const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
