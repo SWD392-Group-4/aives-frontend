@@ -8,7 +8,6 @@ import { formatDateTime } from '../utils/dateTime'
 
 export default function AppealsManagementPage() {
   const [appeals, setAppeals] = useState<GradeAppeal[]>([])
-  const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // Modal xử lý phúc khảo

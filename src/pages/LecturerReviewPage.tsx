@@ -2,20 +2,16 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Icon from '../components/Icon'
 import Navbar from '../components/Navbar'
-import { useLanguage } from '../hooks/useLanguage'
 import { gradingService } from '../services/gradingService'
 import { QuestionGrade, VivaAttempt } from '../types'
-import { formatDateTime } from '../utils/dateTime'
 
 export default function LecturerReviewPage() {
   const { attemptId } = useParams<{ attemptId?: string }>()
-  const { t, locale } = useLanguage()
 
   const [attempts, setAttempts] = useState<VivaAttempt[]>([])
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(attemptId || null)
   const [currentAttempt, setCurrentAttempt] = useState<VivaAttempt | null>(null)
   const [questionGrades, setQuestionGrades] = useState<QuestionGrade[]>([])
-  const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // Điểm số và ghi chú giảng viên nhập

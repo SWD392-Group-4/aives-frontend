@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import ConfirmModal from '../components/ConfirmModal'
-import ErrorBanner from '../components/ErrorBanner'
 import Icon from '../components/Icon'
 import Navbar from '../components/Navbar'
 import { useAuth } from '../hooks/useAuth'
@@ -13,13 +11,13 @@ import { formatDateTime } from '../utils/dateTime'
 export default function StudentResultsPage() {
   const { attemptId } = useParams<{ attemptId?: string }>()
   const { user } = useAuth()
-  const { t, locale } = useLanguage()
+  const { locale } = useLanguage()
 
   const [attempts, setAttempts] = useState<VivaAttempt[]>([])
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(attemptId || null)
   const [attemptDetail, setAttemptDetail] = useState<VivaAttempt | null>(null)
   const [questionGrades, setQuestionGrades] = useState<QuestionGrade[]>([])
-  const [loading, setLoading] = useState(true)
+  const [_loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Modal nộp đơn phúc khảo
@@ -41,12 +39,11 @@ export default function StudentResultsPage() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [user?.id])
+  }, [user?.id, selectedAttemptId])
 
   // Khi chọn một lượt thi, tải chi tiết kết quả
   useEffect(() => {
     if (!selectedAttemptId) return
-    setLoading(true)
     setError(null)
     gradingService
       .getStudentAttemptResult(selectedAttemptId, user?.id || '')
@@ -63,7 +60,7 @@ export default function StudentResultsPage() {
         }
       })
       .finally(() => setLoading(false))
-  }, [selectedAttemptId, attempts])
+  }, [selectedAttemptId, attempts, user?.id])
 
   // Xử lý nộp đơn phúc khảo
   const handleOpenAppeal = (qg: QuestionGrade) => {

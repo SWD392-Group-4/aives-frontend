@@ -63,7 +63,7 @@ export default function ExamRoomPage() {
   const [phase, setPhase] = useState<RoomPhase>('MIC_CHECK')
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0)
   const [followUpCount, setFollowUpCount] = useState(0)
-  const [exchanges, setExchanges] = useState<InterviewExchange[]>([])
+  const [_exchanges, setExchanges] = useState<InterviewExchange[]>([])
 
   // Bộ đếm thời gian
   const [phaseSecondsLeft, setPhaseSecondsLeft] = useState(0)

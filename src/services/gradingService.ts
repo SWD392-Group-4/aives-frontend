@@ -351,7 +351,7 @@ export const gradingService = {
   },
 
   // Sinh viên xem kết quả lượt thi của mình
-  async getStudentAttemptResult(attemptId: string, studentId: string): Promise<{
+  async getStudentAttemptResult(attemptId: string, _studentId: string): Promise<{
     attempt: VivaAttempt
     questionGrades: QuestionGrade[]
   }> {
@@ -370,7 +370,7 @@ export const gradingService = {
   },
 
   // Lấy các bài thi sinh viên đã hoàn thành
-  async getStudentCompletedAttempts(studentId?: string): Promise<VivaAttempt[]> {
+  async getStudentCompletedAttempts(_studentId?: string): Promise<VivaAttempt[]> {
     return mockAttempts.filter((a) => a.status === 'COMPLETED')
   },
 

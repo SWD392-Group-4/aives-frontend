@@ -2,22 +2,16 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from '../components/Icon'
 import Navbar from '../components/Navbar'
-import { useLanguage } from '../hooks/useLanguage'
 import { contentService } from '../services/contentService'
-import { BloomLevel, Lesson, Question, QuestionStatus, Rubric, Topic } from '../types'
-import { formatDateTime } from '../utils/dateTime'
+import { BloomLevel, Question, QuestionStatus, Rubric, Topic } from '../types'
 
 export default function QuestionBankPage() {
-  const { t, locale } = useLanguage()
-
-  const [lessons, setLessons] = useState<Lesson[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [rubrics, setRubrics] = useState<Rubric[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
   const [selectedTopicId, setSelectedTopicId] = useState<string>('ALL')
   const [selectedBloom, setSelectedBloom] = useState<string>('ALL')
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL')
-  const [loading, setLoading] = useState(true)
 
   // Modal tạo câu hỏi thủ công
   const [manualModalOpen, setManualModalOpen] = useState(false)
