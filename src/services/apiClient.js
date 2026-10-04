@@ -5,7 +5,15 @@ import { getAccessToken } from './tokenStorage.js'
  * Khi dev để mặc định '/api': Vite chuyển tiếp sang http://localhost:8080 (xem vite.config.js).
  * Khi deploy có thể đặt biến VITE_API_BASE_URL, ví dụ https://aives.example.com/api
  */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
+let normalizedBase = '/api'
+if (rawBaseUrl) {
+  normalizedBase = rawBaseUrl.replace(/\/+$/, '')
+  if (!normalizedBase.endsWith('/api') && normalizedBase.startsWith('http')) {
+    normalizedBase = `${normalizedBase}/api`
+  }
+}
+const API_BASE_URL = normalizedBase
 
 /**
  * Lỗi trả về từ backend, theo đúng ApiResponse của aives-backend:
@@ -40,26 +48,31 @@ export async function apiRequest(path, { method = 'GET', body, auth = true } = {
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
-  } catch {
-    // Câu hiện cho người dùng được dịch theo `code` (xem src/i18n/errorMessage.js).
+  } catch (err) {
+    // Lỗi mạng hoặc CORS do trình duyệt chặn
+    console.error('[API Network Error]', err, `URL: ${API_BASE_URL}${path}`)
     throw new ApiError({
       status: 0,
       code: 'NETWORK_ERROR',
-      message: 'Không kết nối được máy chủ.',
+      message: 'Không kết nối được máy chủ. Vui lòng kiểm tra địa chỉ backend hoặc cấu hình CORS.',
     })
   }
 
-  // Backend luôn trả JSON; nếu không đọc được (ví dụ backend chưa chạy, proxy trả 502) thì payload = null.
-  const payload = await response.json().catch(() => null)
+  // Backend luôn trả JSON; nếu không đọc được (ví dụ backend chưa chạy, proxy trả 502, hoặc Vercel trả HTML index.html)
+  const isJson = response.headers.get('content-type')?.includes('application/json')
+  const payload = isJson ? await response.json().catch(() => null) : null
 
-  if (!response.ok || payload?.success === false) {
+  if (!response.ok || payload?.success === false || payload === null) {
     const isValidation = payload?.code === 'VALIDATION_ERROR'
-    // Không có payload JSON: lỗi 5xx thường là backend chưa chạy (proxy trả 502).
-    const fallbackCode = response.status >= 500 ? 'SERVER_UNAVAILABLE' : 'UNKNOWN_ERROR'
+    const fallbackCode = response.status >= 500 ? 'SERVER_UNAVAILABLE' : 'NETWORK_ERROR'
+    const fallbackMessage = !isJson
+      ? 'Phản hồi từ máy chủ không phải JSON (có thể do URL VITE_API_BASE_URL chưa đúng hoặc backend chưa sẵn sàng).'
+      : (payload?.message ?? 'Có lỗi xảy ra, vui lòng thử lại.')
+
     throw new ApiError({
       status: response.status,
       code: payload?.code ?? fallbackCode,
-      message: payload?.message ?? 'Có lỗi xảy ra, vui lòng thử lại.',
+      message: fallbackMessage,
       fieldErrors: isValidation ? payload?.data : undefined,
     })
   }
