@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import ConfirmModal from '../components/ConfirmModal.jsx'
 import CopyButton from '../components/CopyButton.jsx'
 import ErrorBanner from '../components/ErrorBanner.jsx'
@@ -643,6 +644,14 @@ function ExamSessionsPage() {
                           <td className="px-4 py-4 text-right tabular-nums">{item.attemptCount}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-end gap-1">
+                              <Link
+                                to={`/lecturer/reviews?examId=${encodeURIComponent(item.id)}`}
+                                aria-label={`Thẩm định bài thi ca ${item.title}`}
+                                title="Thẩm định điểm (HITL Board)"
+                                className={`${iconButtonClass} text-secondary hover:bg-secondary-container`}
+                              >
+                                <Icon name="fact_check" className="text-xl" />
+                              </Link>
                               <button
                                 type="button"
                                 onClick={() => setFormTarget(item)}
