@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom'
 import Icon from '../components/Icon'
 import Navbar from '../components/Navbar'
 import { contentService } from '../services/contentService'
-import { BloomLevel, Question, QuestionStatus, Rubric, Topic } from '../types'
+import { BloomLevel, Lesson, Question, QuestionStatus, Rubric, Topic } from '../types'
 
 export default function QuestionBankPage() {
+  const [_lessons, setLessons] = useState<Lesson[]>([])
+  const [_loading, setLoading] = useState(true)
   const [topics, setTopics] = useState<Topic[]>([])
   const [rubrics, setRubrics] = useState<Rubric[]>([])
   const [questions, setQuestions] = useState<Question[]>([])

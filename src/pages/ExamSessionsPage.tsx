@@ -6,7 +6,7 @@ import ErrorBanner from '../components/ErrorBanner.jsx'
 import Icon from '../components/Icon.jsx'
 import Modal from '../components/Modal.jsx'
 import Navbar from '../components/Navbar.jsx'
-import TextField from '../components/TextField.jsx'
+import TextField from '../components/TextField'
 import { ROLES } from '../constants/roles.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { useLanguage } from '../hooks/useLanguage.js'
@@ -17,7 +17,7 @@ import {
   getExamSessions,
   regeneratePasscode,
   updateExamSession,
-} from '../services/examSessionService.js'
+} from '../services/examSessionService'
 import {
   dateToInputValue,
   formatDateTime,
@@ -96,8 +96,8 @@ function resolveDate(inputValue, originalIso) {
  * session = null khi tạo mới. session.scheduleLocked = true khi phiên đã mở
  * (giờ mở và thời lượng bị khoá, giờ đóng chỉ được kéo dài).
  */
-function validate(form, session, t) {
-  const errors = {}
+function validate(form: any, session: any, t: any) {
+  const errors: Record<string, string> = {}
   const locked = session?.scheduleLocked === true
 
   const title = form.title.trim()
@@ -147,14 +147,14 @@ function SessionFormModal({ session, onClose, onSaved }) {
   const isEdit = session !== null
   const locked = session?.scheduleLocked === true
   const [form, setForm] = useState(() => (isEdit ? sessionToForm(session) : createEmptyForm()))
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const handleChange = (event) => {
     const { name, value } = event.target
     setForm((current) => ({ ...current, [name]: value }))
-    setErrors((current) => ({ ...current, [name]: undefined }))
+    setErrors((current) => ({ ...current, [name]: undefined as any }))
     setFormError('')
   }
 

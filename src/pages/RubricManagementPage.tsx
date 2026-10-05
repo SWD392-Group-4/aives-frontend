@@ -14,6 +14,7 @@ interface CriterionInput {
 
 export default function RubricManagementPage() {
   const [rubrics, setRubrics] = useState<Rubric[]>([])
+  const [_loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
