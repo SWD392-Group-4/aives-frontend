@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../components/Icon.jsx'
 import Navbar from '../components/Navbar.jsx'
-import TextField from '../components/TextField.jsx'
+import TextField from '../components/TextField'
 import { useAuth } from '../hooks/useAuth.js'
 import { useLanguage } from '../hooks/useLanguage.js'
 import { getErrorMessage } from '../i18n/errorMessage.js'
@@ -108,19 +108,19 @@ function PasswordForm() {
   const { t, language } = useLanguage()
   const navigate = useNavigate()
   const [form, setForm] = useState(EMPTY_PASSWORD_FORM)
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const handleChange = (event) => {
     const { name, value } = event.target
     setForm((current) => ({ ...current, [name]: value }))
-    setErrors((current) => ({ ...current, [name]: undefined }))
+    setErrors((current) => ({ ...current, [name]: undefined as any }))
     setFormError('')
   }
 
   const validate = () => {
-    const nextErrors = {}
+    const nextErrors: Record<string, string> = {}
     if (!form.currentPassword) {
       nextErrors.currentPassword = t('validation.currentPasswordRequired')
     }

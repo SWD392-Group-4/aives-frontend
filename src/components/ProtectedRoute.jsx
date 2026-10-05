@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth.js'
  *   <ProtectedRoute roles={['ADMIN']}>...</ProtectedRoute>  -> phải đúng role
  * Backend vẫn kiểm tra quyền ở mọi API; phần này chỉ để điều hướng giao diện.
  */
-function ProtectedRoute({ roles, children }) {
+function ProtectedRoute({ roles = null, children }) {
   const { user } = useAuth()
   const location = useLocation()
 

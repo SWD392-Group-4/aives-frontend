@@ -17,6 +17,7 @@ export default function LecturerReviewPage() {
   // Điểm số và ghi chú giảng viên nhập
   const [editableScores, setEditableScores] = useState<Record<string, { finalScore: number; lecturerNote: string }>>({})
   const [publishing, setPublishing] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   // Tải danh sách lượt thi
   const loadAttempts = async () => {
@@ -172,42 +173,52 @@ export default function LecturerReviewPage() {
               <Icon name="assignment_ind" /> Bài nộp chờ thẩm định ({attempts.length})
             </h2>
 
-            {attempts.map((att) => {
-              const isSelected = att.attemptId === selectedAttemptId
-              const isPublished = att.resultStatus === 'PUBLISHED'
+            {loading ? (
+              <div className="rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-6 text-center text-body-sm text-on-surface-variant">
+                Đang tải danh sách bài nộp...
+              </div>
+            ) : attempts.length === 0 ? (
+              <div className="rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-6 text-center text-body-sm text-on-surface-variant">
+                Chưa có bài thi nào nộp để thẩm định.
+              </div>
+            ) : (
+              attempts.map((att) => {
+                const isSelected = att.attemptId === selectedAttemptId
+                const isPublished = att.resultStatus === 'PUBLISHED'
 
-              return (
-                <button
-                  key={att.attemptId}
-                  type="button"
-                  onClick={() => setSelectedAttemptId(att.attemptId)}
-                  className={`w-full text-left rounded-2xl border p-4 transition-all ${
-                    isSelected
-                      ? 'border-primary bg-surface-container shadow-md'
-                      : 'border-outline-variant/40 bg-surface-container-lowest hover:border-primary/50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-label-xs font-mono font-bold text-primary">{att.studentId}</span>
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-label-xs font-semibold ${
-                        isPublished ? 'bg-secondary-container text-secondary' : 'bg-tertiary-fixed text-tertiary'
-                      }`}
-                    >
-                      {isPublished ? 'ĐÃ CÔNG BỐ' : 'CHỜ THẨM ĐỊNH'}
-                    </span>
-                  </div>
+                return (
+                  <button
+                    key={att.attemptId}
+                    type="button"
+                    onClick={() => setSelectedAttemptId(att.attemptId)}
+                    className={`w-full text-left rounded-2xl border p-4 transition-all ${
+                      isSelected
+                        ? 'border-primary bg-surface-container shadow-md'
+                        : 'border-outline-variant/40 bg-surface-container-lowest hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-label-xs font-mono font-bold text-primary">{att.studentId}</span>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-label-xs font-semibold ${
+                          isPublished ? 'bg-secondary-container text-secondary' : 'bg-tertiary-fixed text-tertiary'
+                        }`}
+                      >
+                        {isPublished ? 'ĐÃ CÔNG BỐ' : 'CHỜ THẨM ĐỊNH'}
+                      </span>
+                    </div>
 
-                  <h3 className="mt-2 text-label-md font-bold text-on-surface">{att.studentName}</h3>
-                  <p className="text-body-xs text-on-surface-variant line-clamp-1">{att.title}</p>
+                    <h3 className="mt-2 text-label-md font-bold text-on-surface">{att.studentName}</h3>
+                    <p className="text-body-xs text-on-surface-variant line-clamp-1">{att.title}</p>
 
-                  <div className="mt-3 flex items-center justify-between border-t border-outline-variant/30 pt-2 text-label-xs">
-                    <span className="text-outline">Điểm AI gợi ý:</span>
-                    <span className="font-bold text-primary">{att.totalAiScore} / 10</span>
-                  </div>
-                </button>
-              )
-            })}
+                    <div className="mt-3 flex items-center justify-between border-t border-outline-variant/30 pt-2 text-label-xs">
+                      <span className="text-outline">Điểm AI gợi ý:</span>
+                      <span className="font-bold text-primary">{att.totalAiScore} / 10</span>
+                    </div>
+                  </button>
+                )
+              })
+            )}
           </div>
 
           {/* Cột phải: Chi tiết thẩm định từng câu hỏi (8 cols) */}

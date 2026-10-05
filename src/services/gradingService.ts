@@ -275,8 +275,12 @@ export const gradingService = {
   async getExamAttempts(examId?: string): Promise<VivaAttempt[]> {
     try {
       const url = examId ? `/exam-sessions/${examId}/attempts` : '/grading/attempts'
-      const res = await apiRequest<{ data: VivaAttempt[] }>(url)
-      return res.data
+      const res = await apiRequest<VivaAttempt[] | { data: VivaAttempt[] }>(url)
+      const list = Array.isArray(res) ? res : res?.data ?? []
+      if (list.length > 0) {
+        return examId ? list.filter((a) => a.examId === examId) : list
+      }
+      return examId ? mockAttempts.filter((a) => a.examId === examId) : [...mockAttempts]
     } catch {
       if (examId) {
         return mockAttempts.filter((a) => a.examId === examId)

@@ -701,16 +701,19 @@ export default function ExamRoomPage() {
       </main>
 
       {/* Modal xác nhận nộp bài sớm */}
-      <ConfirmModal
-        open={confirmingFinish}
-        title="Xác nhận kết thúc bài thi sớm?"
-        message="Bạn có chắc chắn muốn nộp bài thi ngay bây giờ? Sau khi nộp, bạn sẽ không thể quay lại phòng thi này nữa."
-        confirmText="Xác nhận nộp bài"
-        cancelText="Tiếp tục thi"
-        danger
-        onConfirm={handleFinishEarly}
-        onClose={() => setConfirmingFinish(false)}
-      />
+      {confirmingFinish && (
+        <ConfirmModal
+          title="Xác nhận kết thúc bài thi sớm?"
+          message="Bạn có chắc chắn muốn nộp bài thi ngay bây giờ? Sau khi nộp, bạn sẽ không thể quay lại phòng thi này nữa."
+          confirmLabel="Xác nhận nộp bài"
+          cancelLabel="Tiếp tục thi"
+          pendingLabel="Đang nộp bài..."
+          icon="check_circle"
+          danger
+          onConfirm={handleFinishEarly}
+          onClose={() => setConfirmingFinish(false)}
+        />
+      )}
     </div>
   )
 }
