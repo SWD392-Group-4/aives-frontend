@@ -1,4 +1,4 @@
-import { getAccessToken } from './tokenStorage.js'
+import { clearSession, getAccessToken } from './tokenStorage'
 
 /**
  * Địa chỉ gốc của backend.
@@ -15,12 +15,23 @@ if (rawBaseUrl) {
 }
 const API_BASE_URL = normalizedBase
 
+export interface ApiErrorParams {
+  status: number
+  code: string
+  message: string
+  fieldErrors?: Record<string, string>
+}
+
 /**
  * Lỗi trả về từ backend, theo đúng ApiResponse của aives-backend:
  *   { success: false, code: 'EMAIL_ALREADY_EXISTS', message: '...', data: {...} }
  */
 export class ApiError extends Error {
-  constructor({ status, code, message, fieldErrors }) {
+  status: number
+  code: string
+  fieldErrors: Record<string, string>
+
+  constructor({ status, code, message, fieldErrors }: ApiErrorParams) {
     super(message)
     this.name = 'ApiError'
     this.status = status // HTTP status, 0 nếu không kết nối được
@@ -29,19 +40,29 @@ export class ApiError extends Error {
   }
 }
 
+export interface ApiRequestOptions {
+  method?: string
+  body?: unknown
+  auth?: boolean
+}
+
 /**
  * Gọi API và trả về phần `data` trong ApiResponse.
- * Ví dụ: const user = await apiRequest('/auth/me')
- *        await apiRequest('/auth/login', { method: 'POST', body: { email, password } })
+ * Hỗ trợ generic type <T>:
+ *   const user = await apiRequest<User>('/auth/me')
+ *   const exams = await apiRequest<ExamSession[]>('/exam-sessions')
  */
-export async function apiRequest(path, { method = 'GET', body, auth = true } = {}) {
-  const headers = { Accept: 'application/json' }
+export async function apiRequest<T = any>(
+  path: string,
+  { method = 'GET', body, auth = true }: ApiRequestOptions = {}
+): Promise<T> {
+  const headers: Record<string, string> = { Accept: 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
 
   const token = auth ? getAccessToken() : null
   if (token) headers.Authorization = `Bearer ${token}`
 
-  let response
+  let response: Response
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
@@ -63,6 +84,14 @@ export async function apiRequest(path, { method = 'GET', body, auth = true } = {
   const payload = isJson ? await response.json().catch(() => null) : null
 
   if (!response.ok || payload?.success === false || payload === null) {
+    // Tự động xoá session và kích hoạt sự kiện đăng xuất khi token hết hạn (401)
+    if (response.status === 401 && auth && path !== '/auth/login' && path !== '/auth/register') {
+      clearSession()
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'))
+      }
+    }
+
     const isValidation = payload?.code === 'VALIDATION_ERROR'
     const fallbackCode = response.status >= 500 ? 'SERVER_UNAVAILABLE' : 'NETWORK_ERROR'
     const fallbackMessage = !isJson
@@ -77,5 +106,5 @@ export async function apiRequest(path, { method = 'GET', body, auth = true } = {
     })
   }
 
-  return payload?.data ?? null
+  return (payload?.data ?? null) as T
 }
