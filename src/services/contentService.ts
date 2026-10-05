@@ -188,8 +188,8 @@ export const contentService = {
   // Lessons
   async getLessons(): Promise<Lesson[]> {
     try {
-      const res = await apiRequest<{ data: Lesson[] }>('/content/lessons')
-      return res.data
+      const res = await apiRequest<Lesson[] | { data: Lesson[] }>('/content/lessons')
+      return Array.isArray(res) ? res : res?.data ?? [...mockLessons]
     } catch {
       return [...mockLessons]
     }
@@ -213,8 +213,12 @@ export const contentService = {
   async getTopics(lessonId?: string): Promise<Topic[]> {
     try {
       const url = lessonId ? `/content/topics?lessonId=${lessonId}` : '/content/topics'
-      const res = await apiRequest<{ data: Topic[] }>(url)
-      return res.data
+      const res = await apiRequest<Topic[] | { data: Topic[] }>(url)
+      const list = Array.isArray(res) ? res : res?.data ?? []
+      if (list.length > 0) {
+        return lessonId ? list.filter((t) => t.lessonId === lessonId) : list
+      }
+      return lessonId ? mockTopics.filter((t) => t.lessonId === lessonId) : [...mockTopics]
     } catch {
       if (lessonId) {
         return mockTopics.filter((t) => t.lessonId === lessonId)
@@ -243,8 +247,8 @@ export const contentService = {
   // Rubrics
   async getRubrics(): Promise<Rubric[]> {
     try {
-      const res = await apiRequest<{ data: Rubric[] }>('/content/rubrics')
-      return res.data
+      const res = await apiRequest<Rubric[] | { data: Rubric[] }>('/content/rubrics')
+      return Array.isArray(res) ? res : res?.data ?? [...mockRubrics]
     } catch {
       return [...mockRubrics]
     }
@@ -286,8 +290,12 @@ export const contentService = {
   async getQuestions(topicId?: string): Promise<Question[]> {
     try {
       const url = topicId ? `/content/questions?topicId=${topicId}` : '/content/questions'
-      const res = await apiRequest<{ data: Question[] }>(url)
-      return res.data
+      const res = await apiRequest<Question[] | { data: Question[] }>(url)
+      const list = Array.isArray(res) ? res : res?.data ?? []
+      if (list.length > 0) {
+        return topicId ? list.filter((q) => q.topicId === topicId) : list
+      }
+      return topicId ? mockQuestions.filter((q) => q.topicId === topicId) : [...mockQuestions]
     } catch {
       if (topicId) {
         return mockQuestions.filter((q) => q.topicId === topicId)

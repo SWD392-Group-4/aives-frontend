@@ -1,4 +1,4 @@
-import { apiRequest } from './apiClient.js'
+import { apiRequest } from './apiClient'
 
 /**
  * API quản lý tài khoản dành cho ADMIN (AdminUserController, prefix /api/admin/users).
