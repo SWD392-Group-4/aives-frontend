@@ -16,6 +16,7 @@ export default function AppealsManagementPage() {
   const [scoreAfter, setScoreAfter] = useState<number>(0)
   const [responseMsg, setResponseMsg] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [_loading, setLoading] = useState(true)
 
   const loadAppeals = async () => {
     try {
