@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Icon from '../components/Icon.jsx'
 import Modal from '../components/Modal.jsx'
 import Navbar from '../components/Navbar.jsx'
-import TextField from '../components/TextField.jsx'
+import TextField from '../components/TextField'
 import { ROLE_BADGE_CLASSES, ROLES } from '../constants/roles.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { useLanguage } from '../hooks/useLanguage.js'
@@ -24,8 +24,8 @@ const CREATABLE_ROLES = [
 
 const EMPTY_FORM = { role: ROLES.STUDENT, fullName: '', email: '', password: '' }
 
-function validate(form, t) {
-  const errors = {}
+function validate(form: typeof EMPTY_FORM, t: (key: string, params?: any) => string) {
+  const errors: Record<string, string> = {}
   if (!form.fullName.trim()) {
     errors.fullName = t('validation.fullNameRequired')
   }
@@ -68,7 +68,7 @@ function ErrorBanner({ children }) {
 function CreateUserModal({ onClose, onCreated }) {
   const { t, language } = useLanguage()
   const [form, setForm] = useState(EMPTY_FORM)
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -77,7 +77,7 @@ function CreateUserModal({ onClose, onCreated }) {
   const handleChange = (event) => {
     const { name, value } = event.target
     setForm((current) => ({ ...current, [name]: value }))
-    setErrors((current) => ({ ...current, [name]: undefined }))
+    setErrors((current) => ({ ...current, [name]: undefined as any }))
     setFormError('')
   }
 

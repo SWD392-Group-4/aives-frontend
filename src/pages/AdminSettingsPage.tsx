@@ -12,6 +12,7 @@ export default function AdminSettingsPage() {
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [_loading, setLoading] = useState(true)
 
   const loadData = async () => {
     try {
