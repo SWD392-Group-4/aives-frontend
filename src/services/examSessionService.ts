@@ -27,6 +27,8 @@ export interface CreateExamSessionPayload {
   startAt: string
   endAt: string
   durationMinutes: number
+  /** Số lượt thi tối đa của mỗi sinh viên trong phiên (1-10). Bỏ trống: 1 khi tạo, giữ nguyên khi sửa. */
+  maxAttempts?: number
 }
 
 /* ---------- LECTURER / ADMIN: quản lý phiên (ExamSessionController) ---------- */
@@ -90,7 +92,8 @@ export interface JoinExamSessionPayload {
 }
 
 /**
- * POST /exam-sessions/join -> lượt thi
+ * POST /exam-sessions/join -> lượt thi (có attemptNo, maxAttempts).
+ * Đang có lượt thi chưa xong thì nhận lại lượt đó; đã xong và còn lượt (attemptNo < maxAttempts) thì tạo lượt mới.
  */
 export function joinExamSession({ examId, passcode }: JoinExamSessionPayload): Promise<VivaAttempt> {
   return apiRequest<VivaAttempt>('/exam-sessions/join', {
@@ -101,7 +104,7 @@ export function joinExamSession({ examId, passcode }: JoinExamSessionPayload): P
 
 /**
  * POST /exam-sessions/attempts/{attemptId}/finish -> lượt thi với status = 'COMPLETED'.
- * Sinh viên chủ động kết thúc bài thi; sau đó không vào lại phiên này được nữa.
+ * Sinh viên chủ động kết thúc lượt thi này. Muốn thi lại phải còn lượt thi của phiên.
  */
 export function finishExamAttempt(attemptId: string): Promise<VivaAttempt> {
   return apiRequest<VivaAttempt>(`/exam-sessions/attempts/${encodeURIComponent(attemptId)}/finish`, {

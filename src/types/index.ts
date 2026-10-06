@@ -80,6 +80,7 @@ export interface ExamSession {
   startAt: string
   endAt: string
   durationMinutes: number
+  maxAttempts: number // số lượt thi tối đa của mỗi sinh viên trong phiên (1-10)
   maxFollowUpPerQuestion: number
   prepareSeconds: number
   answerSeconds: number
@@ -100,6 +101,8 @@ export interface VivaAttempt {
   examId: string
   title: string
   durationMinutes: number
+  attemptNo: number // lượt thi thứ mấy của sinh viên trong phiên
+  maxAttempts: number // số lượt thi tối đa của mỗi sinh viên trong phiên
   status: AttemptStatus
   resultStatus: ResultStatus
   totalAiScore?: number

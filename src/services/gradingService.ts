@@ -7,6 +7,8 @@ let mockAttempts: VivaAttempt[] = [
     examId: 'AIVES_EXAM_2026_049282',
     title: 'Kiểm tra vấn đáp Kiến trúc phần mềm & AI (Đợt 1)',
     durationMinutes: 45,
+    attemptNo: 1,
+    maxAttempts: 1,
     status: 'COMPLETED',
     resultStatus: 'PENDING_REVIEW', // Cần giảng viên thẩm định HITL
     totalAiScore: 8.5,
@@ -25,6 +27,8 @@ let mockAttempts: VivaAttempt[] = [
     examId: 'AIVES_EXAM_2026_049282',
     title: 'Kiểm tra vấn đáp Kiến trúc phần mềm & AI (Đợt 1)',
     durationMinutes: 45,
+    attemptNo: 1,
+    maxAttempts: 1,
     status: 'COMPLETED',
     resultStatus: 'PUBLISHED', // Đã duyệt và công bố
     totalAiScore: 9.0,
@@ -44,6 +48,8 @@ let mockAttempts: VivaAttempt[] = [
     examId: 'AIVES_EXAM_2026_019284',
     title: 'Vấn đáp giữa kỳ: Trí tuệ nhân tạo (AIP491)',
     durationMinutes: 30,
+    attemptNo: 1,
+    maxAttempts: 1,
     status: 'COMPLETED',
     resultStatus: 'PENDING_REVIEW',
     totalAiScore: 6.8,

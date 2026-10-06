@@ -252,6 +252,8 @@ export default function ExamRoomPage() {
           examId: 'AIVES_EXAM_2026_049282',
           title: 'Kiểm tra vấn đáp Kiến trúc phần mềm & AI (Đợt 1)',
           durationMinutes: 45,
+          attemptNo: 1,
+          maxAttempts: 1,
           status: 'IN_PROGRESS',
           resultStatus: 'NONE',
           startedAt: '2026-10-04T08:00:00Z',
@@ -395,7 +397,10 @@ export default function ExamRoomPage() {
           {attempt && (
             <div className="flex items-center gap-2 rounded-full bg-surface-container px-3.5 py-1.5 text-label-sm font-semibold">
               <span className="h-2.5 w-2.5 rounded-full bg-secondary animate-pulse" />
-              <span className="text-on-surface">Phiên: {attempt.examId}</span>
+              <span className="text-on-surface">
+                Phiên: {attempt.examId}
+                {attempt.maxAttempts > 1 && ` · Lượt ${attempt.attemptNo}/${attempt.maxAttempts}`}
+              </span>
             </div>
           )}
 
@@ -665,6 +670,12 @@ export default function ExamRoomPage() {
                 <span className="font-semibold text-on-surface">{attempt?.examId}</span>
               </div>
               <div className="flex justify-between">
+                <span>Lượt thi:</span>
+                <span className="font-semibold text-on-surface">
+                  {attempt?.attemptNo ?? 1} / {attempt?.maxAttempts ?? 1}
+                </span>
+              </div>
+              <div className="flex justify-between">
                 <span>Thời gian nộp:</span>
                 <span className="font-semibold text-on-surface">
                   {formatDateTime(attempt?.completedAt, locale)}
@@ -675,6 +686,14 @@ export default function ExamRoomPage() {
                 <span className="font-semibold text-tertiary">Đang chờ Giảng viên thẩm định (HITL)</span>
               </div>
             </div>
+
+            {/* Còn lượt thi thì nhắc sinh viên có thể vào thi lại bằng mã phiên + mã truy cập */}
+            {(attempt?.maxAttempts ?? 1) > (attempt?.attemptNo ?? 1) && (
+              <p className="mt-4 text-body-sm text-on-surface-variant">
+                Bạn còn {(attempt?.maxAttempts ?? 1) - (attempt?.attemptNo ?? 1)} lượt thi: nhập lại mã phiên và mã
+                truy cập để thi lượt tiếp theo khi phiên còn mở.
+              </p>
+            )}
 
             <p className="mt-4 text-body-xs text-outline">
               * Theo quy định BR-GRADE-002, điểm số sẽ được công bố sau khi Giảng viên phụ trách xem xét và phê duyệt.
