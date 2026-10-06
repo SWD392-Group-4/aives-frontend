@@ -19,18 +19,19 @@ export function getExamSessions({ status, keyword, page = 0, size = 10 } = {}) {
 }
 
 /** POST /exam-sessions -> phiên vừa tạo. `id` (AIVES_EXAM_yyyy_xxxxxx) cũng là mã vào thi, kèm `passcode` */
-export function createExamSession({ title, description, startAt, endAt, durationMinutes }) {
+export function createExamSession({ title, description, startAt, endAt, durationMinutes, maxAttempts }) {
   return apiRequest('/exam-sessions', {
     method: 'POST',
-    body: { title, description, startAt, endAt, durationMinutes },
+    // maxAttempts: số lượt thi tối đa của mỗi sinh viên trong phiên (1-10)
+    body: { title, description, startAt, endAt, durationMinutes, maxAttempts },
   })
 }
 
 /** PUT /exam-sessions/{id} -> phiên sau khi sửa */
-export function updateExamSession(id, { title, description, startAt, endAt, durationMinutes }) {
+export function updateExamSession(id, { title, description, startAt, endAt, durationMinutes, maxAttempts }) {
   return apiRequest(`/exam-sessions/${encodeURIComponent(id)}`, {
     method: 'PUT',
-    body: { title, description, startAt, endAt, durationMinutes },
+    body: { title, description, startAt, endAt, durationMinutes, maxAttempts },
   })
 }
 
@@ -51,7 +52,9 @@ export function regeneratePasscode(id) {
 
 /**
  * POST /exam-sessions/join -> lượt thi
- * { attemptId, examId, title, durationMinutes, status, startedAt, deadlineAt, serverTime, remainingSeconds }
+ * { attemptId, examId, title, durationMinutes, attemptNo, maxAttempts, status, startedAt, deadlineAt,
+ *   serverTime, remainingSeconds }
+ * Đang có lượt thi chưa xong thì nhận lại lượt đó; đã xong và còn lượt (attemptNo < maxAttempts) thì tạo lượt mới.
  */
 export function joinExamSession({ examId, passcode }) {
   return apiRequest('/exam-sessions/join', {
@@ -62,7 +65,7 @@ export function joinExamSession({ examId, passcode }) {
 
 /**
  * POST /exam-sessions/attempts/{attemptId}/finish -> lượt thi với status = 'COMPLETED'.
- * Sinh viên chủ động kết thúc bài thi; sau đó không vào lại phiên này được nữa.
+ * Sinh viên chủ động kết thúc lượt thi này. Muốn thi lại phải còn lượt thi của phiên.
  */
 export function finishExamAttempt(attemptId) {
   return apiRequest(`/exam-sessions/attempts/${encodeURIComponent(attemptId)}/finish`, { method: 'POST' })

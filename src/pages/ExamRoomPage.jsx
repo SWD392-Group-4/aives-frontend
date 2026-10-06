@@ -197,6 +197,9 @@ function ExamRoomPage() {
     )
   }
 
+  // Số lượt thi còn lại của sinh viên trong phiên này (sau lượt đang xem).
+  const attemptsLeft = Math.max((attempt.maxAttempts ?? 1) - (attempt.attemptNo ?? 1), 0)
+
   if (remainingSeconds === 0) {
     // Kết thúc trước hạn nghĩa là sinh viên tự bấm "Kết thúc bài thi"; còn lại là hết giờ.
     const endedEarly =
@@ -219,6 +222,11 @@ function ExamRoomPage() {
           </p>
           <p className="mt-4 text-label-md text-on-surface">{attempt.title}</p>
           <p className="text-body-sm text-on-surface-variant tabular-nums">{attempt.examId}</p>
+          <p className="mt-4 text-body-sm text-on-surface-variant">
+            {attemptsLeft > 0
+              ? t('room.attemptsLeft', { no: attempt.attemptNo, max: attempt.maxAttempts, left: attemptsLeft })
+              : t('room.noAttemptsLeft', { no: attempt.attemptNo, max: attempt.maxAttempts })}
+          </p>
           <RoomLinks />
         </section>
       </RoomLayout>
@@ -239,6 +247,7 @@ function ExamRoomPage() {
   const details = [
     { label: t('room.examCode'), value: attempt.examId },
     { label: t('room.duration'), value: t('room.minutes', { count: attempt.durationMinutes }) },
+    { label: t('room.attemptNo'), value: t('room.attemptOf', { no: attempt.attemptNo, max: attempt.maxAttempts }) },
     { label: t('room.startedAt'), value: formatDateTime(attempt.startedAt, locale) },
     { label: t('room.deadlineAt'), value: formatDateTime(attempt.deadlineAt, locale) },
   ]
@@ -302,7 +311,9 @@ function ExamRoomPage() {
       {confirmingFinish && (
         <ConfirmModal
           title={t('room.finishTitle')}
-          message={t('room.finishMessage')}
+          message={
+            attemptsLeft > 0 ? t('room.finishMessageRetake', { left: attemptsLeft }) : t('room.finishMessage')
+          }
           cancelLabel={t('room.finishKeep')}
           confirmLabel={t('room.finishConfirm')}
           pendingLabel={t('room.finishing')}

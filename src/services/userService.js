@@ -9,11 +9,15 @@ export function getUsers() {
   return apiRequest('/admin/users')
 }
 
-/** POST /admin/users -> tài khoản vừa tạo. */
-export function createUser({ email, password, fullName, role }) {
+/**
+ * POST /admin/users -> { user, emailSent }
+ * Không gửi mật khẩu: backend tự sinh mật khẩu tạm và gửi tới email của người dùng.
+ * emailSent = false: backend chưa bật gửi mail, mật khẩu tạm chỉ được in ở console của backend.
+ */
+export function createUser({ email, fullName, role }) {
   return apiRequest('/admin/users', {
     method: 'POST',
-    body: { email, password, fullName, role },
+    body: { email, fullName, role },
   })
 }
 
