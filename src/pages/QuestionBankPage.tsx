@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from '../components/Icon'
+import ImportContentModal from '../components/ImportContentModal'
 import Navbar from '../components/Navbar'
-import { contentService } from '../services/contentService'
-import { BloomLevel, Lesson, Question, QuestionStatus, Rubric, Topic } from '../types'
+import { ContentImportResult, contentService } from '../services/contentService'
+import { Question, QuestionStatus, Rubric, Topic } from '../types'
 
 export default function QuestionBankPage() {
-  const [_lessons, setLessons] = useState<Lesson[]>([])
-  const [_loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [topics, setTopics] = useState<Topic[]>([])
   const [rubrics, setRubrics] = useState<Rubric[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
@@ -15,45 +15,25 @@ export default function QuestionBankPage() {
   const [selectedBloom, setSelectedBloom] = useState<string>('ALL')
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL')
 
-  // Modal tạo câu hỏi thủ công
-  const [manualModalOpen, setManualModalOpen] = useState(false)
-  const [newTopicId, setNewTopicId] = useState('')
-  const [newRubricId, setNewRubricId] = useState('')
-  const [newContent, setNewContent] = useState('')
-  const [newBloom, setNewBloom] = useState<BloomLevel>('UNDERSTAND')
-  const [newModelAnswer, setNewModelAnswer] = useState('')
-  const [newKeywords, setNewKeywords] = useState('')
-
-  // Modal AI sinh câu hỏi (RAG)
-  const [aiModalOpen, setAiModalOpen] = useState(false)
-  const [aiTopicId, setAiTopicId] = useState('')
-  const [aiBloom, setAiBloom] = useState<BloomLevel>('ANALYZE')
-  const [aiPrompt, setAiPrompt] = useState('')
-  const [aiCount, setAiCount] = useState(2)
-  const [aiGenerating, setAiGenerating] = useState(false)
+  // Gửi file câu hỏi (.pdf / .docx / .txt) để AI tách thành câu hỏi nháp
+  const [importModalOpen, setImportModalOpen] = useState(false)
+  // Rubric giảng viên chọn cho câu nháp chưa có rubric (theo id câu hỏi)
+  const [rubricChoices, setRubricChoices] = useState<Record<string, string>>({})
+  const [approvingAll, setApprovingAll] = useState(false)
 
   // Thông báo
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   const loadData = async () => {
     try {
-      const [l, top, r, q] = await Promise.all([
-        contentService.getLessons(),
+      const [top, r, q] = await Promise.all([
         contentService.getTopics(),
         contentService.getRubrics(),
         contentService.getQuestions(),
       ])
-      setLessons(l)
       setTopics(top)
       setRubrics(r)
       setQuestions(q)
-      if (top.length > 0) {
-        setNewTopicId(top[0].id)
-        setAiTopicId(top[0].id)
-      }
-      if (r.length > 0) {
-        setNewRubricId(r[0].id)
-      }
     } catch (err: any) {
       setBanner({ type: 'error', message: err.message || 'Lỗi tải dữ liệu ngân hàng câu hỏi' })
     } finally {
@@ -73,10 +53,13 @@ export default function QuestionBankPage() {
     return true
   })
 
+  // Câu nháp đang hiển thị và đã có rubric: duyệt được ngay
+  const approvableDrafts = filteredQuestions.filter((q) => q.status === 'DRAFT' && q.rubricId)
+
   // Duyệt hoặc từ chối câu hỏi
   const handleUpdateStatus = async (id: string, status: QuestionStatus, rubricId?: string) => {
     try {
-      const updated = await contentService.updateQuestionStatus(id, status, rubricId)
+      const updated = await contentService.updateQuestionStatus(id, status, rubricId || undefined)
       setQuestions((prev) => prev.map((item) => (item.id === id ? updated : item)))
       setBanner({
         type: 'success',
@@ -87,60 +70,40 @@ export default function QuestionBankPage() {
     }
   }
 
-  // Tạo câu hỏi thủ công
-  const handleCreateManual = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newContent.trim()) return
-
+  // Duyệt lần lượt mọi câu nháp đang hiển thị (đã có rubric)
+  const handleApproveAll = async () => {
+    setApprovingAll(true)
+    let approved = 0
     try {
-      const created = await contentService.createQuestion({
-        topicId: newTopicId,
-        rubricId: newRubricId || undefined,
-        content: newContent,
-        bloomLevel: newBloom,
-        modelAnswer: newModelAnswer,
-        expectedKeywords: newKeywords ? newKeywords.split(',').map((s) => s.trim()) : [],
-        source: 'MANUAL',
-        status: newRubricId ? 'APPROVED' : 'DRAFT',
-      })
-      setQuestions((prev) => [created, ...prev])
-      setManualModalOpen(false)
-      setNewContent('')
-      setNewModelAnswer('')
-      setNewKeywords('')
-      setBanner({ type: 'success', message: 'Tạo câu hỏi mới thành công!' })
+      for (const question of approvableDrafts) {
+        const updated = await contentService.updateQuestionStatus(question.id, 'APPROVED')
+        setQuestions((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+        approved += 1
+      }
+      setBanner({ type: 'success', message: `Đã duyệt ${approved} câu hỏi.` })
     } catch (err: any) {
-      setBanner({ type: 'error', message: err.message })
+      setBanner({ type: 'error', message: `Đã duyệt ${approved} câu, sau đó gặp lỗi: ${err.message}` })
+    } finally {
+      setApprovingAll(false)
     }
   }
 
-  // Gọi AI sinh câu hỏi (RAG)
-  const handleGenerateAi = async () => {
-    if (!aiPrompt.trim()) {
-      alert('Vui lòng nhập chủ đề / từ khóa để AI tham chiếu.')
-      return
-    }
-
-    setAiGenerating(true)
-    try {
-      const generated = await contentService.generateAiQuestions({
-        topicId: aiTopicId,
-        promptKeywords: aiPrompt,
-        bloomLevel: aiBloom,
-        count: aiCount,
-      })
-      setQuestions((prev) => [...generated, ...prev])
-      setAiModalOpen(false)
-      setAiPrompt('')
-      setBanner({
-        type: 'success',
-        message: `AI đã sinh ${generated.length} câu hỏi dự thảo (DRAFT). Vui lòng rà soát và gán Rubric trước khi duyệt!`,
-      })
-    } catch (err: any) {
-      setBanner({ type: 'error', message: err.message })
-    } finally {
-      setAiGenerating(false)
-    }
+  // AI tách xong file: tải lại dữ liệu và chuyển bộ lọc sang chủ đề vừa tạo để giảng viên xem lại
+  const handleImported = async (result: ContentImportResult) => {
+    setImportModalOpen(false)
+    if (result.topic) setSelectedTopicId(result.topic.id)
+    setSelectedBloom('ALL')
+    setSelectedStatus('ALL')
+    const rubricName = result.rubrics[0]?.name
+    setBanner({
+      type: 'success',
+      message:
+        `Đã tách ${result.questions.length} câu hỏi nháp từ file "${result.fileName}". ` +
+        (rubricName
+          ? `Các câu đã được gắn rubric "${rubricName}". Hãy xem lại rồi bấm duyệt.`
+          : 'Các câu chưa có rubric: chọn rubric ở từng câu rồi bấm duyệt.'),
+    })
+    await loadData()
   }
 
   return (
@@ -151,9 +114,9 @@ export default function QuestionBankPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-outline-variant/40 pb-6">
           <div>
-            <h1 className="text-headline-md font-bold text-on-surface">Ngân hàng Câu hỏi & Thẩm định AI (RAG)</h1>
+            <h1 className="text-headline-md font-bold text-on-surface">Ngân hàng Câu hỏi</h1>
             <p className="mt-1 text-body-md text-on-surface-variant">
-              Quản lý học liệu, câu hỏi theo thang Bloom và thẩm định câu hỏi AI sinh ra (Workflow 1).
+              Gửi file câu hỏi để AI tách thành câu hỏi nháp, xem lại rồi duyệt để dùng cho phiên thi.
             </p>
           </div>
 
@@ -168,20 +131,11 @@ export default function QuestionBankPage() {
 
             <button
               type="button"
-              onClick={() => setAiModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-track-blue-from to-track-blue-to px-5 py-2.5 text-label-md font-semibold text-on-primary shadow-md hover:opacity-95 transition-opacity"
-            >
-              <Icon name="auto_awesome" />
-              <span>AI sinh câu hỏi (RAG)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setManualModalOpen(true)}
+              onClick={() => setImportModalOpen(true)}
               className="inline-flex items-center gap-2 rounded-full bg-primary-container px-5 py-2.5 text-label-md font-semibold text-on-primary shadow-md hover:bg-primary transition-colors"
             >
-              <Icon name="add" />
-              <span>Tạo câu hỏi</span>
+              <Icon name="upload_file" />
+              <span>Gửi file câu hỏi</span>
             </button>
           </div>
         </div>
@@ -254,17 +208,43 @@ export default function QuestionBankPage() {
                 <option value="APPROVED">Approved (Đã duyệt)</option>
                 <option value="DRAFT">Draft (Dự thảo)</option>
                 <option value="REJECTED">Rejected (Từ chối)</option>
+                <option value="ARCHIVED">Archived (Lưu trữ)</option>
               </select>
             </div>
           </div>
 
-          <div className="text-body-sm text-outline">
-            Hiển thị <span className="font-bold text-on-surface">{filteredQuestions.length}</span> câu hỏi
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-body-sm text-outline">
+              Hiển thị <span className="font-bold text-on-surface">{filteredQuestions.length}</span> câu hỏi
+            </span>
+            {approvableDrafts.length > 0 && (
+              <button
+                type="button"
+                onClick={handleApproveAll}
+                disabled={approvingAll}
+                className="inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-4 py-1.5 text-label-sm font-semibold text-secondary hover:bg-secondary-fixed transition-colors disabled:opacity-50"
+              >
+                <Icon name={approvingAll ? 'progress_activity' : 'done_all'} className={approvingAll ? 'animate-spin text-sm' : 'text-sm'} />
+                <span>Duyệt {approvableDrafts.length} câu nháp đang hiển thị</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Danh sách thẻ câu hỏi */}
         <div className="mt-6 space-y-4">
+          {loading && (
+            <div className="rounded-3xl border border-outline-variant/40 bg-surface-container-lowest p-8 text-center text-body-md text-on-surface-variant">
+              Đang tải ngân hàng câu hỏi...
+            </div>
+          )}
+          {!loading && filteredQuestions.length === 0 && (
+            <div className="rounded-3xl border border-outline-variant/40 bg-surface-container-lowest p-8 text-center text-body-md text-on-surface-variant">
+              {questions.length === 0
+                ? 'Chưa có câu hỏi nào. Bấm "Gửi file câu hỏi" để bắt đầu.'
+                : 'Không có câu hỏi nào khớp với bộ lọc.'}
+            </div>
+          )}
           {filteredQuestions.map((q) => {
             const isApproved = q.status === 'APPROVED'
             const isDraft = q.status === 'DRAFT'
@@ -287,7 +267,7 @@ export default function QuestionBankPage() {
                     {isAi && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-track-blue-from/20 to-track-blue-to/20 px-2.5 py-0.5 text-label-xs font-semibold text-primary">
                         <Icon name="auto_awesome" className="text-xs" />
-                        AI sinh (RAG)
+                        AI sinh
                       </span>
                     )}
                   </div>
@@ -299,7 +279,9 @@ export default function QuestionBankPage() {
                           ? 'bg-secondary-container text-secondary'
                           : isDraft
                             ? 'bg-tertiary-fixed text-tertiary'
-                            : 'bg-error-container text-error'
+                            : q.status === 'ARCHIVED'
+                              ? 'bg-surface-container-high text-on-surface-variant'
+                              : 'bg-error-container text-error'
                       }`}
                     >
                       {q.status}
@@ -310,7 +292,7 @@ export default function QuestionBankPage() {
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => handleUpdateStatus(q.id, 'APPROVED', q.rubricId || rubrics[0]?.id)}
+                          onClick={() => handleUpdateStatus(q.id, 'APPROVED', q.rubricId || rubricChoices[q.id])}
                           className="inline-flex items-center gap-1 rounded-full bg-secondary-container px-3 py-1 text-label-xs font-semibold text-secondary hover:bg-secondary-fixed transition-colors"
                         >
                           <Icon name="check" className="text-xs" />
@@ -353,6 +335,22 @@ export default function QuestionBankPage() {
                           <span className="text-tertiary italic">Chưa gán Rubric (Bắt buộc trước khi duyệt)</span>
                         )}
                       </p>
+                      {/* Câu nháp chưa có rubric: chọn rubric ở đây rồi bấm "Duyệt câu" */}
+                      {isDraft && !q.rubricId && rubrics.length > 0 && (
+                        <select
+                          value={rubricChoices[q.id] ?? ''}
+                          onChange={(e) => setRubricChoices((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                          aria-label="Chọn rubric cho câu hỏi"
+                          className="mt-2 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-1.5 text-body-sm text-on-surface"
+                        >
+                          <option value="">-- Chọn rubric để duyệt --</option>
+                          {rubrics.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
 
                     {q.expectedKeywords && q.expectedKeywords.length > 0 && (
@@ -372,229 +370,13 @@ export default function QuestionBankPage() {
         </div>
       </main>
 
-      {/* Modal tạo câu hỏi thủ công */}
-      {manualModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-3xl bg-surface-container-lowest p-6 sm:p-8 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-outline-variant/30 pb-4">
-              <h3 className="text-headline-xs font-bold text-on-surface flex items-center gap-2">
-                <Icon name="add_circle" className="text-primary" /> Soạn câu hỏi vấn đáp mới
-              </h3>
-              <button
-                type="button"
-                onClick={() => setManualModalOpen(false)}
-                className="rounded-full p-1.5 text-outline hover:bg-surface-container"
-              >
-                <Icon name="close" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateManual} className="mt-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-label-sm font-semibold text-on-surface mb-1">Chủ đề:</label>
-                  <select
-                    value={newTopicId}
-                    onChange={(e) => setNewTopicId(e.target.value)}
-                    className="w-full rounded-2xl border border-outline-variant bg-surface-container-low p-3 text-body-sm text-on-surface"
-                  >
-                    {topics.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-label-sm font-semibold text-on-surface mb-1">Mức độ Bloom:</label>
-                  <select
-                    value={newBloom}
-                    onChange={(e) => setNewBloom(e.target.value as BloomLevel)}
-                    className="w-full rounded-2xl border border-outline-variant bg-surface-container-low p-3 text-body-sm text-on-surface"
-                  >
-                    <option value="REMEMBER">Remember (Nhớ)</option>
-                    <option value="UNDERSTAND">Understand (Hiểu)</option>
-                    <option value="APPLY">Apply (Vận dụng)</option>
-                    <option value="ANALYZE">Analyze (Phân tích)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-label-sm font-semibold text-on-surface mb-1">
-                  Rubric chấm điểm (Bắt buộc theo BR-BANK-001):
-                </label>
-                <select
-                  value={newRubricId}
-                  onChange={(e) => setNewRubricId(e.target.value)}
-                  className="w-full rounded-2xl border border-outline-variant bg-surface-container-low p-3 text-body-sm text-on-surface"
-                >
-                  <option value="">-- Chọn Rubric chấm điểm --</option>
-                  {rubrics.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} (Tối đa {r.maxScore}đ)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-label-sm font-semibold text-on-surface mb-1">Nội dung câu hỏi:</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={newContent}
-                  onChange={(e) => setNewContent(e.target.value)}
-                  placeholder="Nhập câu hỏi vấn đáp cho sinh viên..."
-                  className="w-full rounded-2xl border border-outline-variant bg-surface-container-low p-3.5 text-body-sm text-on-surface focus:border-primary focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-label-sm font-semibold text-on-surface mb-1">Ý chính cần trả lời (Model Answer):</label>
-                <textarea
-                  rows={2}
-                  value={newModelAnswer}
-                  onChange={(e) => setNewModelAnswer(e.target.value)}
-                  placeholder="Các luận điểm cốt lõi để làm cơ sở cho AI chấm điểm..."
-                  className="w-full rounded-2xl border border-outline-variant bg-surface-container-low p-3.5 text-body-sm text-on-surface focus:border-primary focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-label-sm font-semibold text-on-surface mb-1">Từ khóa mong đợi (cách nhau bởi dấu phẩy):</label>
-                <input
-                  type="text"
-                  value={newKeywords}
-                  onChange={(e) => setNewKeywords(e.target.value)}
-                  placeholder="Ví dụ: ACID, Saga, Dead Letter Queue, 2PC"
-                  className="w-full rounded-2xl border border-outline-variant bg-surface-container-low p-3 text-body-sm text-on-surface"
-                />
-              </div>
-
-              <div className="mt-6 flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setManualModalOpen(false)}
-                  className="rounded-full px-5 py-2 text-label-md text-on-surface-variant hover:bg-surface-container"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-full bg-primary-container px-6 py-2.5 text-label-md font-semibold text-on-primary hover:bg-primary shadow-md"
-                >
-                  Tạo câu hỏi
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal AI sinh câu hỏi (RAG) */}
-      {aiModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl bg-surface-container-lowest p-6 sm:p-8 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-outline-variant/30 pb-4">
-              <h3 className="text-headline-xs font-bold text-on-surface flex items-center gap-2">
-                <Icon name="auto_awesome" className="text-primary" /> AI Gợi ý sinh câu hỏi (RAG)
-              </h3>
-              <button
-                type="button"
-                onClick={() => setAiModalOpen(false)}
-                className="rounded-full p-1.5 text-outline hover:bg-surface-container"
-              >
-                <Icon name="close" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-label-sm font-semibold text-on-surface mb-1">Gắn vào chủ đề:</label>
-                <select
-                  value={aiTopicId}
-                  onChange={(e) => setAiTopicId(e.target.value)}
-                  className="w-full rounded-2xl border border-outline-variant bg-surface-container-low p-3 text-body-sm text-on-surface"
-                >
-                  {topics.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-label-sm font-semibold text-on-surface mb-1">Mức độ Bloom:</label>
-                  <select
-                    value={aiBloom}
-                    onChange={(e) => setAiBloom(e.target.value as BloomLevel)}
-                    className="w-full rounded-2xl border border-outline-variant bg-surface-container-low p-3 text-body-sm text-on-surface"
-                  >
-                    <option value="REMEMBER">Remember</option>
-                    <option value="UNDERSTAND">Understand</option>
-                    <option value="APPLY">Apply</option>
-                    <option value="ANALYZE">Analyze</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-label-sm font-semibold text-on-surface mb-1">Số lượng câu:</label>
-                  <select
-                    value={aiCount}
-                    onChange={(e) => setAiCount(Number(e.target.value))}
-                    className="w-full rounded-2xl border border-outline-variant bg-surface-container-low p-3 text-body-sm text-on-surface"
-                  >
-                    <option value={1}>1 câu</option>
-                    <option value={2}>2 câu</option>
-                    <option value={3}>3 câu</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-label-sm font-semibold text-on-surface mb-1">
-                  Trọng tâm tài liệu / Từ khóa chuyên ngành:
-                </label>
-                <textarea
-                  rows={3}
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="Ví dụ: Distributed Locking, Redis Redlock, Cache Stampede, Dead Letter Queue"
-                  className="w-full rounded-2xl border border-outline-variant bg-surface-container-low p-3.5 text-body-sm text-on-surface focus:border-primary focus:outline-none"
-                />
-              </div>
-
-              <div className="rounded-2xl bg-surface-container p-3 text-body-xs text-on-surface-variant">
-                <Icon name="info" className="text-primary mr-1 inline" />
-                Câu hỏi sinh ra sẽ mang trạng thái <strong>DRAFT</strong> (BR-BANK-002). Bạn có thể xem trước, chỉnh sửa
-                và gán Rubric trước khi đưa vào ca thi chính thức.
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setAiModalOpen(false)}
-                className="rounded-full px-5 py-2 text-label-md text-on-surface-variant hover:bg-surface-container"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleGenerateAi}
-                disabled={aiGenerating}
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-track-blue-from to-track-blue-to px-6 py-2.5 text-label-md font-semibold text-on-primary hover:opacity-95 shadow-md"
-              >
-                {aiGenerating && <Icon name="progress_activity" className="animate-spin" />}
-                <span>Bắt đầu sinh</span>
-              </button>
-            </div>
-          </div>
-        </div>
+      {importModalOpen && (
+        <ImportContentModal
+          kind="questions"
+          rubrics={rubrics}
+          onClose={() => setImportModalOpen(false)}
+          onImported={handleImported}
+        />
       )}
     </div>
   )

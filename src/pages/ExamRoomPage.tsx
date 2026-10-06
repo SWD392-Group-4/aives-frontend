@@ -1,12 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ConfirmModal from '../components/ConfirmModal'
 import Icon from '../components/Icon'
 import LanguageSwitch from '../components/LanguageSwitch'
 import Logo from '../components/Logo'
 import { useLanguage } from '../hooks/useLanguage'
+import { ApiError } from '../services/apiClient'
 import { finishExamAttempt, getExamAttempt } from '../services/examSessionService'
-import { InterviewExchange, VivaAttempt } from '../types'
+import {
+  InterviewState,
+  skipInterviewQuestion,
+  startInterview,
+  submitInterviewAnswer,
+} from '../services/vivaService'
+import { VivaAttempt } from '../types'
 import { formatDateTime } from '../utils/dateTime'
 
 // Trạng thái FSM của phòng thi (theo tài liệu br-ai-interview.md)
@@ -16,39 +23,32 @@ type RoomPhase =
   | 'STUDENT_PREPARE' // Thời gian suy nghĩ chuẩn bị
   | 'STUDENT_SPEAKING' // Đang thu âm câu trả lời
   | 'EVAL_AND_DECIDE' // AI đánh giá & quyết định (Follow-up hay chuyển câu)
+  | 'ERROR' // Gọi backend lỗi, chờ sinh viên bấm thử lại
   | 'COMPLETED' // Hoàn thành toàn bộ câu hỏi
 
-interface ExamQuestionItem {
-  id: string
-  content: string
-  bloomLevel: string
-  rubricName: string
-  prepareSeconds: number
-  answerSeconds: number
-  maxFollowUps: number
+// Im lặng bao lâu thì nhắc / tự nộp câu trả lời (BR-VIVA-003)
+const SILENCE_HINT_SECONDS = 5
+const SILENCE_SUBMIT_SECONDS = 10
+// Mức âm lượng (0-100) từ đó trở lên được coi là đang nói
+const SOUND_LEVEL_THRESHOLD = 5
+// Câu hỏi xoáy chỉ cho suy nghĩ ngắn
+const FOLLOW_UP_PREPARE_SECONDS = 10
+// Khớp với giới hạn của backend (SubmitAnswerRequest.transcript)
+const MAX_TRANSCRIPT_LENGTH = 8000
+// Trình duyệt tự ngắt nhận giọng nói sau một lúc im lặng: bật lại tối đa bấy nhiêu lần cho mỗi câu trả lời
+const MAX_RECOGNITION_RESTARTS = 30
+// AI đang xử lý thì hỏi lại backend sau bấy nhiêu ms
+const PROCESSING_POLL_MS = 2500
+
+function getSpeechRecognition(): any {
+  if (typeof window === 'undefined') return null
+  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null
 }
 
-// Bộ câu hỏi mẫu của phòng thi
-const SAMPLE_EXAM_QUESTIONS: ExamQuestionItem[] = [
-  {
-    id: 'QS001',
-    content: 'Khi chuyển đổi từ kiến trúc Monolith sang Microservices, bạn sẽ giải quyết bài toán giao dịch phân tán (Distributed Transaction) như thế nào? So sánh 2PC và Saga Pattern.',
-    bloomLevel: 'ANALYZE',
-    rubricName: 'Rubric Kiến trúc & Thiết kế hệ thống',
-    prepareSeconds: 20,
-    answerSeconds: 60,
-    maxFollowUps: 2,
-  },
-  {
-    id: 'QS002',
-    content: 'Tại sao trong hệ thống phỏng vấn trực tiếp AIVES, chúng ta cần cơ chế Finite State Machine (FSM) và bộ đếm thời gian phía Server thay vì tin tưởng Client?',
-    bloomLevel: 'APPLY',
-    rubricName: 'Rubric Kiểm soát Trạng thái & Bảo mật',
-    prepareSeconds: 15,
-    answerSeconds: 60,
-    maxFollowUps: 1,
-  },
-]
+function formatClock(totalSeconds: number): string {
+  const safe = Math.max(0, totalSeconds)
+  return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`
+}
 
 export default function ExamRoomPage() {
   const { attemptId } = useParams<{ attemptId: string }>()
@@ -57,18 +57,26 @@ export default function ExamRoomPage() {
   // Thông tin attempt
   const [attempt, setAttempt] = useState<VivaAttempt | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [confirmingFinish, setConfirmingFinish] = useState(false)
 
-  // FSM phòng thi
+  // FSM phòng thi. Câu hỏi hiện tại luôn lấy từ backend (server là nguồn sự thật).
   const [phase, setPhase] = useState<RoomPhase>('MIC_CHECK')
-  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0)
-  const [followUpCount, setFollowUpCount] = useState(0)
-  const [_exchanges, setExchanges] = useState<InterviewExchange[]>([])
+  const [question, setQuestion] = useState<InterviewState | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState('')
+  const [roomError, setRoomError] = useState('')
 
   // Bộ đếm thời gian
   const [phaseSecondsLeft, setPhaseSecondsLeft] = useState(0)
+  const [phaseDeadline, setPhaseDeadline] = useState<number | null>(null) // mốc Date.now() kết thúc giai đoạn
+  const [examSecondsLeft, setExamSecondsLeft] = useState<number | null>(null)
   const [silenceSeconds, setSilenceSeconds] = useState(0)
-  const [liveTranscript, setLiveTranscript] = useState('')
+
+  // Câu trả lời: tự ghi từ giọng nói, sinh viên sửa được bằng bàn phím
+  const [answerDraft, setAnswerDraft] = useState('')
+  const [listening, setListening] = useState(false)
+  const [micReady, setMicReady] = useState(false)
   const [audioLevel, setAudioLevel] = useState(0)
 
   // Tham chiếu Web Speech & Media
@@ -77,198 +85,366 @@ export default function ExamRoomPage() {
   const microphoneRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
 
-  const currentQuestion = SAMPLE_EXAM_QUESTIONS[currentQuestionIdx] || SAMPLE_EXAM_QUESTIONS[0]
+  // Giá trị mới nhất cho các callback của timer / Web Speech (tránh đọc phải state cũ)
+  const phaseRef = useRef<RoomPhase>('MIC_CHECK')
+  const questionRef = useRef<InterviewState | null>(null)
+  const draftRef = useRef('')
+  const listeningWantedRef = useRef(false)
+  const ignoreResultsRef = useRef(false) // true sau khi sinh viên gõ phím: bỏ qua lời nói đến trễ
+  const restartCountRef = useRef(0)
+  const lastSoundAtRef = useRef(Date.now())
+  const lastLevelRef = useRef(0)
+  const speakTimerRef = useRef<number | undefined>(undefined)
+  const pollTimerRef = useRef<number | undefined>(undefined)
+  const submitTimerRef = useRef<number | undefined>(undefined)
+  const examEndsAtRef = useRef<number | null>(null) // theo performance.now(), không phụ thuộc đồng hồ máy
+  const retryRef = useRef<(() => void) | null>(null)
+  const unmountedRef = useRef(false)
 
-  // Bắt đầu đọc câu hỏi
-  const startQuestion = useCallback((qIdx: number) => {
-    setCurrentQuestionIdx(qIdx)
-    setFollowUpCount(0)
-    setPhase('TTS_PLAY')
+  const speechSupported = getSpeechRecognition() !== null
 
-    const question = SAMPLE_EXAM_QUESTIONS[qIdx]
+  const changePhase = (next: RoomPhase) => {
+    phaseRef.current = next
+    setPhase(next)
+  }
 
+  const updateDraft = (text: string) => {
+    const limited = text.slice(0, MAX_TRANSCRIPT_LENGTH)
+    draftRef.current = limited
+    setAnswerDraft(limited)
+  }
+
+  const beginTimedPhase = (next: RoomPhase, seconds: number) => {
+    changePhase(next)
+    setPhaseSecondsLeft(seconds)
+    setPhaseDeadline(Date.now() + seconds * 1000)
+  }
+
+  const cancelSpeech = () => {
+    window.clearTimeout(speakTimerRef.current)
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel()
-      const utter = new SpeechSynthesisUtterance(question.content)
-      utter.lang = 'vi-VN'
-      utter.rate = 1.0
-      utter.onend = () => {
-        setPhase('STUDENT_PREPARE')
-        setPhaseSecondsLeft(question.prepareSeconds)
-      }
-      utter.onerror = () => {
-        setPhase('STUDENT_PREPARE')
-        setPhaseSecondsLeft(question.prepareSeconds)
-      }
-      window.speechSynthesis.speak(utter)
-    } else {
-      setTimeout(() => {
-        setPhase('STUDENT_PREPARE')
-        setPhaseSecondsLeft(question.prepareSeconds)
-      }, 2500)
     }
-  }, [])
+  }
 
-  // Bắt đầu trả lời
-  const startSpeakingPhase = useCallback(() => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
-    }
-    setPhase('STUDENT_SPEAKING')
-    setPhaseSecondsLeft(currentQuestion.answerSeconds)
-    setLiveTranscript('')
-    setSilenceSeconds(0)
+  /* ---------- Nhận giọng nói (Web Speech API của trình duyệt) ---------- */
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (SpeechRecognition) {
-      try {
-        const recognition = new SpeechRecognition()
-        recognition.continuous = true
-        recognition.interimResults = true
-        recognition.lang = 'vi-VN'
-
-        recognition.onresult = (event: any) => {
-          let full = ''
-          for (let i = 0; i < event.results.length; i++) {
-            full += event.results[i][0].transcript + ' '
-          }
-          setLiveTranscript(full.trim())
-        }
-        recognition.start()
-        recognitionRef.current = recognition
-      } catch (err) {
-        console.warn('SpeechRecognition start error', err)
-      }
-    }
-  }, [currentQuestion.answerSeconds])
-
-  // Kết thúc bài thi
-  const completeExam = useCallback(async () => {
-    setPhase('COMPLETED')
-    try {
-      if (attemptId) {
-        await finishExamAttempt(attemptId)
-      }
-    } catch {}
-  }, [attemptId])
-
-  // Kích hoạt hỏi xoáy thích ứng (BR-VIVA-001/002)
-  const triggerFollowUpQuestion = useCallback(
-    (currentFollowUp: number) => {
-      const nextFollowUp = currentFollowUp + 1
-      setFollowUpCount(nextFollowUp)
-      setPhase('TTS_PLAY')
-
-      const followUpText =
-        nextFollowUp === 1
-          ? 'Bạn giải thích rất hay. Nhưng nếu một lệnh bù trừ trong Saga bị thất bại tiếp thì hệ thống sẽ xử lý thế nào để đảm bảo dữ liệu?'
-          : 'Hãy cho biết thêm về giải pháp Dead Letter Queue trong tình huống này?'
-
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel()
-        const utter = new SpeechSynthesisUtterance(followUpText)
-        utter.lang = 'vi-VN'
-        utter.rate = 1.0
-        utter.onend = () => {
-          setPhase('STUDENT_PREPARE')
-          setPhaseSecondsLeft(10)
-        }
-        utter.onerror = () => {
-          setPhase('STUDENT_PREPARE')
-          setPhaseSecondsLeft(10)
-        }
-        window.speechSynthesis.speak(utter)
-      } else {
-        setTimeout(() => {
-          setPhase('STUDENT_PREPARE')
-          setPhaseSecondsLeft(10)
-        }, 2000)
-      }
-    },
-    [],
-  )
-
-  // Nộp câu trả lời & AI đánh giá
-  const submitAnswer = useCallback(() => {
+  const stopRecognition = () => {
+    listeningWantedRef.current = false
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop()
       } catch {}
     }
+    setListening(false)
+  }
 
-    setPhase('EVAL_AND_DECIDE')
+  // baseText: phần đã có sẵn trong ô trả lời, lời nói mới được nối vào sau
+  const startRecognition = (baseText: string) => {
+    const SpeechRecognition = getSpeechRecognition()
+    if (!SpeechRecognition) return
+    try {
+      const recognition = new SpeechRecognition()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = 'vi-VN'
+      const base = baseText.trim() ? `${baseText.trim()} ` : ''
 
-    const currentExchangeText = liveTranscript || 'Thí sinh đã trả lời bằng giọng nói và hệ thống đã ghi lại âm thanh.'
+      recognition.onresult = (event: any) => {
+        if (recognitionRef.current !== recognition || ignoreResultsRef.current) return
+        let full = ''
+        for (let i = 0; i < event.results.length; i++) {
+          full += event.results[i][0].transcript + ' '
+        }
+        updateDraft((base + full).trim())
+      }
+      recognition.onerror = (event: any) => {
+        // Bị chặn quyền micro, không có thiết bị hoặc không kết nối được dịch vụ nhận giọng nói:
+        // không bật lại nữa, sinh viên nhập bằng bàn phím
+        if (['not-allowed', 'service-not-allowed', 'audio-capture', 'network'].includes(event?.error)) {
+          listeningWantedRef.current = false
+        }
+      }
+      recognition.onend = () => {
+        if (recognitionRef.current !== recognition) return
+        // Trình duyệt tự ngắt sau một lúc im lặng: bật lại và nối tiếp vào phần đã ghi
+        if (
+          listeningWantedRef.current &&
+          phaseRef.current === 'STUDENT_SPEAKING' &&
+          restartCountRef.current < MAX_RECOGNITION_RESTARTS
+        ) {
+          restartCountRef.current += 1
+          window.setTimeout(() => {
+            if (listeningWantedRef.current && phaseRef.current === 'STUDENT_SPEAKING') {
+              startRecognition(draftRef.current)
+            } else {
+              setListening(false)
+            }
+          }, 300)
+        } else {
+          setListening(false)
+        }
+      }
 
-    const newExchange: InterviewExchange = {
-      id: `EX_${Math.random().toString(36).substring(2, 9)}`,
-      attemptId: attemptId || '',
-      questionId: currentQuestion.id,
-      depth: followUpCount,
-      questionText: followUpCount === 0 ? currentQuestion.content : `[Hỏi xoáy ${followUpCount}] Làm rõ thêm câu trả lời trước đó?`,
-      transcript: currentExchangeText,
-      createdAt: '2026-10-04T08:10:00Z',
+      recognitionRef.current = recognition
+      listeningWantedRef.current = true
+      ignoreResultsRef.current = false
+      recognition.start()
+      setListening(true)
+    } catch (err) {
+      console.warn('SpeechRecognition start error', err)
+      listeningWantedRef.current = false
+      setListening(false)
+    }
+  }
+
+  /* ---------- Đồng bộ với backend ---------- */
+
+  const refreshAttempt = () => {
+    if (!attemptId) return
+    getExamAttempt(attemptId)
+      .then((data) => {
+        if (!unmountedRef.current) setAttempt(data)
+      })
+      .catch(() => {})
+  }
+
+  // AI đọc câu hỏi rồi chuyển sang thời gian chuẩn bị
+  const speakQuestion = (state: InterviewState) => {
+    changePhase('TTS_PLAY')
+    setPhaseDeadline(null)
+    const basePrepare = state.prepareSeconds ?? 30
+    const prepareSeconds = state.type === 'FOLLOW_UP' ? Math.min(basePrepare, FOLLOW_UP_PREPARE_SECONDS) : basePrepare
+    const text = state.questionText ?? ''
+
+    let done = false
+    const goPrepare = () => {
+      if (done) return
+      done = true
+      window.clearTimeout(speakTimerRef.current)
+      // Trong lúc đọc đề sinh viên có thể đã bỏ qua câu này hoặc nộp bài
+      if (phaseRef.current !== 'TTS_PLAY' || questionRef.current?.exchangeId !== state.exchangeId) return
+      beginTimedPhase('STUDENT_PREPARE', prepareSeconds)
     }
 
-    setExchanges((prev) => [...prev, newExchange])
+    window.clearTimeout(speakTimerRef.current)
+    if ('speechSynthesis' in window && text) {
+      window.speechSynthesis.cancel()
+      const utter = new SpeechSynthesisUtterance(text)
+      utter.lang = 'vi-VN'
+      utter.rate = 1.0
+      utter.onend = goPrepare
+      utter.onerror = goPrepare
+      window.speechSynthesis.speak(utter)
+      // Có trình duyệt không báo đọc xong: tự chuyển sau thời gian đọc ước lượng
+      speakTimerRef.current = window.setTimeout(goPrepare, Math.max(6000, text.length * 110) + 4000)
+    } else {
+      speakTimerRef.current = window.setTimeout(goPrepare, 2500)
+    }
+  }
 
-    // Phân tích câu trả lời (giả lập)
-    setTimeout(() => {
-      if (followUpCount < currentQuestion.maxFollowUps && followUpCount === 0) {
-        triggerFollowUpQuestion(followUpCount)
-      } else if (currentQuestionIdx + 1 < SAMPLE_EXAM_QUESTIONS.length) {
-        startQuestion(currentQuestionIdx + 1)
-      } else {
+  const applyState = (state: InterviewState) => {
+    if (unmountedRef.current) return
+    window.clearTimeout(pollTimerRef.current)
+    retryRef.current = null
+    setRoomError('')
+
+    if (state.status === 'COMPLETED') {
+      cancelSpeech()
+      stopRecognition()
+      setPhaseDeadline(null)
+      changePhase('COMPLETED')
+      refreshAttempt()
+      return
+    }
+    if (state.status === 'PROCESSING') {
+      // AI chưa quyết định xong (vd vừa tải lại trang ngay sau khi nộp câu trả lời)
+      setPhaseDeadline(null)
+      changePhase('EVAL_AND_DECIDE')
+      pollTimerRef.current = window.setTimeout(syncInterview, PROCESSING_POLL_MS)
+      return
+    }
+
+    if (!state.aiEnabled) {
+      console.warn('[AIVES] Backend chưa bật AI (thiếu GEMINI_API_KEY): sẽ không có câu hỏi xoáy')
+    } else if (state.aiFallback) {
+      console.warn('[AIVES] AI không trả được quyết định ở câu trước nên hệ thống tự chuyển câu tiếp theo')
+    }
+    questionRef.current = state
+    setQuestion(state)
+    updateDraft('')
+    setSilenceSeconds(0)
+    speakQuestion(state)
+  }
+
+  const handleRoomError = (err: unknown) => {
+    if (unmountedRef.current) return
+    if (err instanceof ApiError) {
+      if (err.code === 'EXAM_ATTEMPT_NOT_RUNNING') {
+        // Hết giờ hoặc lượt thi đã kết thúc
+        applyState({ status: 'COMPLETED', aiEnabled: true, aiFallback: false })
+        return
+      }
+      if (err.code === 'INTERVIEW_EXCHANGE_NOT_CURRENT') {
+        // Câu này đã được xử lý ở nơi khác (bấm 2 lần, mở 2 tab): lấy lại câu hiện tại từ backend
+        syncInterview()
+        return
+      }
+    }
+    setPhaseDeadline(null)
+    setRoomError(err instanceof Error && err.message ? err.message : 'Có lỗi xảy ra, vui lòng thử lại.')
+    changePhase('ERROR')
+  }
+
+  // Lấy câu hỏi hiện tại từ backend
+  function syncInterview() {
+    if (!attemptId) return
+    startInterview(attemptId).then(applyState).catch(handleRoomError)
+  }
+
+  /* ---------- Hành động của sinh viên ---------- */
+
+  // Bắt đầu trả lời
+  const startSpeakingPhase = () => {
+    if (phaseRef.current !== 'STUDENT_PREPARE') return
+    cancelSpeech()
+    restartCountRef.current = 0
+    lastSoundAtRef.current = Date.now()
+    setSilenceSeconds(0)
+    updateDraft('')
+    beginTimedPhase('STUDENT_SPEAKING', questionRef.current?.answerSeconds ?? 120)
+    if (micReady) {
+      startRecognition('')
+    }
+  }
+
+  const sendAnswer = (exchangeId: string, transcript: string) => {
+    if (!attemptId) return
+    changePhase('EVAL_AND_DECIDE')
+    submitInterviewAnswer(attemptId, exchangeId, transcript)
+      .then(applyState)
+      .catch((err) => {
+        // Lỗi mạng: bấm "Thử lại" sẽ gửi lại đúng câu trả lời này, không bắt sinh viên trả lời lại
+        retryRef.current = () => sendAnswer(exchangeId, transcript)
+        handleRoomError(err)
+      })
+  }
+
+  // Nộp câu trả lời & AI đánh giá
+  const submitAnswer = () => {
+    if (phaseRef.current !== 'STUDENT_SPEAKING') return
+    const exchangeId = questionRef.current?.exchangeId
+    if (!exchangeId) return
+    const wasListening = listeningWantedRef.current
+    stopRecognition()
+    setPhaseDeadline(null)
+    changePhase('EVAL_AND_DECIDE')
+    // Chờ một nhịp để trình duyệt trả nốt mấy từ cuối vừa nói
+    window.clearTimeout(submitTimerRef.current)
+    submitTimerRef.current = window.setTimeout(
+      () => sendAnswer(exchangeId, draftRef.current.trim()),
+      wasListening ? 500 : 0,
+    )
+  }
+
+  const skipQuestion = () => {
+    if (phaseRef.current !== 'STUDENT_PREPARE' && phaseRef.current !== 'STUDENT_SPEAKING') return
+    const exchangeId = questionRef.current?.exchangeId
+    if (!exchangeId || !attemptId) return
+    cancelSpeech()
+    stopRecognition()
+    setPhaseDeadline(null)
+    changePhase('EVAL_AND_DECIDE')
+    skipInterviewQuestion(attemptId, exchangeId).then(applyState).catch(handleRoomError)
+  }
+
+  // Sinh viên sửa câu trả lời bằng bàn phím: dừng ghi giọng nói để không bị ghi đè
+  const handleDraftChange = (value: string) => {
+    ignoreResultsRef.current = true
+    if (listeningWantedRef.current) {
+      stopRecognition()
+    }
+    updateDraft(value)
+  }
+
+  const resumeListening = () => {
+    if (phaseRef.current !== 'STUDENT_SPEAKING') return
+    restartCountRef.current = 0
+    lastSoundAtRef.current = Date.now()
+    setSilenceSeconds(0)
+    startRecognition(draftRef.current)
+  }
+
+  const handleRetry = () => {
+    const retry = retryRef.current
+    retryRef.current = null
+    setRoomError('')
+    if (retry) {
+      retry()
+    } else {
+      changePhase('EVAL_AND_DECIDE')
+      syncInterview()
+    }
+  }
+
+  // Kết thúc bài thi sớm
+  const completeExam = async () => {
+    if (!attemptId) return
+    cancelSpeech()
+    stopRecognition()
+    window.clearTimeout(pollTimerRef.current)
+    window.clearTimeout(submitTimerRef.current)
+    setPhaseDeadline(null)
+    try {
+      setAttempt(await finishExamAttempt(attemptId))
+      retryRef.current = null
+      setRoomError('')
+      changePhase('COMPLETED')
+    } catch (err) {
+      retryRef.current = () => {
         completeExam()
       }
-    }, 2200)
-  }, [
-    attemptId,
-    currentQuestion.content,
-    currentQuestion.id,
-    currentQuestion.maxFollowUps,
-    currentQuestionIdx,
-    followUpCount,
-    liveTranscript,
-    startQuestion,
-    triggerFollowUpQuestion,
-    completeExam,
-  ])
+      handleRoomError(err)
+    }
+  }
 
-  // Tải dữ liệu phiên thi
+  // Timer luôn gọi bản mới nhất của các hàm trên
+  const handlersRef = useRef({ startSpeakingPhase, submitAnswer, syncInterview })
+  handlersRef.current = { startSpeakingPhase, submitAnswer, syncInterview }
+
+  /* ---------- Effect ---------- */
+
+  // Tải dữ liệu lượt thi
   useEffect(() => {
     if (!attemptId) return
     getExamAttempt(attemptId)
-      .then((data: any) => {
+      .then((data) => {
         setAttempt(data)
         if (data.status === 'COMPLETED') {
-          setPhase('COMPLETED')
+          changePhase('COMPLETED')
+        } else {
+          examEndsAtRef.current = performance.now() + data.remainingSeconds * 1000
+          setExamSecondsLeft(data.remainingSeconds)
         }
       })
-      .catch(() => {
-        // Fallback mock nếu chưa có backend
-        setAttempt({
-          attemptId: attemptId,
-          examId: 'AIVES_EXAM_2026_049282',
-          title: 'Kiểm tra vấn đáp Kiến trúc phần mềm & AI (Đợt 1)',
-          durationMinutes: 45,
-          attemptNo: 1,
-          maxAttempts: 1,
-          status: 'IN_PROGRESS',
-          resultStatus: 'NONE',
-          startedAt: '2026-10-04T08:00:00Z',
-          deadlineAt: '2026-10-04T08:45:00Z',
-          completedAt: '2026-10-04T08:35:00Z',
-          serverTime: '2026-10-04T08:00:00Z',
-          remainingSeconds: 45 * 60,
-        })
+      .catch((err) => {
+        setLoadError(err instanceof Error && err.message ? err.message : 'Không tải được lượt thi.')
       })
       .finally(() => setLoading(false))
   }, [attemptId])
 
   // Dọn dẹp media khi unmount
   useEffect(() => {
+    unmountedRef.current = false
     return () => {
+      unmountedRef.current = true
+      listeningWantedRef.current = false
+      window.clearTimeout(speakTimerRef.current)
+      window.clearTimeout(pollTimerRef.current)
+      window.clearTimeout(submitTimerRef.current)
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
       if (microphoneRef.current) {
         microphoneRef.current.getTracks().forEach((track) => track.stop())
       }
@@ -286,52 +462,67 @@ export default function ExamRoomPage() {
     }
   }, [])
 
-  // Đếm ngược trong từng Phase
+  // Đếm ngược trong từng Phase (chuẩn bị / trả lời), tính theo mốc thời gian nên không bị trôi
   useEffect(() => {
-    if (phase !== 'STUDENT_PREPARE' && phase !== 'STUDENT_SPEAKING') return
+    if (phaseDeadline === null) return
+    const timer = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil((phaseDeadline - Date.now()) / 1000))
+      setPhaseSecondsLeft(left)
+      if (left > 0) return
+      window.clearInterval(timer)
+      if (phaseRef.current === 'STUDENT_PREPARE') {
+        handlersRef.current.startSpeakingPhase()
+      } else if (phaseRef.current === 'STUDENT_SPEAKING') {
+        handlersRef.current.submitAnswer()
+      }
+    }, 250)
+    return () => window.clearInterval(timer)
+  }, [phaseDeadline])
 
-    const timer = setInterval(() => {
-      setPhaseSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          if (phase === 'STUDENT_PREPARE') {
-            startSpeakingPhase()
-          } else if (phase === 'STUDENT_SPEAKING') {
-            submitAnswer()
-          }
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [phase, startSpeakingPhase, submitAnswer])
-
-  // Phát hiện khoảng lặng (Silence Detection >= 10s -> Auto Submit theo BR-VIVA-003)
+  // Đồng hồ cả bài thi. Hết giờ thì hỏi lại backend (backend mới là nơi quyết định đã hết giờ hay chưa).
   useEffect(() => {
-    if (phase !== 'STUDENT_SPEAKING') return
-
-    const interval = setInterval(() => {
-      if (audioLevel < 5) {
-        setSilenceSeconds((prev) => {
-          const next = prev + 1
-          if (next >= 10) {
-            submitAnswer()
-            return 0
-          }
-          return next
-        })
+    if (phase === 'COMPLETED' || examEndsAtRef.current === null) return
+    const timer = window.setInterval(() => {
+      const endsAt = examEndsAtRef.current
+      if (endsAt === null) return
+      const left = Math.max(0, Math.ceil((endsAt - performance.now()) / 1000))
+      setExamSecondsLeft(left)
+      if (left > 0) return
+      window.clearInterval(timer)
+      if (phaseRef.current === 'MIC_CHECK') {
+        changePhase('COMPLETED')
+        refreshAttempt()
       } else {
-        setSilenceSeconds(0)
+        handlersRef.current.syncInterview()
       }
     }, 1000)
+    return () => window.clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase === 'COMPLETED', attempt?.attemptId])
 
-    return () => clearInterval(interval)
-  }, [phase, audioLevel, submitAnswer])
+  // Phát hiện khoảng lặng (>= 10s -> tự nộp theo BR-VIVA-003). Chỉ áp dụng khi đang ghi giọng nói.
+  useEffect(() => {
+    if (phase !== 'STUDENT_SPEAKING' || !listening) {
+      setSilenceSeconds(0)
+      return
+    }
+    const interval = window.setInterval(() => {
+      const silent = Math.floor((Date.now() - lastSoundAtRef.current) / 1000)
+      setSilenceSeconds(silent)
+      if (silent >= SILENCE_SUBMIT_SECONDS) {
+        handlersRef.current.submitAnswer()
+      }
+    }, 500)
+    return () => window.clearInterval(interval)
+  }, [phase, listening])
 
-  // Khởi động kiểm tra mic
+  // Xin quyền micro rồi bắt đầu phỏng vấn. Không có micro vẫn thi được bằng bàn phím.
   const handlePassMicCheck = async () => {
+    if (!attemptId || starting) return
+    setStarting(true)
+    setStartError('')
+
+    let hasMic = false
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       microphoneRef.current = stream
@@ -345,22 +536,41 @@ export default function ExamRoomPage() {
       const source = ctx.createMediaStreamSource(stream)
       source.connect(analyser)
 
+      const dataArray = new Uint8Array(analyser.frequencyBinCount)
       const updateVolume = () => {
-        const dataArray = new Uint8Array(analyser.frequencyBinCount)
         analyser.getByteFrequencyData(dataArray)
         let sum = 0
         for (let i = 0; i < dataArray.length; i++) {
           sum += dataArray[i]
         }
-        const avg = sum / dataArray.length
-        setAudioLevel(Math.min(100, Math.round(avg * 1.5)))
+        const level = Math.min(100, Math.round((sum / dataArray.length) * 1.5))
+        if (level >= SOUND_LEVEL_THRESHOLD) {
+          lastSoundAtRef.current = Date.now()
+        }
+        // Chỉ vẽ lại khi âm lượng đổi đáng kể
+        if (Math.abs(level - lastLevelRef.current) >= 2) {
+          lastLevelRef.current = level
+          setAudioLevel(level)
+        }
         animationFrameRef.current = requestAnimationFrame(updateVolume)
       }
       updateVolume()
+      hasMic = true
+    } catch (err) {
+      console.warn('Không dùng được micro, chuyển sang trả lời bằng bàn phím', err)
+    }
+    setMicReady(hasMic)
 
-      startQuestion(0)
-    } catch {
-      alert('Vui lòng cho phép quyền truy cập Micro để tham gia phòng thi vấn đáp!')
+    try {
+      applyState(await startInterview(attemptId))
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'EXAM_ATTEMPT_NOT_RUNNING') {
+        applyState({ status: 'COMPLETED', aiEnabled: true, aiFallback: false })
+      } else {
+        setStartError(err instanceof Error && err.message ? err.message : 'Không bắt đầu được phỏng vấn.')
+      }
+    } finally {
+      setStarting(false)
     }
   }
 
@@ -369,12 +579,34 @@ export default function ExamRoomPage() {
     setConfirmingFinish(false)
   }
 
+  const voiceMode = micReady && speechSupported
+  const followUpNo = question?.followUpNo ?? 0
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-on-surface">
         <div className="flex items-center gap-3 text-body-lg">
           <Icon name="progress_activity" className="animate-spin text-primary text-3xl" />
           <span>Đang kết nối phòng thi bảo mật AIVES...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadError || !attempt) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4 text-on-surface">
+        <div className="w-full max-w-md rounded-3xl border border-outline-variant/40 bg-surface-container-lowest p-8 text-center shadow-xl">
+          <Icon name="error" className="text-5xl text-error" />
+          <h1 className="mt-4 text-headline-sm font-bold">Không vào được phòng thi</h1>
+          <p className="mt-2 text-body-md text-on-surface-variant">{loadError || 'Không tìm thấy lượt thi.'}</p>
+          <Link
+            to="/exam/join"
+            className="mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-primary-container px-6 py-3 text-label-md font-semibold text-on-primary shadow-md hover:bg-primary"
+          >
+            <Icon name="arrow_back" />
+            <span>Quay lại trang nhập mã phiên thi</span>
+          </Link>
         </div>
       </div>
     )
@@ -401,6 +633,16 @@ export default function ExamRoomPage() {
                 Phiên: {attempt.examId}
                 {attempt.maxAttempts > 1 && ` · Lượt ${attempt.attemptNo}/${attempt.maxAttempts}`}
               </span>
+            </div>
+          )}
+
+          {phase !== 'COMPLETED' && examSecondsLeft !== null && (
+            <div
+              className="flex items-center gap-1.5 rounded-full bg-surface-container px-3.5 py-1.5 text-label-sm font-semibold text-on-surface"
+              title="Thời gian còn lại của cả bài thi"
+            >
+              <Icon name="schedule" className="text-base text-primary" />
+              <span className="font-mono">{formatClock(examSecondsLeft)}</span>
             </div>
           )}
 
@@ -439,23 +681,35 @@ export default function ExamRoomPage() {
                 <Icon name="info" /> Quy định phòng thi (AIVES BR-VIVA):
               </h2>
               <ul className="mt-2 space-y-1.5 text-body-sm text-on-surface-variant list-disc pl-5">
-                <li>AI đọc câu hỏi qua giọng nói $\rightarrow$ Thí sinh có thời gian suy nghĩ chuẩn bị.</li>
+                <li>AI đọc câu hỏi qua giọng nói, sau đó thí sinh có thời gian suy nghĩ chuẩn bị.</li>
                 <li>Micro sẽ tự động bật khi bắt đầu thời gian trả lời.</li>
                 <li>
-                  <strong>Cơ chế tự nộp (BR-VIVA-003):</strong> Nếu phát hiện im lặng liên tục $\ge 10$ giây, hệ thống
+                  <strong>Cơ chế tự nộp (BR-VIVA-003):</strong> Nếu phát hiện im lặng liên tục từ 10 giây, hệ thống
                   sẽ tự khóa micro và nộp câu trả lời.
                 </li>
                 <li>AI có thể hỏi xoáy đào sâu (Adaptive Follow-up) nếu câu trả lời chưa đầy đủ ý.</li>
+                <li>
+                  Lời nói được tự ghi thành chữ (cần Chrome hoặc Edge). Bạn sửa được bằng bàn phím trước khi nộp;
+                  không có micro thì trả lời bằng bàn phím.
+                </li>
               </ul>
             </div>
+
+            {startError && (
+              <div className="mt-4 flex items-start gap-2 rounded-2xl bg-error/10 p-3 text-left text-body-sm text-error">
+                <Icon name="error" className="text-base" />
+                <span>{startError}</span>
+              </div>
+            )}
 
             <button
               type="button"
               onClick={handlePassMicCheck}
-              className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary-container py-3.5 text-label-lg font-semibold text-on-primary shadow-lg shadow-primary-container/30 hover:bg-primary transition-all"
+              disabled={starting}
+              className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary-container py-3.5 text-label-lg font-semibold text-on-primary shadow-lg shadow-primary-container/30 hover:bg-primary transition-all disabled:opacity-60"
             >
-              <Icon name="settings_voice" />
-              <span>Cho phép Micro & Bắt đầu thi</span>
+              <Icon name={starting ? 'progress_activity' : 'settings_voice'} className={starting ? 'animate-spin' : ''} />
+              <span>{starting ? 'Đang chuẩn bị câu hỏi...' : 'Cho phép Micro & Bắt đầu thi'}</span>
             </button>
           </div>
         )}
@@ -467,23 +721,25 @@ export default function ExamRoomPage() {
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface-container-lowest p-4 border border-outline-variant/30 shadow-sm">
               <div className="flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-fixed text-primary font-bold">
-                  {currentQuestionIdx + 1}
+                  {question?.questionNo ?? '-'}
                 </span>
                 <div>
                   <h3 className="text-label-lg font-bold text-on-surface">
-                    Câu hỏi chính {currentQuestionIdx + 1} / {SAMPLE_EXAM_QUESTIONS.length}
+                    Câu hỏi chính {question?.questionNo ?? '-'} / {question?.totalQuestions ?? '-'}
                   </h3>
                   <p className="text-body-sm text-on-surface-variant">
-                    Mức độ Bloom: <span className="font-semibold text-primary">{currentQuestion.bloomLevel}</span>
+                    Mức độ Bloom: <span className="font-semibold text-primary">{question?.bloomLevel ?? '-'}</span>
                   </p>
                 </div>
               </div>
 
               {/* Trạng thái vòng hỏi xoáy */}
-              {followUpCount > 0 ? (
+              {followUpNo > 0 ? (
                 <div className="inline-flex items-center gap-2 rounded-full bg-tertiary-fixed px-4 py-1.5 text-label-md text-tertiary font-semibold animate-pulse">
                   <Icon name="psychology_alt" />
-                  <span>Hỏi xoáy thích ứng (Follow-up #{followUpCount})</span>
+                  <span>
+                    Hỏi xoáy thích ứng (Follow-up #{followUpNo}/{question?.maxFollowUps ?? followUpNo})
+                  </span>
                 </div>
               ) : (
                 <div className="inline-flex items-center gap-2 rounded-full bg-secondary-container px-3.5 py-1 text-label-sm text-secondary font-medium">
@@ -512,20 +768,18 @@ export default function ExamRoomPage() {
                   </div>
 
                   <p className="mt-3 text-headline-sm font-semibold text-on-surface leading-snug">
-                    {followUpCount === 0
-                      ? currentQuestion.content
-                      : `Bạn giải thích rất hay. Nhưng nếu một lệnh bù trừ trong Saga bị thất bại tiếp thì hệ thống sẽ xử lý thế nào để đảm bảo tính nhất quán?`}
+                    {question?.questionText ?? 'Đang tải câu hỏi...'}
                   </p>
 
                   <div className="mt-4 flex flex-wrap gap-2 text-label-xs text-on-surface-variant">
+                    {question?.rubricName && (
+                      <span className="rounded-md bg-surface-container px-2.5 py-1">Rubric: {question.rubricName}</span>
+                    )}
                     <span className="rounded-md bg-surface-container px-2.5 py-1">
-                      Rubric: {currentQuestion.rubricName}
+                      Thời gian suy nghĩ: {question?.prepareSeconds ?? '-'}s
                     </span>
                     <span className="rounded-md bg-surface-container px-2.5 py-1">
-                      Thời gian suy nghĩ: {currentQuestion.prepareSeconds}s
-                    </span>
-                    <span className="rounded-md bg-surface-container px-2.5 py-1">
-                      Thời gian nói tối đa: {currentQuestion.answerSeconds}s
+                      Thời gian trả lời tối đa: {question?.answerSeconds ?? '-'}s
                     </span>
                   </div>
                 </div>
@@ -548,8 +802,10 @@ export default function ExamRoomPage() {
                   />
                   <span className="text-label-md font-semibold text-on-surface">
                     {phase === 'STUDENT_PREPARE' && 'Thời gian chuẩn bị suy nghĩ'}
-                    {phase === 'STUDENT_SPEAKING' && 'Micro đang bật - Hãy trả lời'}
+                    {phase === 'STUDENT_SPEAKING' &&
+                      (listening ? 'Micro đang bật - Hãy trả lời' : 'Hãy nhập câu trả lời bằng bàn phím')}
                     {phase === 'EVAL_AND_DECIDE' && 'AI đang phân tích câu trả lời...'}
+                    {phase === 'ERROR' && 'Chưa gửi được lên máy chủ'}
                     {phase === 'TTS_PLAY' && 'Lắng nghe giám khảo đọc đề'}
                   </span>
                 </div>
@@ -559,8 +815,7 @@ export default function ExamRoomPage() {
                   <div className="flex items-center gap-2 rounded-2xl bg-surface-container-high px-4 py-2">
                     <Icon name="timer" className="text-primary text-xl" />
                     <span className="text-headline-xs font-mono font-bold text-primary">
-                      {String(Math.floor(phaseSecondsLeft / 60)).padStart(2, '0')}:
-                      {String(phaseSecondsLeft % 60).padStart(2, '0')}
+                      {formatClock(phaseSecondsLeft)}
                     </span>
                   </div>
                 )}
@@ -587,35 +842,71 @@ export default function ExamRoomPage() {
                 {phase === 'STUDENT_SPEAKING' && (
                   <div className="w-full">
                     {/* Visualizer bars */}
-                    <div className="flex items-center justify-center gap-1.5 h-16 mb-4">
-                      {[...Array(24)].map((_, i) => {
-                        const height = Math.max(12, Math.min(60, (audioLevel * (i % 5 + 1)) / 4))
-                        return (
-                          <div
-                            key={i}
-                            className="w-1.5 rounded-full bg-gradient-to-t from-primary to-primary-container transition-all duration-75"
-                            style={{ height: `${height}px` }}
-                          />
-                        )
-                      })}
-                    </div>
-
-                    {/* Cảnh báo im lặng BR-VIVA-003 */}
-                    {silenceSeconds >= 5 && (
-                      <div className="inline-flex items-center gap-2 rounded-full bg-tertiary-fixed px-4 py-1 text-label-sm text-tertiary font-semibold mb-3">
-                        <Icon name="warning" />
-                        <span>Phát hiện im lặng {silenceSeconds}s (Tự nộp sau 10s)</span>
+                    {listening && (
+                      <div className="flex items-center justify-center gap-1.5 h-16 mb-4">
+                        {[...Array(24)].map((_, i) => {
+                          const height = Math.max(12, Math.min(60, (audioLevel * (i % 5 + 1)) / 4))
+                          return (
+                            <div
+                              key={i}
+                              className="w-1.5 rounded-full bg-gradient-to-t from-primary to-primary-container transition-all duration-75"
+                              style={{ height: `${height}px` }}
+                            />
+                          )
+                        })}
                       </div>
                     )}
 
-                    {/* Transcript bóc băng */}
-                    <div className="mx-auto max-w-2xl min-h-16 rounded-xl bg-surface-container-lowest p-4 text-left border border-outline-variant/30 shadow-inner">
-                      <span className="text-label-xs uppercase tracking-wider text-outline block mb-1">
-                        Transcript bóc băng giọng nói trực tiếp:
-                      </span>
-                      <p className="text-body-md text-on-surface font-medium italic">
-                        {liveTranscript || 'Đang lắng nghe âm thanh từ micro...'}
-                      </p>
+                    {/* Cảnh báo im lặng BR-VIVA-003 */}
+                    {listening && silenceSeconds >= SILENCE_HINT_SECONDS && (
+                      <div className="inline-flex items-center gap-2 rounded-full bg-tertiary-fixed px-4 py-1 text-label-sm text-tertiary font-semibold mb-3">
+                        <Icon name="warning" />
+                        <span>
+                          Phát hiện im lặng {silenceSeconds}s (Tự nộp sau {SILENCE_SUBMIT_SECONDS}s)
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Câu trả lời: tự ghi từ giọng nói, sửa được bằng bàn phím */}
+                    <div className="mx-auto max-w-2xl rounded-xl bg-surface-container-lowest p-4 text-left border border-outline-variant/30 shadow-inner">
+                      <label
+                        htmlFor="answer-draft"
+                        className="text-label-xs uppercase tracking-wider text-outline block mb-1"
+                      >
+                        {listening
+                          ? 'Câu trả lời của bạn (đang ghi từ giọng nói, sửa được bằng bàn phím):'
+                          : 'Câu trả lời của bạn (nhập bằng bàn phím):'}
+                      </label>
+                      <textarea
+                        id="answer-draft"
+                        value={answerDraft}
+                        onChange={(event) => handleDraftChange(event.target.value)}
+                        rows={4}
+                        maxLength={MAX_TRANSCRIPT_LENGTH}
+                        placeholder={listening ? 'Đang lắng nghe âm thanh từ micro...' : 'Nhập câu trả lời của bạn...'}
+                        className="w-full resize-y bg-transparent text-body-md text-on-surface font-medium outline-none placeholder:italic placeholder:text-outline"
+                      />
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-label-xs text-outline">
+                        <span>
+                          {listening && 'Micro đang ghi. Gõ vào ô trên sẽ tạm dừng ghi giọng nói.'}
+                          {!listening && voiceMode && 'Đã tạm dừng ghi giọng nói.'}
+                          {!listening && !micReady && 'Không dùng được micro nên bạn trả lời bằng bàn phím.'}
+                          {!listening &&
+                            micReady &&
+                            !speechSupported &&
+                            'Trình duyệt này không hỗ trợ nhận giọng nói (hãy dùng Chrome hoặc Edge).'}
+                        </span>
+                        {!listening && voiceMode && (
+                          <button
+                            type="button"
+                            onClick={resumeListening}
+                            className="inline-flex items-center gap-1 rounded-full bg-primary-fixed px-3 py-1 font-semibold text-primary hover:bg-primary-fixed-dim"
+                          >
+                            <Icon name="mic" className="text-sm" />
+                            <span>Nói tiếp</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -629,6 +920,22 @@ export default function ExamRoomPage() {
                     </p>
                   </div>
                 )}
+
+                {phase === 'ERROR' && (
+                  <div className="flex flex-col items-center gap-3">
+                    <Icon name="cloud_off" className="text-error text-5xl" />
+                    <p className="text-headline-xs font-semibold text-on-surface">Có lỗi khi kết nối máy chủ</p>
+                    <p className="text-body-sm text-on-surface-variant max-w-sm">{roomError}</p>
+                    <button
+                      type="button"
+                      onClick={handleRetry}
+                      className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary-container px-6 py-2.5 text-label-md font-semibold text-on-primary shadow-md hover:bg-primary transition-colors"
+                    >
+                      <Icon name="refresh" />
+                      <span>Thử lại</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Nút hành động phía dưới */}
@@ -637,16 +944,28 @@ export default function ExamRoomPage() {
                   Phiên thi được mã hóa & giám sát tuân thủ tiêu chuẩn bảo mật.
                 </span>
 
-                {phase === 'STUDENT_SPEAKING' && (
-                  <button
-                    type="button"
-                    onClick={submitAnswer}
-                    className="inline-flex items-center gap-2 rounded-full bg-secondary-container px-6 py-2.5 text-label-md font-semibold text-on-secondary-container shadow-md hover:bg-secondary-fixed transition-colors"
-                  >
-                    <Icon name="check" />
-                    <span>Hoàn thành câu trả lời</span>
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {(phase === 'STUDENT_PREPARE' || phase === 'STUDENT_SPEAKING') && (
+                    <button
+                      type="button"
+                      onClick={skipQuestion}
+                      className="inline-flex items-center gap-2 rounded-full border border-outline-variant px-5 py-2.5 text-label-md font-semibold text-on-surface-variant hover:bg-surface-container transition-colors"
+                    >
+                      <Icon name="skip_next" />
+                      <span>Bỏ qua câu này</span>
+                    </button>
+                  )}
+                  {phase === 'STUDENT_SPEAKING' && (
+                    <button
+                      type="button"
+                      onClick={submitAnswer}
+                      className="inline-flex items-center gap-2 rounded-full bg-secondary-container px-6 py-2.5 text-label-md font-semibold text-on-secondary-container shadow-md hover:bg-secondary-fixed transition-colors"
+                    >
+                      <Icon name="check" />
+                      <span>Hoàn thành câu trả lời</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -661,7 +980,7 @@ export default function ExamRoomPage() {
 
             <h1 className="mt-6 text-headline-md font-bold text-on-surface">Đã hoàn thành bài thi Vấn đáp!</h1>
             <p className="mt-2 text-body-md text-on-surface-variant">
-              Toàn bộ âm thanh và transcript đối thoại với Giám khảo AI đã được lưu trữ an toàn.
+              Toàn bộ nội dung hỏi - đáp với Giám khảo AI đã được lưu lại.
             </p>
 
             <div className="mt-6 rounded-2xl bg-surface-container p-4 text-left space-y-2 text-body-sm text-on-surface-variant">

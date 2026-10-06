@@ -17,6 +17,7 @@ export default function LecturerReviewPage() {
   // Điểm số và ghi chú giảng viên nhập
   const [editableScores, setEditableScores] = useState<Record<string, { finalScore: number; lecturerNote: string }>>({})
   const [publishing, setPublishing] = useState(false)
+  const [regrading, setRegrading] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Tải danh sách lượt thi
@@ -38,36 +39,50 @@ export default function LecturerReviewPage() {
     loadAttempts()
   }, [])
 
-  // Tải chi tiết lượt thi
+  // Tải chi tiết lượt thi. keepEdits = true: giữ điểm / ghi chú giảng viên đang nhập dở ở các câu chưa chốt.
+  const loadDetail = async (targetAttemptId: string, keepEdits = false) => {
+    try {
+      const res = await gradingService.getAttemptReviewDetail(targetAttemptId)
+      setCurrentAttempt(res.attempt)
+      setQuestionGrades(res.questionGrades)
+      setAttempts((prev) => prev.map((a) => (a.attemptId === res.attempt.attemptId ? res.attempt : a)))
+      setEditableScores((prev) => {
+        const next: Record<string, { finalScore: number; lecturerNote: string }> = {}
+        res.questionGrades.forEach((qg) => {
+          next[qg.id] =
+            keepEdits && prev[qg.id] && qg.status !== 'APPROVED'
+              ? prev[qg.id]
+              : { finalScore: qg.finalScore ?? qg.aiScore ?? 0, lecturerNote: qg.lecturerNote || '' }
+        })
+        return next
+      })
+    } catch (err: any) {
+      setBanner({ type: 'error', message: err.message })
+    }
+  }
+
   useEffect(() => {
     if (!selectedAttemptId) return
-    gradingService
-      .getAttemptReviewDetail(selectedAttemptId)
-      .then((res) => {
-        setCurrentAttempt(res.attempt)
-        setQuestionGrades(res.questionGrades)
-
-        // Khởi tạo state edit
-        const initialMap: Record<string, { finalScore: number; lecturerNote: string }> = {}
-        res.questionGrades.forEach((qg) => {
-          initialMap[qg.id] = {
-            finalScore: qg.finalScore ?? qg.aiScore ?? 0,
-            lecturerNote: qg.lecturerNote || '',
-          }
-        })
-        setEditableScores(initialMap)
-      })
-      .catch((err) => {
-        setBanner({ type: 'error', message: err.message })
-      })
+    setCurrentAttempt(null)
+    setQuestionGrades([])
+    loadDetail(selectedAttemptId)
   }, [selectedAttemptId])
+
+  // AI đang chấm (hoặc vừa được yêu cầu chấm lại): vài giây tải lại một lần cho tới khi có kết quả
+  const waitingForAi = currentAttempt?.resultStatus === 'GRADING' || currentAttempt?.resultStatus === 'NONE'
+  useEffect(() => {
+    if (!waitingForAi || !selectedAttemptId) return
+    const timer = window.setInterval(() => loadDetail(selectedAttemptId, true), 4000)
+    return () => window.clearInterval(timer)
+  }, [waitingForAi, selectedAttemptId])
 
   // Lưu và duyệt điểm 1 câu (HITL - BR-GRADE-002)
   const handleSaveQuestion = async (qg: QuestionGrade) => {
     const edit = editableScores[qg.id]
     if (!edit) return
 
-    const diff = Math.abs(edit.finalScore - (qg.aiScore || 0))
+    // AI không chấm được câu này (aiScore trống) thì không có điểm AI để so sánh
+    const diff = qg.aiScore === undefined ? 0 : Math.abs(edit.finalScore - qg.aiScore)
     if (diff > 2.0 && (!edit.lecturerNote || edit.lecturerNote.trim().length < 5)) {
       setBanner({
         type: 'error',
@@ -83,6 +98,8 @@ export default function LecturerReviewPage() {
       })
       setQuestionGrades((prev) => prev.map((item) => (item.id === qg.id ? updated : item)))
       setBanner({ type: 'success', message: 'Đã lưu và phê duyệt điểm câu hỏi thành công!' })
+      // Cập nhật lại tổng điểm chốt của lượt thi
+      if (selectedAttemptId) loadDetail(selectedAttemptId, true)
     } catch (err: any) {
       setBanner({ type: 'error', message: err.message })
     }
@@ -105,6 +122,29 @@ export default function LecturerReviewPage() {
     } finally {
       setPublishing(false)
     }
+  }
+
+  // Cho AI chấm lại các câu giảng viên chưa chốt điểm (dùng khi AI chấm lỗi)
+  const handleRegrade = async () => {
+    if (!selectedAttemptId) return
+    setRegrading(true)
+    try {
+      const updated = await gradingService.requestRegrade(selectedAttemptId)
+      setCurrentAttempt(updated)
+      setAttempts((prev) => prev.map((a) => (a.attemptId === updated.attemptId ? updated : a)))
+      setBanner({ type: 'success', message: 'Đã yêu cầu AI chấm lại. Kết quả sẽ tự hiện sau ít giây.' })
+    } catch (err: any) {
+      setBanner({ type: 'error', message: err.message })
+    } finally {
+      setRegrading(false)
+    }
+  }
+
+  const resultStatusLabel = (resultStatus?: string) => {
+    if (resultStatus === 'PUBLISHED') return 'ĐÃ CÔNG BỐ'
+    if (resultStatus === 'GRADING' || resultStatus === 'NONE') return 'AI ĐANG CHẤM'
+    if (resultStatus === 'GRADING_FAILED') return 'AI CHẤM LỖI'
+    return 'CHỜ THẨM ĐỊNH'
   }
 
   return (
@@ -134,7 +174,7 @@ export default function LecturerReviewPage() {
               <button
                 type="button"
                 onClick={handlePublish}
-                disabled={publishing || currentAttempt.resultStatus === 'PUBLISHED'}
+                disabled={publishing || waitingForAi || currentAttempt.resultStatus === 'PUBLISHED'}
                 className="inline-flex items-center gap-2 rounded-full bg-secondary-container px-6 py-2.5 text-label-md font-semibold text-on-secondary-container shadow-md hover:bg-secondary-fixed transition-colors disabled:opacity-50"
               >
                 <Icon name={currentAttempt.resultStatus === 'PUBLISHED' ? 'verified' : 'publish'} />
@@ -204,7 +244,7 @@ export default function LecturerReviewPage() {
                           isPublished ? 'bg-secondary-container text-secondary' : 'bg-tertiary-fixed text-tertiary'
                         }`}
                       >
-                        {isPublished ? 'ĐÃ CÔNG BỐ' : 'CHỜ THẨM ĐỊNH'}
+                        {resultStatusLabel(att.resultStatus)}
                       </span>
                     </div>
 
@@ -213,7 +253,7 @@ export default function LecturerReviewPage() {
 
                     <div className="mt-3 flex items-center justify-between border-t border-outline-variant/30 pt-2 text-label-xs">
                       <span className="text-outline">Điểm AI gợi ý:</span>
-                      <span className="font-bold text-primary">{att.totalAiScore} / 10</span>
+                      <span className="font-bold text-primary">{att.totalAiScore ?? '-'} / 10</span>
                     </div>
                   </button>
                 )
@@ -236,7 +276,7 @@ export default function LecturerReviewPage() {
                 <div className="flex items-center gap-4">
                   <div className="text-right">
                     <span className="block text-label-xs text-outline">Điểm AI đề xuất</span>
-                    <span className="text-headline-xs font-bold text-primary">{currentAttempt.totalAiScore} / 10</span>
+                    <span className="text-headline-xs font-bold text-primary">{currentAttempt.totalAiScore ?? '-'} / 10</span>
                   </div>
                   {currentAttempt.totalFinalScore !== undefined && (
                     <div className="text-right border-l border-outline-variant/40 pl-4">
@@ -250,10 +290,37 @@ export default function LecturerReviewPage() {
               </div>
             )}
 
+            {currentAttempt && waitingForAi && (
+              <div className="flex items-center gap-2 rounded-2xl bg-surface-container p-4 text-body-sm text-on-surface-variant">
+                <Icon name="progress_activity" className="animate-spin text-primary" />
+                <span>AI đang chấm lượt thi này. Trang sẽ tự cập nhật khi có kết quả.</span>
+              </div>
+            )}
+
+            {currentAttempt?.resultStatus === 'GRADING_FAILED' && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-error-container p-4 text-body-sm text-on-error-container">
+                <div className="flex items-center gap-2">
+                  <Icon name="error" />
+                  <span>
+                    AI không chấm được một số câu. Bạn có thể cho AI chấm lại, hoặc tự nhập điểm chốt cho các câu đó.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRegrade}
+                  disabled={regrading}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-surface-container-lowest px-4 py-1.5 text-label-sm font-semibold text-error hover:bg-surface-container disabled:opacity-50"
+                >
+                  <Icon name="refresh" className="text-sm" />
+                  <span>{regrading ? 'Đang gửi...' : 'Cho AI chấm lại'}</span>
+                </button>
+              </div>
+            )}
+
             {/* Danh sách từng câu hỏi để giảng viên chấm */}
             {questionGrades.map((qg, idx) => {
               const edit = editableScores[qg.id] || { finalScore: qg.aiScore || 0, lecturerNote: '' }
-              const diff = Math.abs(edit.finalScore - (qg.aiScore || 0))
+              const diff = qg.aiScore === undefined ? 0 : Math.abs(edit.finalScore - qg.aiScore)
               const isDiffBig = diff > 2.0
               const isApproved = qg.status === 'APPROVED'
 
@@ -322,17 +389,28 @@ export default function LecturerReviewPage() {
                       <span className="text-label-sm font-bold text-primary uppercase flex items-center gap-1.5">
                         <Icon name="smart_toy" /> AI Scoring & Bằng chứng (BR-GRADE-001):
                       </span>
-                      <span className="text-label-md font-bold text-primary">Điểm AI gợi ý: {qg.aiScore} / 10</span>
+                      <span className="text-label-md font-bold text-primary">Điểm AI gợi ý: {qg.aiScore ?? '-'} / 10</span>
                     </div>
+
+                    {qg.status === 'FAILED' && (
+                      <div className="rounded-xl bg-error-container p-3 text-body-sm text-on-error-container">
+                        AI không chấm được câu này{qg.aiFeedback ? `: ${qg.aiFeedback}` : '.'}
+                      </div>
+                    )}
+                    {qg.status !== 'FAILED' && qg.aiFeedback && (
+                      <p className="text-body-sm text-on-surface-variant">
+                        <span className="font-semibold text-on-surface">Nhận xét của AI:</span> {qg.aiFeedback}
+                      </p>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-body-sm">
                       <div className="rounded-xl bg-secondary-container/40 p-3">
                         <span className="text-label-xs font-bold text-secondary block mb-1">Điểm mạnh:</span>
-                        <p>{qg.aiStrengths}</p>
+                        <p>{qg.aiStrengths ?? '-'}</p>
                       </div>
                       <div className="rounded-xl bg-tertiary-fixed/30 p-3">
                         <span className="text-label-xs font-bold text-tertiary block mb-1">Điểm yếu / thiếu ý:</span>
-                        <p>{qg.aiWeaknesses}</p>
+                        <p>{qg.aiWeaknesses ?? '-'}</p>
                       </div>
                     </div>
 
@@ -342,7 +420,7 @@ export default function LecturerReviewPage() {
                         <div key={cg.id} className="rounded-xl bg-surface-container-lowest p-3 border border-outline-variant/30 text-body-xs">
                           <div className="flex justify-between font-semibold text-on-surface">
                             <span>{cg.criterionName} ({cg.weightPercent}%)</span>
-                            <span className="text-primary">{cg.aiScore} / 10</span>
+                            <span className="text-primary">{cg.aiScore ?? '-'} / 10</span>
                           </div>
                           {cg.evidenceQuote && (
                             <p className="mt-1 text-outline italic">Trích dẫn: {cg.evidenceQuote}</p>
@@ -415,7 +493,8 @@ export default function LecturerReviewPage() {
                       <button
                         type="button"
                         onClick={() => handleSaveQuestion(qg)}
-                        className="inline-flex items-center gap-2 rounded-full bg-primary-container px-6 py-2.5 text-label-md font-semibold text-on-primary shadow-md hover:bg-primary"
+                        disabled={waitingForAi || currentAttempt?.resultStatus === 'PUBLISHED'}
+                        className="disabled:opacity-50 inline-flex items-center gap-2 rounded-full bg-primary-container px-6 py-2.5 text-label-md font-semibold text-on-primary shadow-md hover:bg-primary"
                       >
                         <Icon name="check" />
                         <span>Lưu & Phê duyệt câu này</span>

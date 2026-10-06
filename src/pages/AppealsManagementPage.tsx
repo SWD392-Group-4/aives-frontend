@@ -130,13 +130,19 @@ export default function AppealsManagementPage() {
                       <span className="text-body-xs text-outline font-mono">{ap.studentId}</span>
                     </td>
                     <td className="p-4 max-w-md">
+                      {ap.questionText && (
+                        <span className="mb-1 block text-body-xs text-outline line-clamp-1">
+                          {ap.examTitle ? `${ap.examTitle} · ` : ''}
+                          {ap.questionText}
+                        </span>
+                      )}
                       <p className="line-clamp-2 text-on-surface">{ap.reason}</p>
                       <span className="text-body-xs text-outline mt-1 block">
                         Gửi lúc: {formatDateTime(ap.createdAt)}
                       </span>
                     </td>
                     <td className="p-4 text-center font-bold text-primary">
-                      {ap.scoreBefore} / 10
+                      {ap.scoreBefore} / {ap.maxScore ?? 10}
                       {ap.scoreAfter !== undefined && isAccepted && (
                         <span className="block text-secondary text-label-xs">Mới: {ap.scoreAfter}</span>
                       )}
@@ -151,7 +157,7 @@ export default function AppealsManagementPage() {
                               : 'bg-error-container text-error'
                         }`}
                       >
-                        {ap.status}
+                        {isPending ? 'Chờ xử lý' : isAccepted ? 'Chấp thuận' : 'Từ chối'}
                       </span>
                     </td>
                     <td className="p-4 text-right sm:pr-6">
@@ -181,6 +187,9 @@ export default function AppealsManagementPage() {
               })}
             </tbody>
           </table>
+          {!_loading && appeals.length === 0 && (
+            <p className="p-8 text-center text-body-md text-on-surface-variant">Chưa có đơn phúc khảo nào.</p>
+          )}
         </div>
       </main>
 
@@ -210,13 +219,13 @@ export default function AppealsManagementPage() {
               {decisionAction === 'ACCEPTED' && (
                 <div>
                   <label className="block text-label-sm font-semibold text-on-surface mb-1">
-                    Điểm số sau điều chỉnh (Ban đầu: {selectedAppeal.scoreBefore}/10):
+                    Điểm số sau điều chỉnh (Ban đầu: {selectedAppeal.scoreBefore}/{selectedAppeal.maxScore ?? 10}):
                   </label>
                   <input
                     type="number"
                     step="0.1"
                     min="0"
-                    max="10"
+                    max={selectedAppeal.maxScore ?? 10}
                     value={scoreAfter}
                     onChange={(e) => setScoreAfter(Number(e.target.value))}
                     className="w-full rounded-2xl border border-outline-variant bg-surface-container-low p-3 text-headline-xs font-bold text-primary"

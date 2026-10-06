@@ -43,6 +43,8 @@ export class ApiError extends Error {
 export interface ApiRequestOptions {
   method?: string
   body?: unknown
+  // Gửi file (multipart/form-data). Khi có formData thì bỏ qua body.
+  formData?: FormData
   auth?: boolean
 }
 
@@ -54,10 +56,11 @@ export interface ApiRequestOptions {
  */
 export async function apiRequest<T = any>(
   path: string,
-  { method = 'GET', body, auth = true }: ApiRequestOptions = {}
+  { method = 'GET', body, formData, auth = true }: ApiRequestOptions = {}
 ): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  // Với FormData, trình duyệt tự đặt Content-Type kèm boundary
+  if (!formData && body !== undefined) headers['Content-Type'] = 'application/json'
 
   const token = auth ? getAccessToken() : null
   if (token) headers.Authorization = `Bearer ${token}`
@@ -67,7 +70,7 @@ export async function apiRequest<T = any>(
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
     })
   } catch (err) {
     // Lỗi mạng hoặc CORS do trình duyệt chặn
