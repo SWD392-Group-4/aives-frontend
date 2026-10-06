@@ -1,14 +1,16 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.js'
 
-
-
-function ProtectedRoute({ roles = null, children }) {
-
+/**
+ * Chặn trang cần đăng nhập.
+ *   <ProtectedRoute>...</ProtectedRoute>                    -> chỉ cần đăng nhập
+ *   <ProtectedRoute roles={['ADMIN']}>...</ProtectedRoute>  -> phải đúng role
+ * Tài khoản đang dùng mật khẩu tạm (user.mustChangePassword) chỉ vào được trang hồ sơ để đổi mật khẩu.
+ * Backend vẫn kiểm tra quyền ở mọi API; phần này chỉ để điều hướng giao diện.
+ */
 const CHANGE_PASSWORD_PATH = '/profile'
 
-function ProtectedRoute({ roles, children }) {
-
+function ProtectedRoute({ roles = null, children }) {
   const { user } = useAuth()
   const location = useLocation()
 
