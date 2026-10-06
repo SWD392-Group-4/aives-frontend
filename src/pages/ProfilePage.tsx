@@ -150,6 +150,8 @@ function PasswordForm() {
     } catch (apiError) {
       if (apiError.code === 'WRONG_CURRENT_PASSWORD') {
         setErrors({ currentPassword: getErrorMessage(apiError, language) })
+      } else if (apiError.code === 'NEW_PASSWORD_SAME_AS_CURRENT') {
+        setErrors({ newPassword: getErrorMessage(apiError, language) })
       } else if (Object.keys(apiError.fieldErrors ?? {}).length > 0) {
         setErrors(apiError.fieldErrors)
       } else {
@@ -239,6 +241,17 @@ function ProfilePage() {
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-12 lg:py-10">
           <h1 className="text-headline-xl-mobile text-on-surface md:text-headline-xl">{t('profile.title')}</h1>
           <p className="mt-1 text-body-md text-on-surface-variant">{t('profile.intro')}</p>
+
+          {/* Tài khoản admin vừa tạo: bắt buộc đổi mật khẩu tạm trước khi dùng các trang khác. */}
+          {user.mustChangePassword && (
+            <p
+              role="alert"
+              className="mt-4 flex items-start gap-2 rounded-2xl bg-tertiary-fixed px-4 py-3 text-body-md text-on-tertiary-fixed-variant"
+            >
+              <Icon name="lock_reset" className="text-xl" />
+              {t('profile.mustChangeNotice')}
+            </p>
+          )}
 
           <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
             {/* ---------- Thẻ thông tin ---------- */}

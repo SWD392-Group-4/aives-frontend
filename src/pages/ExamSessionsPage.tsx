@@ -31,6 +31,9 @@ const TITLE_MAX = 200
 const DESCRIPTION_MAX = 2000
 const MIN_DURATION = 5
 const MAX_DURATION = 300
+// Số lượt thi tối đa của mỗi sinh viên trong 1 phiên (khớp với ExamSessionRequest của backend).
+const MIN_ATTEMPTS = 1
+const MAX_ATTEMPTS = 10
 const MAX_WINDOW_DAYS = 30
 const PAGE_SIZE = 10
 const SEARCH_DELAY_MS = 350
@@ -56,6 +59,7 @@ const ERROR_CODE_FIELDS = {
   EXAM_START_IN_PAST: 'startAt',
   EXAM_START_TOO_FAR: 'startAt',
   EXAM_DURATION_EXCEEDS_WINDOW: 'durationMinutes',
+  EXAM_MAX_ATTEMPTS_CANNOT_REDUCE: 'maxAttempts',
 }
 
 /** Form trống khi tạo mới: mở sau 10 phút nữa (làm tròn lên 5 phút), mở trong 2 giờ, làm bài 60 phút. */
@@ -69,6 +73,7 @@ function createEmptyForm() {
     startAt: dateToInputValue(start),
     endAt: dateToInputValue(end),
     durationMinutes: '60',
+    maxAttempts: '1',
   }
 }
 
@@ -79,6 +84,7 @@ function sessionToForm(session) {
     startAt: isoToInputValue(session.startAt),
     endAt: isoToInputValue(session.endAt),
     durationMinutes: String(session.durationMinutes),
+    maxAttempts: String(session.maxAttempts ?? 1),
   }
 }
 
@@ -138,6 +144,15 @@ function validate(form: any, session: any, t: any) {
       errors.durationMinutes = t('sessions.validation.durationWindow')
     }
   }
+
+  const attemptsText = form.maxAttempts.trim()
+  const attempts = Number(attemptsText)
+  if (!/^\d+$/.test(attemptsText) || attempts < MIN_ATTEMPTS || attempts > MAX_ATTEMPTS) {
+    errors.maxAttempts = t('sessions.validation.attemptsRange', { min: MIN_ATTEMPTS, max: MAX_ATTEMPTS })
+  } else if (locked && attempts < session.maxAttempts) {
+    // Phiên đã mở: chỉ được tăng số lượt thi, không giảm.
+    errors.maxAttempts = t('sessions.validation.attemptsCannotReduce', { current: session.maxAttempts })
+  }
   return errors
 }
 
@@ -171,6 +186,7 @@ function SessionFormModal({ session, onClose, onSaved }) {
       startAt: locked ? session.startAt : resolveDate(form.startAt, session?.startAt).toISOString(),
       endAt: resolveDate(form.endAt, session?.endAt).toISOString(),
       durationMinutes: locked ? session.durationMinutes : Number(form.durationMinutes),
+      maxAttempts: Number(form.maxAttempts),
     }
 
     setSubmitting(true)
@@ -276,6 +292,24 @@ function SessionFormModal({ session, onClose, onSaved }) {
           error={errors.durationMinutes}
           required
           inputProps={{ min: MIN_DURATION, max: MAX_DURATION, step: 1, inputMode: 'numeric', disabled: locked }}
+        />
+
+        <TextField
+          id="maxAttempts"
+          label={t('sessions.fieldMaxAttempts')}
+          icon="replay"
+          type="number"
+          value={form.maxAttempts}
+          onChange={handleChange}
+          hint={t('sessions.maxAttemptsHint', { min: MIN_ATTEMPTS, max: MAX_ATTEMPTS })}
+          error={errors.maxAttempts}
+          required
+          inputProps={{
+            min: locked ? session.maxAttempts : MIN_ATTEMPTS,
+            max: MAX_ATTEMPTS,
+            step: 1,
+            inputMode: 'numeric',
+          }}
         />
 
         {formError && <ErrorBanner>{formError}</ErrorBanner>}
@@ -634,7 +668,10 @@ function ExamSessionsPage() {
                             </p>
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap tabular-nums">
-                            {t('sessions.minutes', { count: item.durationMinutes })}
+                            <p>{t('sessions.minutes', { count: item.durationMinutes })}</p>
+                            <p className="text-body-sm text-on-surface-variant">
+                              {t('sessions.attemptsPerStudent', { count: item.maxAttempts ?? 1 })}
+                            </p>
                           </td>
                           <td className="px-4 py-4">
                             <span className={`inline-block rounded-full px-3 py-1 text-label-sm whitespace-nowrap ${STATUS_BADGE_CLASSES[item.status] ?? ''}`}>

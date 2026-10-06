@@ -78,6 +78,10 @@ const vi = {
     ACCESS_DENIED: 'Bạn không có quyền thực hiện thao tác này.',
     EMAIL_ALREADY_EXISTS: 'Email đã tồn tại.',
     WRONG_CURRENT_PASSWORD: 'Mật khẩu hiện tại không đúng.',
+    NEW_PASSWORD_SAME_AS_CURRENT: 'Mật khẩu mới phải khác mật khẩu hiện tại.',
+    PASSWORD_CHANGE_REQUIRED: 'Bạn đang dùng mật khẩu tạm, vui lòng đổi mật khẩu trước khi tiếp tục.',
+    MAIL_SEND_FAILED:
+      'Không gửi được email nên tài khoản chưa được tạo. Hãy kiểm tra địa chỉ email và cấu hình gửi mail của backend rồi thử lại.',
     CANNOT_DELETE_SELF: 'Không thể tự xoá tài khoản đang đăng nhập.',
     CANNOT_DISABLE_SELF: 'Không thể tự vô hiệu hoá tài khoản đang đăng nhập.',
     USER_NOT_FOUND: 'Không tìm thấy người dùng.',
@@ -101,7 +105,8 @@ const vi = {
     EXAM_SESSION_LOCKED_FIELDS: 'Phiên thi đã mở nên không thể đổi thời gian mở phiên và thời lượng làm bài.',
     EXAM_END_CANNOT_SHORTEN: 'Phiên thi đã mở nên chỉ có thể kéo dài thời gian đóng phiên.',
     EXAM_SESSION_HAS_ATTEMPTS: 'Phiên thi đã kết thúc và có sinh viên tham gia nên không thể xoá.',
-    EXAM_ATTEMPT_FINISHED: 'Bạn đã kết thúc bài thi hoặc đã hết thời gian làm bài của phiên thi này.',
+    EXAM_MAX_ATTEMPTS_CANNOT_REDUCE: 'Phiên thi đã mở nên chỉ có thể tăng số lượt thi tối đa.',
+    // EXAM_ATTEMPT_LIMIT_REACHED cố ý không có ở đây: message backend trả về có kèm số lượt đã dùng.
   },
 
   home: {
@@ -311,9 +316,8 @@ const vi = {
     fullName: 'Họ và tên',
     fullNamePlaceholder: 'Nguyễn Văn An',
     email: 'Email',
-    initialPassword: 'Mật khẩu ban đầu',
-    passwordPlaceholder: 'Tối thiểu {min} ký tự',
-    passwordHint: 'Người dùng có thể tự đổi mật khẩu trong trang hồ sơ.',
+    tempPasswordInfo:
+      'Hệ thống tự tạo mật khẩu tạm và gửi tới email này. Người dùng phải đổi mật khẩu ở lần đăng nhập đầu tiên.',
     createSubmit: 'Tạo tài khoản',
     creating: 'Đang tạo...',
 
@@ -329,8 +333,10 @@ const vi = {
     deleteConfirm: 'Xoá tài khoản',
     deleting: 'Đang xoá...',
 
-    noticeStudentCreated: 'Đã tạo tài khoản sinh viên {name}. Mã tài khoản: {id}.',
-    noticeLecturerCreated: 'Đã tạo tài khoản giảng viên {name}. Mã tài khoản: {id}.',
+    noticeStudentCreated: 'Đã tạo tài khoản sinh viên {name} (mã {id}). Thông tin đăng nhập đã được gửi tới {email}.',
+    noticeLecturerCreated: 'Đã tạo tài khoản giảng viên {name} (mã {id}). Thông tin đăng nhập đã được gửi tới {email}.',
+    noticeCreatedMailOff:
+      'Đã tạo tài khoản {name} (mã {id}) nhưng backend chưa bật gửi mail nên {email} chưa nhận được mật khẩu tạm. Mật khẩu tạm đang được in ở console của backend.',
     noticeDisabled: 'Đã vô hiệu hoá tài khoản {name}.',
     noticeEnabled: 'Đã kích hoạt lại tài khoản {name}.',
     noticeDeleted: 'Đã xoá tài khoản {name}.',
@@ -368,9 +374,10 @@ const vi = {
     colWindow: 'Thời gian mở',
     colDuration: 'Thời lượng',
     colStatus: 'Trạng thái',
-    colStudents: 'Sinh viên',
+    colStudents: 'Lượt thi',
     colActions: 'Thao tác',
     minutes: '{count} phút',
+    attemptsPerStudent: 'Tối đa {count} lượt / SV',
     owner: 'Người tạo: {name}',
     windowTo: 'đến',
 
@@ -400,8 +407,11 @@ const vi = {
     fieldEndAt: 'Đóng phiên lúc',
     fieldDuration: 'Thời lượng làm bài (phút)',
     durationHint: 'Từ {min} đến {max} phút. Đồng hồ của mỗi sinh viên đếm ngược từ lúc vào phiên và dừng khi phiên đóng.',
+    fieldMaxAttempts: 'Số lượt thi tối đa của mỗi sinh viên',
+    maxAttemptsHint:
+      'Từ {min} đến {max} lượt. Sinh viên kết thúc hoặc hết giờ một lượt thì được vào thi lại cho đến khi dùng hết số lượt.',
     timezoneHint: 'Giờ theo múi giờ trên máy của bạn ({zone}).',
-    lockedHint: 'Phiên đã mở: chỉ sửa được tên, mô tả và kéo dài thời gian đóng phiên.',
+    lockedHint: 'Phiên đã mở: chỉ sửa được tên, mô tả, kéo dài thời gian đóng phiên và tăng số lượt thi tối đa.',
     createSubmit: 'Tạo phiên thi',
     creating: 'Đang tạo...',
     saveSubmit: 'Lưu thay đổi',
@@ -420,6 +430,8 @@ const vi = {
       durationRequired: 'Vui lòng nhập thời lượng làm bài.',
       durationRange: 'Thời lượng làm bài là số nguyên từ {min} đến {max} phút.',
       durationWindow: 'Thời lượng làm bài không được dài hơn khoảng thời gian mở phiên.',
+      attemptsRange: 'Số lượt thi tối đa là số nguyên từ {min} đến {max}.',
+      attemptsCannotReduce: 'Phiên đã mở nên chỉ có thể tăng số lượt thi (hiện tại: {current}).',
     },
 
     createdTitle: 'Đã tạo phiên thi',
@@ -441,7 +453,7 @@ const vi = {
     deleteConfirm: 'Xoá phiên thi',
     deleting: 'Đang xoá...',
     cancelTitle: 'Huỷ phiên thi?',
-    cancelMessage: 'Phiên "{title}" ({code}) đã có {count} sinh viên vào. Phiên sẽ chuyển sang trạng thái Đã huỷ, sinh viên đang thi bị dừng lại và dữ liệu vẫn được giữ.',
+    cancelMessage: 'Phiên "{title}" ({code}) đã có {count} lượt thi. Phiên sẽ chuyển sang trạng thái Đã huỷ, sinh viên đang thi bị dừng lại và dữ liệu vẫn được giữ.',
     cancelConfirm: 'Huỷ phiên thi',
     cancelling: 'Đang huỷ...',
 
@@ -480,19 +492,26 @@ const vi = {
     deadlineAt: 'Hết giờ lúc',
     duration: 'Thời lượng',
     minutes: '{count} phút',
+    attemptNo: 'Lượt thi',
+    attemptOf: '{no} / {max}',
     keepOpenNote: 'Thời gian do máy chủ tính. Tải lại trang hoặc vào lại, đồng hồ vẫn chạy tiếp từ đúng thời điểm này.',
     back: 'Quay lại',
     backHint: 'Rời phòng thi. Đồng hồ vẫn chạy; vào lại bằng mã phiên và mã truy cập.',
     finishButton: 'Kết thúc bài thi',
     finishTitle: 'Kết thúc bài thi?',
-    finishMessage: 'Sau khi kết thúc, bạn không thể vào lại phiên thi này, kể cả khi vẫn còn thời gian.',
+    finishMessage: 'Đây là lượt thi cuối của bạn. Sau khi kết thúc, bạn không thể vào lại phiên thi này, kể cả khi vẫn còn thời gian.',
+    finishMessageRetake:
+      'Lượt thi này sẽ kết thúc và không tiếp tục được nữa. Bạn còn {left} lượt thi khác trong phiên; mỗi lượt mới đồng hồ chạy lại từ đầu.',
     finishKeep: 'Tiếp tục thi',
     finishConfirm: 'Kết thúc bài thi',
     finishing: 'Đang kết thúc...',
     submittedTitle: 'Đã kết thúc bài thi',
     submittedMessage: 'Bạn đã kết thúc bài thi lúc {time}.',
     finishedTitle: 'Đã hết giờ',
-    finishedMessage: 'Thời gian làm bài của bạn trong phiên này đã kết thúc.',
+    finishedMessage: 'Thời gian làm bài của lượt thi này đã kết thúc.',
+    attemptsLeft:
+      'Đây là lượt {no}/{max}. Bạn còn {left} lượt thi: nhập lại mã phiên và mã truy cập để thi lượt tiếp theo khi phiên còn mở.',
+    noAttemptsLeft: 'Đây là lượt {no}/{max}. Bạn đã dùng hết số lượt thi của phiên này.',
     errorTitle: 'Không vào được phòng thi',
     backHome: 'Về trang chủ',
     joinAnother: 'Nhập mã phiên khác',
@@ -512,6 +531,8 @@ const vi = {
     saving: 'Đang lưu...',
     saved: 'Đã cập nhật hồ sơ.',
 
+    mustChangeNotice:
+      'Bạn đang đăng nhập bằng mật khẩu tạm được gửi qua email. Hãy đổi mật khẩu ở bên dưới để bắt đầu sử dụng AIVES.',
     passwordTitle: 'Đổi mật khẩu',
     passwordIntro: 'Sau khi đổi mật khẩu, bạn sẽ được đăng xuất và cần đăng nhập lại bằng mật khẩu mới.',
     currentPassword: 'Mật khẩu hiện tại',
