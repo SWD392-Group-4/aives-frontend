@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Icon from '../components/Icon.jsx'
 import Modal from '../components/Modal.jsx'
 import Navbar from '../components/Navbar.jsx'
-import TextField from '../components/TextField.jsx'
+import TextField from '../components/TextField'
 import { ROLE_BADGE_CLASSES, ROLES } from '../constants/roles.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { useLanguage } from '../hooks/useLanguage.js'
@@ -10,8 +10,6 @@ import { getErrorMessage } from '../i18n/errorMessage.js'
 import { createUser, deleteUser, getUsers, updateUserStatus } from '../services/userService.js'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-// Khớp với CreateUserRequest của backend: mật khẩu từ 6 đến 72 ký tự.
-const MIN_PASSWORD_LENGTH = 6
 
 // Các tab lọc theo role. role = null nghĩa là tất cả.
 const ROLE_TABS = [null, ROLES.LECTURER, ROLES.STUDENT, ROLES.ADMIN]
@@ -22,10 +20,11 @@ const CREATABLE_ROLES = [
   { role: ROLES.LECTURER, icon: 'co_present', hintKey: 'admin.lecturerHint', emailPlaceholder: 'ten@fe.edu.vn' },
 ]
 
-const EMPTY_FORM = { role: ROLES.STUDENT, fullName: '', email: '', password: '' }
+// Không có mật khẩu: backend tự sinh mật khẩu tạm và gửi tới email của người dùng.
+const EMPTY_FORM = { role: ROLES.STUDENT, fullName: '', email: '' }
 
-function validate(form, t) {
-  const errors = {}
+function validate(form: typeof EMPTY_FORM, t: (key: string, params?: any) => string) {
+  const errors: Record<string, string> = {}
   if (!form.fullName.trim()) {
     errors.fullName = t('validation.fullNameRequired')
   }
@@ -33,9 +32,6 @@ function validate(form, t) {
     errors.email = t('validation.emailRequired')
   } else if (!EMAIL_PATTERN.test(form.email.trim())) {
     errors.email = t('validation.emailInvalid')
-  }
-  if (form.password.length < MIN_PASSWORD_LENGTH) {
-    errors.password = t('validation.passwordMin', { min: MIN_PASSWORD_LENGTH })
   }
   return errors
 }
@@ -68,7 +64,7 @@ function ErrorBanner({ children }) {
 function CreateUserModal({ onClose, onCreated }) {
   const { t, language } = useLanguage()
   const [form, setForm] = useState(EMPTY_FORM)
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -77,7 +73,7 @@ function CreateUserModal({ onClose, onCreated }) {
   const handleChange = (event) => {
     const { name, value } = event.target
     setForm((current) => ({ ...current, [name]: value }))
-    setErrors((current) => ({ ...current, [name]: undefined }))
+    setErrors((current) => ({ ...current, [name]: undefined as any }))
     setFormError('')
   }
 
@@ -94,8 +90,8 @@ function CreateUserModal({ onClose, onCreated }) {
         role: form.role,
         fullName: form.fullName.trim(),
         email: form.email.trim(),
-        password: form.password,
       })
+      // created = { user, emailSent }
       onCreated(created)
     } catch (error) {
       if (error.code === 'EMAIL_ALREADY_EXISTS') {
@@ -166,19 +162,11 @@ function CreateUserModal({ onClose, onCreated }) {
           error={errors.email}
           required
         />
-        <TextField
-          id="password"
-          label={t('admin.initialPassword')}
-          icon="lock"
-          type="password"
-          value={form.password}
-          onChange={handleChange}
-          placeholder={t('admin.passwordPlaceholder', { min: MIN_PASSWORD_LENGTH })}
-          autoComplete="new-password"
-          hint={t('admin.passwordHint')}
-          error={errors.password}
-          required
-        />
+        {/* Admin không đặt mật khẩu: backend tự sinh mật khẩu tạm và gửi tới email ở trên. */}
+        <p className="flex items-start gap-2 rounded-2xl bg-surface-container-low px-4 py-3 text-body-sm text-on-surface-variant">
+          <Icon name="mark_email_read" className="text-lg" />
+          {t('admin.tempPasswordInfo')}
+        </p>
 
         {formError && <ErrorBanner>{formError}</ErrorBanner>}
 
@@ -321,16 +309,19 @@ function AdminUsersPage() {
     setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)))
   }
 
-  const handleCreated = (created) => {
+  const handleCreated = ({ user: created, emailSent }) => {
     setUsers((current) => [...current, created])
     setShowCreate(false)
-    setNotice({
-      type: 'success',
-      text: t(created.role === ROLES.STUDENT ? 'admin.noticeStudentCreated' : 'admin.noticeLecturerCreated', {
-        name: created.fullName,
-        id: created.id,
-      }),
-    })
+    const params = { name: created.fullName, id: created.id, email: created.email }
+    if (emailSent) {
+      setNotice({
+        type: 'success',
+        text: t(created.role === ROLES.STUDENT ? 'admin.noticeStudentCreated' : 'admin.noticeLecturerCreated', params),
+      })
+    } else {
+      // Backend chưa bật gửi mail: tài khoản đã tạo nhưng người dùng chưa nhận được mật khẩu tạm.
+      setNotice({ type: 'error', text: t('admin.noticeCreatedMailOff', params) })
+    }
   }
 
   // Vô hiệu hoá: gọi từ hộp thoại xác nhận, lỗi sẽ hiện ngay trong hộp thoại.

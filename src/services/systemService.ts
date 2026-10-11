@@ -83,8 +83,8 @@ let mockAuditLogs: AuditLog[] = [
 export const systemService = {
   async getSettings(): Promise<SystemSetting[]> {
     try {
-      const res = await apiRequest<{ data: SystemSetting[] }>('/admin/settings')
-      return res.data
+      const res = await apiRequest<SystemSetting[] | { data: SystemSetting[] }>('/admin/settings')
+      return Array.isArray(res) ? res : res?.data ?? [...mockSettings]
     } catch {
       return [...mockSettings]
     }
@@ -100,8 +100,8 @@ export const systemService = {
 
   async getAuditLogs(): Promise<AuditLog[]> {
     try {
-      const res = await apiRequest<{ data: AuditLog[] }>('/admin/audit-logs')
-      return res.data
+      const res = await apiRequest<AuditLog[] | { data: AuditLog[] }>('/admin/audit-logs')
+      return Array.isArray(res) ? res : res?.data ?? [...mockAuditLogs]
     } catch {
       return [...mockAuditLogs]
     }

@@ -1,6 +1,22 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useLanguage } from '../hooks/useLanguage.js'
 import Icon from './Icon.jsx'
+
+export interface TextFieldProps {
+  id: string
+  label: React.ReactNode
+  icon?: string
+  type?: string
+  value?: any
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
+  placeholder?: string
+  autoComplete?: string
+  hint?: React.ReactNode
+  error?: React.ReactNode
+  required?: boolean
+  inputProps?: React.InputHTMLAttributes<HTMLInputElement>
+  inputClassName?: string
+}
 
 /**
  * Ô nhập liệu dùng chung cho các form: có nhãn, icon bên trái, thông báo lỗi.
@@ -21,7 +37,7 @@ function TextField({
   required = false,
   inputProps = {},
   inputClassName = '',
-}) {
+}: TextFieldProps) {
   const { t } = useLanguage()
   const [showPassword, setShowPassword] = useState(false)
   const isPassword = type === 'password'
@@ -46,7 +62,7 @@ function TextField({
           id={id}
           name={id}
           type={inputType}
-          value={value}
+          value={value ?? ''}
           onChange={onChange}
           placeholder={placeholder}
           autoComplete={autoComplete}

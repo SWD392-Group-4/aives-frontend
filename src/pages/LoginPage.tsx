@@ -4,7 +4,7 @@ import Icon from '../components/Icon.jsx'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import Logo from '../components/Logo.jsx'
 import Mascot from '../components/Mascot.jsx'
-import TextField from '../components/TextField.jsx'
+import TextField from '../components/TextField'
 import { getHomePathForRole, ROLES } from '../constants/roles.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { useLanguage } from '../hooks/useLanguage.js'
@@ -13,9 +13,9 @@ import { getErrorMessage } from '../i18n/errorMessage.js'
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const ROLE_ORDER = [ROLES.STUDENT, ROLES.LECTURER, ROLES.ADMIN]
 
-function validate(form, t) {
-  const errors = {}
-  if (!form.email.trim()) {
+function validate(form: { email?: string; password?: string }, t: (key: string) => string) {
+  const errors: Record<string, string> = {}
+  if (!form.email?.trim()) {
     errors.email = t('validation.emailRequired')
   } else if (!EMAIL_PATTERN.test(form.email.trim())) {
     errors.email = t('validation.emailInvalid')
@@ -37,13 +37,15 @@ function LoginPage() {
   const passwordChanged = location.state?.passwordChanged === true
 
   const [form, setForm] = useState({ email: registeredEmail, password: '' })
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   // Trang sẽ tới sau khi đăng nhập: trang đang muốn vào trước đó,
   // nếu không có thì là trang mặc định của role (admin -> quản lý tài khoản).
-  const getTargetPath = (account) => location.state?.from ?? getHomePathForRole(account.role)
+  // Riêng tài khoản đang dùng mật khẩu tạm (admin vừa tạo) thì luôn tới trang hồ sơ để đổi mật khẩu.
+  const getTargetPath = (account) =>
+    account.mustChangePassword ? '/profile' : (location.state?.from ?? getHomePathForRole(account.role))
 
   // Đã đăng nhập mà vẫn mở trang này thì chuyển đi luôn.
   // Riêng lúc vừa đổi mật khẩu thì ở lại: phiên cũ đang được đăng xuất, cần hiện lời nhắc đăng nhập lại.

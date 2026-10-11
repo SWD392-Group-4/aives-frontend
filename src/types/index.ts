@@ -80,6 +80,7 @@ export interface ExamSession {
   startAt: string
   endAt: string
   durationMinutes: number
+  maxAttempts: number // số lượt thi tối đa của mỗi sinh viên trong phiên (1-10)
   maxFollowUpPerQuestion: number
   prepareSeconds: number
   answerSeconds: number
@@ -100,6 +101,8 @@ export interface VivaAttempt {
   examId: string
   title: string
   durationMinutes: number
+  attemptNo: number // lượt thi thứ mấy của sinh viên trong phiên
+  maxAttempts: number // số lượt thi tối đa của mỗi sinh viên trong phiên
   status: AttemptStatus
   resultStatus: ResultStatus
   totalAiScore?: number
@@ -170,16 +173,34 @@ export interface QuestionGrade {
   gradedAt?: string
   criteriaGrades: CriteriaGrade[]
   exchanges: InterviewExchange[]
+  // Thang điểm của rubric (thường là 10)
+  maxScore?: number
+  // Đơn phúc khảo mới nhất của câu này (không có nếu chưa gửi đơn nào)
+  appeal?: AppealSummary
 }
 
 export type AppealStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED'
+
+/** Tóm tắt 1 đơn phúc khảo, hiện ngay trên câu hỏi trong trang kết quả. */
+export interface AppealSummary {
+  id: string
+  status: AppealStatus
+  reason: string
+  response?: string
+  scoreBefore: number
+  scoreAfter?: number
+  createdAt: string
+  resolvedAt?: string
+}
 
 export interface GradeAppeal {
   id: string
   questionGradeId: string
   questionText?: string
   attemptId: string
+  examId?: string
   examTitle?: string
+  maxScore?: number
   studentId: string
   studentName?: string
   reason: string

@@ -4,7 +4,7 @@ import Icon from '../components/Icon.jsx'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import Logo from '../components/Logo.jsx'
 import Mascot from '../components/Mascot.jsx'
-import TextField from '../components/TextField.jsx'
+import TextField from '../components/TextField'
 import { useAuth } from '../hooks/useAuth.js'
 import { useLanguage } from '../hooks/useLanguage.js'
 import { getErrorMessage } from '../i18n/errorMessage.js'
@@ -28,8 +28,8 @@ const EMPTY_FORM = {
   confirmPassword: '',
 }
 
-function validate(form, t) {
-  const errors = {}
+function validate(form: typeof EMPTY_FORM, t: (key: string, params?: any) => string) {
+  const errors: Record<string, string> = {}
   if (!form.fullName.trim()) {
     errors.fullName = t('validation.fullNameRequired')
   }
@@ -55,7 +55,7 @@ function RegisterPage() {
   const navigate = useNavigate()
 
   const [form, setForm] = useState(EMPTY_FORM)
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 

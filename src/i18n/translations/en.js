@@ -77,6 +77,10 @@ const en = {
     ACCESS_DENIED: 'You do not have permission to do this.',
     EMAIL_ALREADY_EXISTS: 'This email is already in use.',
     WRONG_CURRENT_PASSWORD: 'Current password is incorrect.',
+    NEW_PASSWORD_SAME_AS_CURRENT: 'The new password must be different from the current one.',
+    PASSWORD_CHANGE_REQUIRED: 'You are using a temporary password. Please change it before continuing.',
+    MAIL_SEND_FAILED:
+      'The email could not be sent, so the account was not created. Check the email address and the backend mail settings, then try again.',
     CANNOT_DELETE_SELF: 'You cannot delete the account you are logged in with.',
     CANNOT_DISABLE_SELF: 'You cannot disable the account you are logged in with.',
     USER_NOT_FOUND: 'User not found.',
@@ -101,7 +105,8 @@ const en = {
     EXAM_SESSION_LOCKED_FIELDS: 'The session is already open, so its opening time and duration cannot change.',
     EXAM_END_CANNOT_SHORTEN: 'The session is already open, so its closing time can only be extended.',
     EXAM_SESSION_HAS_ATTEMPTS: 'This session has ended and has students, so it cannot be deleted.',
-    EXAM_ATTEMPT_FINISHED: 'You already finished this exam, or your time for this session is over.',
+    EXAM_MAX_ATTEMPTS_CANNOT_REDUCE: 'This session is already open, so the attempt limit can only be increased.',
+    EXAM_ATTEMPT_LIMIT_REACHED: 'You have used all of your attempts for this exam session.',
   },
 
   home: {
@@ -311,9 +316,8 @@ const en = {
     fullName: 'Full name',
     fullNamePlaceholder: 'Nguyen Van An',
     email: 'Email',
-    initialPassword: 'Initial password',
-    passwordPlaceholder: 'At least {min} characters',
-    passwordHint: 'Users can change their password on their profile page.',
+    tempPasswordInfo:
+      'The system generates a temporary password and emails it to this address. The user must change it on first sign-in.',
     createSubmit: 'Create account',
     creating: 'Creating...',
 
@@ -329,8 +333,10 @@ const en = {
     deleteConfirm: 'Delete account',
     deleting: 'Deleting...',
 
-    noticeStudentCreated: 'Student account created for {name}. Account ID: {id}.',
-    noticeLecturerCreated: 'Lecturer account created for {name}. Account ID: {id}.',
+    noticeStudentCreated: 'Student account created for {name} (ID {id}). Sign-in details were sent to {email}.',
+    noticeLecturerCreated: 'Lecturer account created for {name} (ID {id}). Sign-in details were sent to {email}.',
+    noticeCreatedMailOff:
+      'Account created for {name} (ID {id}), but email sending is turned off on the backend, so {email} has not received the temporary password. It is printed in the backend console.',
     noticeDisabled: 'Account {name} disabled.',
     noticeEnabled: 'Account {name} re-enabled.',
     noticeDeleted: 'Account {name} deleted.',
@@ -368,9 +374,10 @@ const en = {
     colWindow: 'Open period',
     colDuration: 'Duration',
     colStatus: 'Status',
-    colStudents: 'Students',
+    colStudents: 'Attempts',
     colActions: 'Actions',
     minutes: '{count} min',
+    attemptsPerStudent: 'Up to {count} per student',
     owner: 'Created by: {name}',
     windowTo: 'to',
 
@@ -400,8 +407,12 @@ const en = {
     fieldEndAt: 'Closes at',
     fieldDuration: 'Exam duration (minutes)',
     durationHint: 'From {min} to {max} minutes. Each student\'s timer starts when they join and stops when the session closes.',
+    fieldMaxAttempts: 'Maximum attempts per student',
+    maxAttemptsHint:
+      'From {min} to {max}. After finishing or running out of time, a student can join again until all attempts are used.',
     timezoneHint: 'Times use your device time zone ({zone}).',
-    lockedHint: 'The session is already open: you can only change its name, description and extend the closing time.',
+    lockedHint:
+      'The session is already open: you can only change its name and description, extend the closing time and increase the attempt limit.',
     createSubmit: 'Create session',
     creating: 'Creating...',
     saveSubmit: 'Save changes',
@@ -420,6 +431,8 @@ const en = {
       durationRequired: 'Please enter the exam duration.',
       durationRange: 'The duration must be a whole number from {min} to {max} minutes.',
       durationWindow: 'The duration cannot be longer than the time the session is open.',
+      attemptsRange: 'The attempt limit must be a whole number from {min} to {max}.',
+      attemptsCannotReduce: 'The session is already open, so the attempt limit can only be increased (currently {current}).',
     },
 
     createdTitle: 'Session created',
@@ -441,7 +454,7 @@ const en = {
     deleteConfirm: 'Delete session',
     deleting: 'Deleting...',
     cancelTitle: 'Cancel this session?',
-    cancelMessage: '{count} student(s) have joined "{title}" ({code}). The session will be marked as Cancelled, students in the exam are stopped and the data is kept.',
+    cancelMessage: '"{title}" ({code}) already has {count} attempt(s). The session will be marked as Cancelled, students in the exam are stopped and the data is kept.',
     cancelConfirm: 'Cancel session',
     cancelling: 'Cancelling...',
 
@@ -480,19 +493,26 @@ const en = {
     deadlineAt: 'Ends at',
     duration: 'Duration',
     minutes: '{count} min',
+    attemptNo: 'Attempt',
+    attemptOf: '{no} / {max}',
     keepOpenNote: 'Time is kept by the server. If you reload or come back, the timer continues from the same point.',
     back: 'Back',
     backHint: 'Leave the exam room. The timer keeps running; come back with the session code and access code.',
     finishButton: 'Finish exam',
     finishTitle: 'Finish the exam?',
-    finishMessage: 'After you finish, you cannot re-enter this session, even if there is time left.',
+    finishMessage: 'This is your last attempt. After you finish, you cannot re-enter this session, even if there is time left.',
+    finishMessageRetake:
+      'This attempt will end and cannot be continued. You have {left} more attempt(s) in this session; the timer restarts for each new attempt.',
     finishKeep: 'Keep going',
     finishConfirm: 'Finish exam',
     finishing: 'Finishing...',
     submittedTitle: 'Exam finished',
     submittedMessage: 'You finished the exam at {time}.',
     finishedTitle: 'Time is up',
-    finishedMessage: 'Your time for this session has ended.',
+    finishedMessage: 'Your time for this attempt has ended.',
+    attemptsLeft:
+      'This was attempt {no}/{max}. You have {left} attempt(s) left: enter the session code and access code again to start the next one while the session is open.',
+    noAttemptsLeft: 'This was attempt {no}/{max}. You have used all of your attempts for this session.',
     errorTitle: 'Could not enter the exam room',
     backHome: 'Back to home',
     joinAnother: 'Enter another session code',
@@ -512,6 +532,8 @@ const en = {
     saving: 'Saving...',
     saved: 'Profile updated.',
 
+    mustChangeNotice:
+      'You are signed in with the temporary password from your email. Change your password below to start using AIVES.',
     passwordTitle: 'Change password',
     passwordIntro: 'After changing your password you will be logged out and need to log in again with the new one.',
     currentPassword: 'Current password',

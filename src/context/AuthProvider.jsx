@@ -33,6 +33,18 @@ function AuthProvider({ children }) {
     }
   }, [])
 
+  // Lắng nghe sự kiện 401 Unauthorized từ apiClient để cập nhật UI ngay lập tức
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      clearSession()
+      setUser(null)
+    }
+    window.addEventListener('auth:unauthorized', handleUnauthorized)
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized)
+    }
+  }, [])
+
   const login = useCallback(async (email, password) => {
     const result = await authService.login({ email, password })
     saveSession({ accessToken: result.accessToken, user: result.user })

@@ -1,4 +1,4 @@
-import { apiRequest } from './apiClient.js'
+import { apiRequest } from './apiClient'
 
 /**
  * Các API xác thực và hồ sơ cá nhân của aives-backend (AuthController, prefix /api/auth).

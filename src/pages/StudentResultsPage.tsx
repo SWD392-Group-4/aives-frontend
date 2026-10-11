@@ -26,6 +26,8 @@ export default function StudentResultsPage() {
   const [appealReason, setAppealReason] = useState('')
   const [appealSubmitting, setAppealSubmitting] = useState(false)
   const [appealSuccessMsg, setAppealSuccessMsg] = useState<string | null>(null)
+  // Tăng lên 1 để tải lại chi tiết kết quả (sau khi gửi đơn phúc khảo)
+  const [reloadKey, setReloadKey] = useState(0)
 
   // Tải danh sách bài thi đã hoàn thành của sinh viên
   useEffect(() => {
@@ -60,7 +62,7 @@ export default function StudentResultsPage() {
         }
       })
       .finally(() => setLoading(false))
-  }, [selectedAttemptId, attempts, user?.id])
+  }, [selectedAttemptId, attempts, user?.id, reloadKey])
 
   // Xử lý nộp đơn phúc khảo
   const handleOpenAppeal = (qg: QuestionGrade) => {
@@ -79,14 +81,14 @@ export default function StudentResultsPage() {
 
     setAppealSubmitting(true)
     try {
+      // Đơn được lưu ở backend: tải lại trang vẫn còn, giảng viên thấy ở trang Phúc khảo
       await gradingService.submitAppeal({
         questionGradeId: appealTargetQuestion.id,
-        attemptId: selectedAttemptId,
-        reason: appealReason,
-        scoreBefore: appealTargetQuestion.finalScore ?? appealTargetQuestion.aiScore ?? 0,
+        reason: appealReason.trim(),
       })
       setAppealModalOpen(false)
       setAppealSuccessMsg(`Đã gửi đơn phúc khảo cho câu hỏi thành công! Giảng viên sẽ xem xét phản hồi.`)
+      setReloadKey((key) => key + 1)
     } catch (err: any) {
       alert(err.message || 'Lỗi gửi đơn phúc khảo')
     } finally {
@@ -144,6 +146,9 @@ export default function StudentResultsPage() {
             {attempts.map((att) => {
               const isSelected = att.attemptId === selectedAttemptId
               const isPublished = att.resultStatus === 'PUBLISHED'
+              // NONE / GRADING: AI chưa chấm xong. PENDING_REVIEW / GRADING_FAILED: chờ giảng viên thẩm định
+              const isGrading = att.resultStatus === 'NONE' || att.resultStatus === 'GRADING'
+              const statusLabel = isPublished ? 'Đã công bố' : isGrading ? 'AI đang chấm' : 'Chờ duyệt'
 
               return (
                 <button
@@ -166,7 +171,7 @@ export default function StudentResultsPage() {
                       }`}
                     >
                       <Icon name={isPublished ? 'check_circle' : 'hourglass_empty'} className="text-xs" />
-                      {isPublished ? 'Đã công bố' : 'Chờ duyệt'}
+                      {statusLabel}
                     </span>
                   </div>
 
@@ -235,6 +240,8 @@ export default function StudentResultsPage() {
                 <div className="flex flex-col gap-6">
                   {questionGrades.map((qg, idx) => {
                     const finalScore = qg.finalScore ?? qg.aiScore
+                    const appeal = qg.appeal
+                    const appealPending = appeal?.status === 'PENDING'
 
                     return (
                       <div
@@ -263,16 +270,61 @@ export default function StudentResultsPage() {
                               <span className="text-headline-sm font-bold text-primary">{finalScore} / 10</span>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAppeal(qg)}
-                              className="inline-flex items-center gap-1.5 rounded-full border border-tertiary/40 bg-tertiary-fixed/30 px-3 py-1.5 text-label-xs font-semibold text-tertiary hover:bg-tertiary-fixed transition-colors"
-                            >
-                              <Icon name="campaign" />
-                              <span>Phúc khảo</span>
-                            </button>
+                            {/* Mỗi câu chỉ có 1 đơn đang chờ xử lý */}
+                            {appealPending ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-tertiary-fixed px-3 py-1.5 text-label-xs font-semibold text-tertiary">
+                                <Icon name="hourglass_empty" />
+                                <span>Đang chờ phúc khảo</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAppeal(qg)}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-tertiary/40 bg-tertiary-fixed/30 px-3 py-1.5 text-label-xs font-semibold text-tertiary hover:bg-tertiary-fixed transition-colors"
+                              >
+                                <Icon name="campaign" />
+                                <span>{appeal ? 'Phúc khảo lại' : 'Phúc khảo'}</span>
+                              </button>
+                            )}
                           </div>
                         </div>
+
+                        {/* Đơn phúc khảo mới nhất của câu này */}
+                        {appeal && (
+                          <div
+                            data-testid="appeal-box"
+                            className={`mt-4 rounded-2xl border p-4 ${
+                              appeal.status === 'PENDING'
+                                ? 'border-tertiary/40 bg-tertiary-fixed/30'
+                                : appeal.status === 'ACCEPTED'
+                                  ? 'border-secondary/40 bg-secondary-container/40'
+                                  : 'border-error/40 bg-error-container/40'
+                            }`}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="text-label-sm font-bold text-on-surface">
+                                Đơn phúc khảo:{' '}
+                                {appeal.status === 'PENDING'
+                                  ? 'đang chờ giảng viên xử lý'
+                                  : appeal.status === 'ACCEPTED'
+                                    ? `được chấp thuận (điểm ${appeal.scoreBefore} → ${appeal.scoreAfter})`
+                                    : 'bị từ chối, điểm giữ nguyên'}
+                              </span>
+                              <span className="text-body-xs text-outline">
+                                Gửi lúc: {formatDateTime(appeal.createdAt, locale)}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-body-sm text-on-surface-variant">
+                              <span className="font-semibold text-on-surface">Lý do của bạn:</span> {appeal.reason}
+                            </p>
+                            {appeal.response && (
+                              <p className="mt-1 text-body-sm text-on-surface-variant">
+                                <span className="font-semibold text-on-surface">Phản hồi của giảng viên:</span>{' '}
+                                {appeal.response}
+                              </p>
+                            )}
+                          </div>
+                        )}
 
                         {/* Nhận xét AI đối chiếu Rubric (BR-GRADE-001) */}
                         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
