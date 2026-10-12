@@ -14,12 +14,23 @@ export function login({ email, password }) {
 }
 
 /**
- * POST /auth/register -> user vừa tạo (role luôn là STUDENT).
+ * POST /auth/send-otp -> Gửi mã xác thực OTP qua email.
  */
-export function register({ email, password, fullName }) {
+export function sendOtp({ email }) {
+  return apiRequest('/auth/send-otp', {
+    method: 'POST',
+    body: { email },
+    auth: false,
+  })
+}
+
+/**
+ * POST /auth/register -> user vừa tạo (role luôn là STUDENT, kèm OTP xác thực email).
+ */
+export function register({ email, password, fullName, otp }) {
   return apiRequest('/auth/register', {
     method: 'POST',
-    body: { email, password, fullName },
+    body: { email, password, fullName, otp },
     auth: false,
   })
 }
