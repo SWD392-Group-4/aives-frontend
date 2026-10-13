@@ -195,7 +195,7 @@ function RegisterPage() {
                 </div>
                 <Mascot className="h-44 w-44 shadow-2xl sm:h-52 sm:w-52" />
                 <h2 className="mt-5 text-headline-lg">
-                  {t('register.panelTitle')} <span className="text-secondary-fixed">AIVES.AI</span>
+                  {t('register.panelTitle')} <span className="text-secondary-fixed">AIVES</span>
                 </h2>
                 <p className="mt-2 max-w-sm text-body-sm text-on-primary-container/90">{t('register.panelIntro')}</p>
               </div>

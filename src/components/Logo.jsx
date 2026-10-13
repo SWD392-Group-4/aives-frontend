@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useLanguage } from '../hooks/useLanguage.js'
 
 /**
- * Logo AIVES.AI, bấm vào để về trang chủ.
+ * Logo AIVES (biểu tượng + chữ AIVES), bấm vào để về trang chủ.
  * compact: ẩn chữ trên màn hình nhỏ, chỉ còn biểu tượng (dùng trong navbar).
  */
 function Logo({ className = '', compact = false }) {
@@ -34,7 +34,6 @@ function Logo({ className = '', compact = false }) {
       </svg>
       <span className={`text-headline-md font-extrabold tracking-tight ${compact ? 'hidden sm:inline' : ''}`}>
         <span className="text-primary-container">AIVES</span>
-        <span className="text-secondary">.AI</span>
       </span>
     </Link>
   )

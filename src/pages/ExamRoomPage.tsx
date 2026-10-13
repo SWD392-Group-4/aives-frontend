@@ -772,9 +772,6 @@ export default function ExamRoomPage() {
                   </p>
 
                   <div className="mt-4 flex flex-wrap gap-2 text-label-xs text-on-surface-variant">
-                    {question?.rubricName && (
-                      <span className="rounded-md bg-surface-container px-2.5 py-1">Rubric: {question.rubricName}</span>
-                    )}
                     <span className="rounded-md bg-surface-container px-2.5 py-1">
                       Thời gian suy nghĩ: {question?.prepareSeconds ?? '-'}s
                     </span>
@@ -914,7 +911,7 @@ export default function ExamRoomPage() {
                 {phase === 'EVAL_AND_DECIDE' && (
                   <div className="flex flex-col items-center gap-3">
                     <Icon name="cognition" className="animate-spin text-primary text-5xl" />
-                    <p className="text-headline-xs font-semibold text-on-surface">AI đang đối chiếu với Rubric...</p>
+                    <p className="text-headline-xs font-semibold text-on-surface">AI đang phân tích câu trả lời...</p>
                     <p className="text-body-sm text-on-surface-variant max-w-sm">
                       Hệ thống đang phân tích các ý chính để quyết định câu hỏi tiếp theo hoặc hỏi xoáy thích ứng.
                     </p>

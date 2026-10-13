@@ -237,15 +237,23 @@ export default function LecturerReviewPage() {
                         : 'border-outline-variant/40 bg-surface-container-lowest hover:border-primary/50'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between gap-2">
                       <span className="text-label-xs font-mono font-bold text-primary">{att.studentId}</span>
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-label-xs font-semibold ${
-                          isPublished ? 'bg-secondary-container text-secondary' : 'bg-tertiary-fixed text-tertiary'
-                        }`}
-                      >
-                        {resultStatusLabel(att.resultStatus)}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-label-xs font-semibold ${
+                            isPublished ? 'bg-secondary-container text-secondary' : 'bg-tertiary-fixed text-tertiary'
+                          }`}
+                        >
+                          {resultStatusLabel(att.resultStatus)}
+                        </span>
+                        {/* Điểm chốt chính thức đã công bố cho sinh viên */}
+                        {isPublished && att.totalFinalScore != null && (
+                          <span className="text-label-md font-bold tabular-nums text-secondary" title="Điểm đã công bố">
+                            {att.totalFinalScore} / 10
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <h3 className="mt-2 text-label-md font-bold text-on-surface">{att.studentName}</h3>

@@ -31,6 +31,8 @@ export interface Topic {
   name: string
   description?: string
   questionCount?: number
+  /** Số câu đã duyệt (APPROVED): chỉ những câu này mới được đưa vào phiên thi */
+  approvedQuestionCount?: number
 }
 
 export interface RubricCriterion {
@@ -81,6 +83,10 @@ export interface ExamSession {
   endAt: string
   durationMinutes: number
   maxAttempts: number // số lượt thi tối đa của mỗi sinh viên trong phiên (1-10)
+  /** Số câu hỏi gốc của phiên (1-30). Không có = số mặc định của hệ thống (3) */
+  questionCount?: number
+  /** Chủ đề lấy câu hỏi cho phiên. Rỗng = phiên tạo trước khi có chức năng chọn chủ đề */
+  topics?: { id: string; name: string }[]
   maxFollowUpPerQuestion: number
   prepareSeconds: number
   answerSeconds: number
