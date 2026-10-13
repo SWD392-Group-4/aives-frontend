@@ -102,10 +102,13 @@ const vi = {
     EXAM_SESSION_NOT_STARTED: 'Phiên thi chưa đến giờ mở.',
     EXAM_SESSION_ENDED: 'Phiên thi đã kết thúc.',
     EXAM_SESSION_CANCELLED: 'Phiên thi đã bị huỷ.',
-    EXAM_SESSION_LOCKED_FIELDS: 'Phiên thi đã mở nên không thể đổi thời gian mở phiên và thời lượng làm bài.',
+    EXAM_SESSION_LOCKED_FIELDS:
+      'Phiên thi đã mở nên không thể đổi thời gian mở phiên, thời lượng làm bài, chủ đề và số câu hỏi.',
     EXAM_END_CANNOT_SHORTEN: 'Phiên thi đã mở nên chỉ có thể kéo dài thời gian đóng phiên.',
     EXAM_SESSION_HAS_ATTEMPTS: 'Phiên thi đã kết thúc và có sinh viên tham gia nên không thể xoá.',
     EXAM_MAX_ATTEMPTS_CANNOT_REDUCE: 'Phiên thi đã mở nên chỉ có thể tăng số lượt thi tối đa.',
+    EXAM_TOPIC_INVALID: 'Chủ đề không tồn tại hoặc không thuộc ngân hàng câu hỏi của bạn.',
+    // EXAM_NOT_ENOUGH_QUESTIONS cố ý không có ở đây: message backend trả về có kèm số câu đã duyệt.
     // EXAM_ATTEMPT_LIMIT_REACHED cố ý không có ở đây: message backend trả về có kèm số lượt đã dùng.
   },
 
@@ -378,6 +381,8 @@ const vi = {
     colActions: 'Thao tác',
     minutes: '{count} phút',
     attemptsPerStudent: 'Tối đa {count} lượt / SV',
+    questionCountShort: '{count} câu hỏi',
+    topicsOfSession: 'Chủ đề: {names}',
     owner: 'Người tạo: {name}',
     windowTo: 'đến',
 
@@ -410,6 +415,16 @@ const vi = {
     fieldMaxAttempts: 'Số lượt thi tối đa của mỗi sinh viên',
     maxAttemptsHint:
       'Từ {min} đến {max} lượt. Sinh viên kết thúc hoặc hết giờ một lượt thì được vào thi lại cho đến khi dùng hết số lượt.',
+    fieldTopics: 'Chủ đề lấy câu hỏi',
+    topicsLoading: 'Đang tải danh sách chủ đề...',
+    topicsEmpty: 'Bạn chưa có chủ đề nào. Hãy gửi file câu hỏi và duyệt câu hỏi trước khi tạo phiên thi.',
+    topicsEmptyLink: 'Mở ngân hàng câu hỏi',
+    topicApproved: '{count} câu đã duyệt',
+    topicsHint: 'Chọn 1 hoặc nhiều chủ đề. Chỉ câu hỏi đã duyệt mới được đưa vào phiên thi.',
+    topicsSelected: 'Đã chọn {selected} chủ đề, có {available} câu đã duyệt.',
+    fieldQuestionCount: 'Số câu hỏi của phiên',
+    questionCountHint:
+      'Từ {min} đến {max} câu. Hệ thống bốc ngẫu nhiên, chia đều giữa các chủ đề đã chọn; mọi sinh viên trong phiên thi cùng một bộ câu hỏi.',
     timezoneHint: 'Giờ theo múi giờ trên máy của bạn ({zone}).',
     lockedHint: 'Phiên đã mở: chỉ sửa được tên, mô tả, kéo dài thời gian đóng phiên và tăng số lượt thi tối đa.',
     createSubmit: 'Tạo phiên thi',
@@ -432,6 +447,9 @@ const vi = {
       durationWindow: 'Thời lượng làm bài không được dài hơn khoảng thời gian mở phiên.',
       attemptsRange: 'Số lượt thi tối đa là số nguyên từ {min} đến {max}.',
       attemptsCannotReduce: 'Phiên đã mở nên chỉ có thể tăng số lượt thi (hiện tại: {current}).',
+      topicsRequired: 'Vui lòng chọn ít nhất 1 chủ đề.',
+      questionCountRange: 'Số câu hỏi là số nguyên từ {min} đến {max}.',
+      questionCountExceeds: 'Các chủ đề đã chọn chỉ có {available} câu đã duyệt.',
     },
 
     createdTitle: 'Đã tạo phiên thi',

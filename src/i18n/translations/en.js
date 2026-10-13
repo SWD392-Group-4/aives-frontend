@@ -102,10 +102,12 @@ const en = {
     EXAM_SESSION_NOT_STARTED: 'This session has not opened yet.',
     EXAM_SESSION_ENDED: 'This session has ended.',
     EXAM_SESSION_CANCELLED: 'This session was cancelled.',
-    EXAM_SESSION_LOCKED_FIELDS: 'The session is already open, so its opening time and duration cannot change.',
+    EXAM_SESSION_LOCKED_FIELDS:
+      'The session is already open, so its opening time, duration, topics and number of questions cannot change.',
     EXAM_END_CANNOT_SHORTEN: 'The session is already open, so its closing time can only be extended.',
     EXAM_SESSION_HAS_ATTEMPTS: 'This session has ended and has students, so it cannot be deleted.',
     EXAM_MAX_ATTEMPTS_CANNOT_REDUCE: 'This session is already open, so the attempt limit can only be increased.',
+    EXAM_TOPIC_INVALID: 'The topic does not exist or is not in your question bank.',
     EXAM_ATTEMPT_LIMIT_REACHED: 'You have used all of your attempts for this exam session.',
   },
 
@@ -378,6 +380,8 @@ const en = {
     colActions: 'Actions',
     minutes: '{count} min',
     attemptsPerStudent: 'Up to {count} per student',
+    questionCountShort: '{count} questions',
+    topicsOfSession: 'Topics: {names}',
     owner: 'Created by: {name}',
     windowTo: 'to',
 
@@ -410,6 +414,16 @@ const en = {
     fieldMaxAttempts: 'Maximum attempts per student',
     maxAttemptsHint:
       'From {min} to {max}. After finishing or running out of time, a student can join again until all attempts are used.',
+    fieldTopics: 'Question topics',
+    topicsLoading: 'Loading topics...',
+    topicsEmpty: 'You have no topics yet. Upload a question file and approve its questions before creating a session.',
+    topicsEmptyLink: 'Open the question bank',
+    topicApproved: '{count} approved',
+    topicsHint: 'Choose one or more topics. Only approved questions are used in a session.',
+    topicsSelected: '{selected} topics selected, {available} approved questions.',
+    fieldQuestionCount: 'Number of questions',
+    questionCountHint:
+      'From {min} to {max}. Questions are drawn at random and split evenly between the selected topics; every student in the session gets the same set.',
     timezoneHint: 'Times use your device time zone ({zone}).',
     lockedHint:
       'The session is already open: you can only change its name and description, extend the closing time and increase the attempt limit.',
@@ -433,6 +447,9 @@ const en = {
       durationWindow: 'The duration cannot be longer than the time the session is open.',
       attemptsRange: 'The attempt limit must be a whole number from {min} to {max}.',
       attemptsCannotReduce: 'The session is already open, so the attempt limit can only be increased (currently {current}).',
+      topicsRequired: 'Please choose at least one topic.',
+      questionCountRange: 'The number of questions must be a whole number from {min} to {max}.',
+      questionCountExceeds: 'The selected topics only have {available} approved questions.',
     },
 
     createdTitle: 'Session created',

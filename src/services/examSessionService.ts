@@ -29,6 +29,10 @@ export interface CreateExamSessionPayload {
   durationMinutes: number
   /** Số lượt thi tối đa của mỗi sinh viên trong phiên (1-10). Bỏ trống: 1 khi tạo, giữ nguyên khi sửa. */
   maxAttempts?: number
+  /** Id các chủ đề lấy câu hỏi (1 hoặc nhiều). Bỏ trống khi sửa: giữ nguyên. Chỉ đổi được khi phiên chưa mở. */
+  topicIds?: string[]
+  /** Số câu hỏi gốc (1-30), bốc ngẫu nhiên từ câu đã duyệt của các chủ đề đã chọn. */
+  questionCount?: number
 }
 
 /* ---------- LECTURER / ADMIN: quản lý phiên (ExamSessionController) ---------- */
