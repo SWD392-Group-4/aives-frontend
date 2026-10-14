@@ -55,6 +55,18 @@
     'opsz' 24;
 }
 
+/* Liên kết ở chân trang */
+.footer-link {
+  color: color-mix(in srgb, var(--color-inverse-on-surface) 75%, transparent);
+  transition: color 150ms ease;
+}
+
+.footer-link:hover {
+  color: var(--color-inverse-on-surface);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 /* Ẩn thanh cuộn ngang của dải thẻ tính năng */
 .no-scrollbar {
   scrollbar-width: none;

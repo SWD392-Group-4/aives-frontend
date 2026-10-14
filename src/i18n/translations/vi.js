@@ -35,6 +35,27 @@ const vi = {
     mascotAlt: 'Linh vật robot AIVES',
   },
 
+  footer: {
+    description:
+      'Nền tảng thi vấn đáp ứng dụng AI: hỗ trợ giảng viên xây dựng câu hỏi, hỏi đáp bằng giọng nói và đánh giá theo rubric.',
+    explore: 'Khám phá',
+    features: 'Tính năng',
+    process: 'Quy trình',
+    grading: 'Chấm điểm theo rubric',
+    account: 'Tài khoản',
+    profile: 'Hồ sơ cá nhân',
+    joinExam: 'Vào phiên thi',
+    manageSessions: 'Quản lý phiên thi',
+    login: 'Đăng nhập',
+    register: 'Tạo tài khoản',
+    about: 'Về dự án',
+    aboutDescription:
+      'AIVES giúp việc thi vấn đáp thuận tiện và minh bạch hơn. AI đưa ra gợi ý; giảng viên xem xét và quyết định điểm cuối cùng.',
+    projectTag: 'Dự án học tập tại FPT University',
+    note: 'AI hỗ trợ đánh giá; giảng viên là người chốt điểm chính thức.',
+    copyright: '© {year} AIVES. Dự án học tập tại FPT University.',
+  },
+
   nav: {
     main: 'Điều hướng chính',
     features: 'Tính năng',
