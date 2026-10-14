@@ -11,6 +11,7 @@ import JoinExamPage from './pages/JoinExamPage'
 import LecturerReviewPage from './pages/LecturerReviewPage'
 import LoginPage from './pages/LoginPage'
 import ProfilePage from './pages/ProfilePage'
+import PolicyPage from './pages/PolicyPage'
 import QuestionBankPage from './pages/QuestionBankPage'
 import RegisterPage from './pages/RegisterPage'
 import RubricManagementPage from './pages/RubricManagementPage'
@@ -23,6 +24,8 @@ function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/privacy-policy" element={<PolicyPage type="privacy" />} />
+      <Route path="/terms-of-service" element={<PolicyPage type="terms" />} />
 
       {/* Cần đăng nhập (mọi role) */}
       <Route

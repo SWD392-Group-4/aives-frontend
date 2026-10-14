@@ -57,6 +57,9 @@ const en = {
     accountSupport: 'Having trouble signing in or with your account? Contact the administrator who issued it. Never share your password.',
     resultsSupport: 'View results or submit an appeal',
     emailSupport: 'Email support: {email}',
+    legal: 'Legal information',
+    privacyPolicy: 'Privacy Policy',
+    termsOfService: 'Terms of Use',
     copyright: '© {year} AIVES. Learning project at FPT University.',
   },
 
@@ -236,6 +239,99 @@ const en = {
     sampleQuestions: 'Questions: 5',
   },
 
+  policies: {
+    pageTitle: '{title} | AIVES',
+    draftNotice:
+      'Draft for a learning project. Before real-world use, the operator must confirm data storage, processing, external providers and obtain legal review.',
+    moreInfo: 'If you have questions about these policies, contact the system administrator through an official support channel.',
+    privacy: {
+      title: 'Privacy Policy',
+      intro:
+        'This page describes data that the AIVES interface sends or stores based on the features currently implemented. The operator must confirm how the backend and integrated services handle data before this policy is published as final.',
+      sections: [
+        {
+          title: '1. Data that may be processed',
+          paragraphs: ['Depending on how you use the system, AIVES may process the following categories of data:'],
+          bullets: [
+            'Account information: full name, email, account ID and role. Sign-in credentials are sent to the backend for authentication.',
+            'Exam data: session codes, spoken or typed answers, transcripts, scores, feedback, rubrics and attempt history.',
+            'Appeals: the question being reviewed, the reason for an appeal and the response to it.',
+            'The backend may record technical information needed to operate and protect the service; the operator must confirm its exact scope.',
+          ],
+        },
+        {
+          title: '2. Microphone and speech recognition',
+          paragraphs: [
+            'The exam room may request microphone access. The interface sends answer transcripts to the backend. The browser or a speech-recognition service may process audio to produce a transcript; whether audio is sent to an external service depends on the browser and deployment configuration.',
+            'The current frontend does not establish whether raw audio is recorded or stored, how long transcripts are retained, or which speech-recognition provider is used. These details must be verified before this policy is finalized.',
+          ],
+        },
+        {
+          title: '3. How data is used and shared',
+          paragraphs: [
+            'Data is used for sign-in, exam sessions, displaying submissions and results, lecturer review of scores, and appeal handling. Students, lecturers and administrators have different access according to their roles.',
+            'The frontend does not fully establish whether the backend shares data with AI, storage or speech-recognition providers. The operator should disclose the providers and their purposes before release.',
+          ],
+        },
+        {
+          title: '4. Browser storage and external services',
+          paragraphs: [
+            'The browser stores the access token and user information for the current session in localStorage, and stores the language preference there as well. Sign out and avoid using shared devices to reduce unauthorized access to your account.',
+            'The application loads fonts from Google Fonts. Cookies, server logs, data-retention periods and deletion procedures depend on service configuration and must be confirmed by the operator.',
+          ],
+        },
+        {
+          title: '5. Security, retention and your choices',
+          paragraphs: [
+            'Do not share your password. To ask about accessing, correcting or deleting your data, contact the system administrator through an official channel provided by the operator.',
+            'Retention periods, data-request procedures and applicable rights are not defined by the frontend; they must be established with the backend and operator.',
+          ],
+        },
+      ],
+    },
+    terms: {
+      title: 'Terms of Use',
+      intro:
+        'By using AIVES, you agree to follow these terms along with exam instructions and your institution’s rules. This draft must be reviewed before it is used as a formal agreement.',
+      sections: [
+        {
+          title: '1. Accounts and user responsibilities',
+          paragraphs: [
+            'Provide accurate account information, protect your sign-in credentials and take responsibility for activity under your account. Notify the system administrator if you suspect unauthorized access.',
+            'Do not impersonate others, share accounts without permission, attempt to bypass access controls or disrupt the service.',
+          ],
+        },
+        {
+          title: '2. Exam participation',
+          paragraphs: [
+            'Students must follow lecturer instructions, exam rules and microphone requirements for each session. Session codes and access codes should only be used by authorized participants.',
+            'Do not use AIVES to cheat, interfere with exam content, access another person’s data or undermine exam fairness.',
+          ],
+        },
+        {
+          title: '3. AI and assessment results',
+          paragraphs: [
+            'AI may help ask follow-up questions, transcribe spoken answers and suggest scores or feedback. Automated output may be inaccurate or incomplete and is not the final decision.',
+            'Lecturers review and determine official scores. Students may use the appeal feature when it is available for the relevant result.',
+          ],
+        },
+        {
+          title: '4. Content and permitted use',
+          paragraphs: [
+            'Users are responsible for submitted content and may use questions, materials, transcripts and exam data only as permitted. Do not upload content that infringes another person’s rights or violates institutional rules.',
+          ],
+        },
+        {
+          title: '5. Availability and changes',
+          paragraphs: [
+            'AIVES may be unavailable during maintenance, updates or incident response. The project does not guarantee uninterrupted or error-free service; notify your lecturer if an issue affects an exam session.',
+            'The operator may update features and terms. A final version should explain how changes are announced and when they take effect.',
+          ],
+        },
+      ],
+    },
+  },
+
   auth: {
     panelBadge: 'Smart AI viva',
     panelTitleLine1: 'Ace your',
@@ -300,6 +396,8 @@ const en = {
     submitting: 'Sending OTP code...',
     haveAccount: 'Already have an account?',
     loginNow: 'Log in',
+    policyIntro: 'By signing up, please read our',
+    policyAnd: 'and',
     otpTitle: 'Verify Email',
     otpIntro: 'A 6-digit verification code has been sent to:',
     otpLabel: 'Verification Code (OTP)',
