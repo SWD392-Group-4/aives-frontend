@@ -307,6 +307,17 @@ function RegisterPage() {
                     </div>
                   </form>
 
+                  <p className="mt-4 text-center text-body-sm text-on-surface-variant">
+                    {t('register.policyIntro')}{' '}
+                    <Link to="/privacy-policy" className="font-semibold text-primary hover:underline">
+                      {t('footer.privacyPolicy')}
+                    </Link>{' '}
+                    {t('register.policyAnd')}{' '}
+                    <Link to="/terms-of-service" className="font-semibold text-primary hover:underline">
+                      {t('footer.termsOfService')}
+                    </Link>
+                  </p>
+
                   <div className="mt-8 border-t border-outline-variant/30 pt-6 text-center">
                     <p className="text-body-md text-on-surface-variant">
                       {t('register.haveAccount')}

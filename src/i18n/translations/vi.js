@@ -58,6 +58,9 @@ const vi = {
     accountSupport: 'Lỗi đăng nhập hoặc tài khoản? Hãy liên hệ quản trị viên đã cấp tài khoản. Không chia sẻ mật khẩu.',
     resultsSupport: 'Xem kết quả hoặc gửi phúc khảo',
     emailSupport: 'Email hỗ trợ: {email}',
+    legal: 'Thông tin pháp lý',
+    privacyPolicy: 'Chính sách quyền riêng tư',
+    termsOfService: 'Điều khoản sử dụng',
     copyright: '© {year} AIVES. Dự án học tập tại FPT University.',
   },
 
@@ -237,6 +240,99 @@ const vi = {
     sampleQuestions: 'Số câu hỏi: 5 câu',
   },
 
+  policies: {
+    pageTitle: '{title} | AIVES',
+    draftNotice:
+      'Bản dự thảo cho dự án học tập. Trước khi áp dụng thực tế, cần xác nhận với backend và đơn vị vận hành về việc lưu trữ, xử lý dữ liệu, nhà cung cấp bên ngoài và rà soát pháp lý.',
+    moreInfo: 'Nếu có thắc mắc về chính sách, vui lòng liên hệ quản trị viên qua kênh hỗ trợ chính thức.',
+    privacy: {
+      title: 'Chính sách quyền riêng tư',
+      intro:
+        'Trang này mô tả những dữ liệu mà giao diện AIVES gửi hoặc lưu theo chức năng hiện có. Cách backend và các dịch vụ tích hợp xử lý dữ liệu cần được đơn vị vận hành xác nhận trước khi công bố chính thức.',
+      sections: [
+        {
+          title: '1. Dữ liệu có thể được xử lý',
+          paragraphs: ['Tuỳ cách bạn sử dụng hệ thống, AIVES có thể xử lý các nhóm dữ liệu sau:'],
+          bullets: [
+            'Thông tin tài khoản: họ tên, email, mã tài khoản và vai trò; thông tin đăng nhập được gửi qua kết nối tới backend để xác thực.',
+            'Dữ liệu thi: mã phiên, câu trả lời dạng văn bản được nhận dạng hoặc nhập lại, transcript, điểm, nhận xét, rubric và lịch sử lượt thi.',
+            'Phúc khảo: câu hỏi được yêu cầu xem xét, lý do gửi phúc khảo và phản hồi xử lý.',
+            'Dữ liệu kỹ thuật cần thiết để vận hành và bảo vệ dịch vụ có thể được backend ghi nhận; phạm vi cụ thể cần được đơn vị vận hành xác nhận.',
+          ],
+        },
+        {
+          title: '2. Micro và nhận dạng giọng nói',
+          paragraphs: [
+            'Phòng thi có thể yêu cầu quyền truy cập micro. Giao diện gửi câu trả lời dạng transcript tới backend. Trình duyệt hoặc dịch vụ nhận dạng giọng nói có thể xử lý âm thanh để tạo transcript; việc âm thanh có được truyền tới dịch vụ bên ngoài hay không phụ thuộc trình duyệt và cấu hình triển khai.',
+            'Mã frontend hiện tại không xác nhận việc ghi hoặc lưu âm thanh gốc, thời hạn lưu transcript, hay nhà cung cấp nhận dạng giọng nói. Các nội dung này cần được xác minh trước khi áp dụng chính sách chính thức.',
+          ],
+        },
+        {
+          title: '3. Cách sử dụng và chia sẻ dữ liệu',
+          paragraphs: [
+            'Dữ liệu được sử dụng để đăng nhập, tổ chức phiên thi, hiển thị bài làm và kết quả, hỗ trợ giảng viên rà soát điểm, và xử lý phúc khảo. Sinh viên, giảng viên và quản trị viên có quyền truy cập khác nhau theo vai trò.',
+            'Frontend không xác định đầy đủ việc backend chia sẻ dữ liệu với nhà cung cấp AI, lưu trữ hoặc dịch vụ nhận dạng giọng nói. Đơn vị vận hành cần công bố các nhà cung cấp và mục đích xử lý tương ứng trước khi phát hành chính thức.',
+          ],
+        },
+        {
+          title: '4. Lưu trữ trong trình duyệt',
+          paragraphs: [
+            'Trình duyệt lưu access token và thông tin người dùng của phiên đăng nhập trong localStorage để duy trì phiên; lựa chọn ngôn ngữ cũng được lưu tại đây. Hãy đăng xuất và không sử dụng thiết bị dùng chung để hạn chế người khác truy cập tài khoản.',
+            'Ứng dụng tải font chữ từ Google Fonts. Cookie, nhật ký máy chủ, thời hạn lưu dữ liệu và quy trình xoá dữ liệu phụ thuộc cấu hình dịch vụ và cần được đơn vị vận hành xác nhận.',
+          ],
+        },
+        {
+          title: '5. Bảo mật, lưu giữ và quyền của bạn',
+          paragraphs: [
+            'Không gửi mật khẩu cho người khác. Nếu gặp vấn đề về tài khoản hoặc muốn yêu cầu xem, sửa hoặc xoá dữ liệu, hãy liên hệ quản trị viên của hệ thống qua kênh chính thức do đơn vị vận hành cung cấp.',
+            'Thời gian lưu giữ, quy trình xử lý yêu cầu dữ liệu và các quyền áp dụng theo pháp luật chưa được quy định trong frontend; cần được xác định với backend và đơn vị vận hành.',
+          ],
+        },
+      ],
+    },
+    terms: {
+      title: 'Điều khoản sử dụng',
+      intro:
+        'Khi sử dụng AIVES, bạn cần tuân thủ các điều khoản dưới đây cùng quy định thi cử và quy định của đơn vị đào tạo. Nội dung này là dự thảo cần được rà soát trước khi áp dụng chính thức.',
+      sections: [
+        {
+          title: '1. Tài khoản và trách nhiệm người dùng',
+          paragraphs: [
+            'Bạn cần cung cấp thông tin tài khoản chính xác, bảo vệ thông tin đăng nhập và chịu trách nhiệm với hoạt động phát sinh từ tài khoản của mình. Hãy báo quản trị viên nếu nghi ngờ tài khoản bị truy cập trái phép.',
+            'Không mạo danh người khác, chia sẻ tài khoản trái phép, dò tìm cách vượt quyền hoặc làm gián đoạn hoạt động của hệ thống.',
+          ],
+        },
+        {
+          title: '2. Quy định khi tham gia thi',
+          paragraphs: [
+            'Sinh viên cần tuân thủ hướng dẫn của giảng viên, quy chế thi và yêu cầu về micro trong phiên thi. Mã phiên và mã truy cập chỉ nên được sử dụng bởi người được phép tham gia.',
+            'Không sử dụng AIVES để gian lận, can thiệp vào nội dung thi, truy cập dữ liệu của người khác hoặc làm ảnh hưởng tới tính công bằng của kỳ thi.',
+          ],
+        },
+        {
+          title: '3. AI và kết quả đánh giá',
+          paragraphs: [
+            'AI có thể hỗ trợ đặt câu hỏi tiếp nối, chuyển lời nói thành văn bản và đề xuất điểm hoặc nhận xét. Kết quả tự động có thể thiếu chính xác hoặc không đầy đủ; không nên xem gợi ý của AI là quyết định cuối cùng.',
+            'Giảng viên rà soát và quyết định điểm chính thức. Sinh viên có thể sử dụng chức năng phúc khảo nếu chức năng này được bật cho kết quả tương ứng.',
+          ],
+        },
+        {
+          title: '4. Nội dung và quyền sử dụng',
+          paragraphs: [
+            'Người dùng chịu trách nhiệm về nội dung mình gửi lên và chỉ được sử dụng câu hỏi, tài liệu, transcript và dữ liệu thi trong phạm vi được phép. Không tải lên nội dung xâm phạm quyền của người khác hoặc vi phạm quy định của đơn vị đào tạo.',
+          ],
+        },
+        {
+          title: '5. Tính sẵn sàng và thay đổi dịch vụ',
+          paragraphs: [
+            'AIVES có thể tạm gián đoạn để bảo trì, cập nhật hoặc xử lý sự cố. Dự án không đảm bảo dịch vụ luôn hoạt động liên tục hoặc không có lỗi; hãy báo giảng viên nếu sự cố ảnh hưởng tới phiên thi.',
+            'Đơn vị vận hành có thể cập nhật chức năng và điều khoản. Bản chính thức cần nêu cách thông báo thay đổi và thời điểm có hiệu lực.',
+          ],
+        },
+      ],
+    },
+  },
+
   auth: {
     panelBadge: 'AI vấn đáp thông minh',
     panelTitleLine1: 'Chinh phục',
@@ -301,6 +397,8 @@ const vi = {
     submitting: 'Đang gửi mã OTP...',
     haveAccount: 'Đã có tài khoản?',
     loginNow: 'Đăng nhập ngay',
+    policyIntro: 'Khi đăng ký, vui lòng đọc',
+    policyAnd: 'và',
     otpTitle: 'Xác thực Email',
     otpIntro: 'Mã xác thực 6 chữ số đã được gửi tới:',
     otpLabel: 'Mã xác thực OTP',
