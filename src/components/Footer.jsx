@@ -12,12 +12,13 @@ function Footer() {
   const { t } = useLanguage()
   const destination = user?.role === ROLES.STUDENT ? '/exam/join' : '/exam-sessions'
   const destinationLabel = user?.role === ROLES.STUDENT ? t('footer.joinExam') : t('footer.manageSessions')
+  const supportEmail = import.meta.env.VITE_SUPPORT_EMAIL?.trim()
 
   return (
     <footer className="w-full bg-inverse-surface text-inverse-on-surface">
       <div className="mx-auto max-w-7xl px-6 py-14 lg:px-12 lg:py-16">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
-          <section aria-labelledby="footer-brand-heading" className="sm:col-span-2 lg:col-span-1">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-6 lg:gap-8">
+          <section aria-labelledby="footer-brand-heading" className="sm:col-span-2 lg:col-span-2">
             <h2 id="footer-brand-heading" className="sr-only">
               AIVES
             </h2>
@@ -96,6 +97,37 @@ function Footer() {
               <Icon name="verified_user" className="mt-0.5 shrink-0 text-base text-secondary-fixed" />
               {t('footer.note')}
             </p>
+          </section>
+
+          <section aria-labelledby="footer-support-heading">
+            <h2 id="footer-support-heading" className="text-label-lg text-inverse-on-surface">
+              {t('footer.support')}
+            </h2>
+            <ul className="mt-5 space-y-4 text-body-sm leading-relaxed text-inverse-on-surface/75">
+              <li className="flex items-start gap-2">
+                <Icon name="school" className="mt-0.5 shrink-0 text-base text-accent-cyan" />
+                {t('footer.examSupport')}
+              </li>
+              <li className="flex items-start gap-2">
+                <Icon name="manage_accounts" className="mt-0.5 shrink-0 text-base text-accent-cyan" />
+                {t('footer.accountSupport')}
+              </li>
+            </ul>
+            {user?.role === ROLES.STUDENT && (
+              <Link to="/student/results" className="footer-link mt-4 inline-flex items-center gap-1.5">
+                {t('footer.resultsSupport')}
+                <Icon name="arrow_forward" className="text-base" />
+              </Link>
+            )}
+            {supportEmail && (
+              <a
+                href={`mailto:${supportEmail}`}
+                className="footer-link mt-4 inline-flex items-center gap-1.5 break-all"
+              >
+                <Icon name="mail" className="shrink-0 text-base" />
+                {t('footer.emailSupport', { email: supportEmail })}
+              </a>
+            )}
           </section>
         </div>
 

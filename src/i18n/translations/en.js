@@ -52,6 +52,11 @@ const en = {
       'AIVES makes viva exams more convenient and transparent. AI provides suggestions; lecturers review and decide the official score.',
     projectTag: 'Learning project at FPT University',
     note: 'AI assists with assessment; lecturers make the final grading decision.',
+    support: 'Support',
+    examSupport: 'Questions about an exam schedule, access code or exam content? Contact the lecturer responsible for the session.',
+    accountSupport: 'Having trouble signing in or with your account? Contact the administrator who issued it. Never share your password.',
+    resultsSupport: 'View results or submit an appeal',
+    emailSupport: 'Email support: {email}',
     copyright: '© {year} AIVES. Learning project at FPT University.',
   },
 

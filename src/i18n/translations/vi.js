@@ -53,6 +53,11 @@ const vi = {
       'AIVES giúp việc thi vấn đáp thuận tiện và minh bạch hơn. AI đưa ra gợi ý; giảng viên xem xét và quyết định điểm cuối cùng.',
     projectTag: 'Dự án học tập tại FPT University',
     note: 'AI hỗ trợ đánh giá; giảng viên là người chốt điểm chính thức.',
+    support: 'Hỗ trợ',
+    examSupport: 'Vấn đề về lịch thi, mã vào thi hoặc nội dung bài thi? Hãy liên hệ giảng viên phụ trách phiên thi.',
+    accountSupport: 'Lỗi đăng nhập hoặc tài khoản? Hãy liên hệ quản trị viên đã cấp tài khoản. Không chia sẻ mật khẩu.',
+    resultsSupport: 'Xem kết quả hoặc gửi phúc khảo',
+    emailSupport: 'Email hỗ trợ: {email}',
     copyright: '© {year} AIVES. Dự án học tập tại FPT University.',
   },
 
