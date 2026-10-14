@@ -5,7 +5,7 @@ import { useLanguage } from '../hooks/useLanguage.js'
  * Logo AIVES (biểu tượng + chữ AIVES), bấm vào để về trang chủ.
  * compact: ẩn chữ trên màn hình nhỏ, chỉ còn biểu tượng (dùng trong navbar).
  */
-function Logo({ className = '', compact = false }) {
+function Logo({ className = '', compact = false, textClassName = 'text-primary-container' }) {
   const { t } = useLanguage()
 
   return (
@@ -33,7 +33,7 @@ function Logo({ className = '', compact = false }) {
         <circle cx="28" cy="10" r="3" className="fill-brand-green" />
       </svg>
       <span className={`text-headline-md font-extrabold tracking-tight ${compact ? 'hidden sm:inline' : ''}`}>
-        <span className="text-primary-container">AIVES</span>
+        <span className={textClassName}>AIVES</span>
       </span>
     </Link>
   )

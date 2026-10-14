@@ -34,6 +34,27 @@ const en = {
     mascotAlt: 'AIVES robot mascot',
   },
 
+  footer: {
+    description:
+      'An AI-powered viva exam platform that helps lecturers create questions, run spoken assessments and grade against a rubric.',
+    explore: 'Explore',
+    features: 'Features',
+    process: 'How it works',
+    grading: 'Rubric-based grading',
+    account: 'Your account',
+    profile: 'My profile',
+    joinExam: 'Join an exam',
+    manageSessions: 'Manage sessions',
+    login: 'Log in',
+    register: 'Create an account',
+    about: 'About the project',
+    aboutDescription:
+      'AIVES makes viva exams more convenient and transparent. AI provides suggestions; lecturers review and decide the official score.',
+    projectTag: 'Learning project at FPT University',
+    note: 'AI assists with assessment; lecturers make the final grading decision.',
+    copyright: '© {year} AIVES. Learning project at FPT University.',
+  },
+
   nav: {
     main: 'Main navigation',
     features: 'Features',
