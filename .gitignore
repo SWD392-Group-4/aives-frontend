@@ -25,3 +25,4 @@ dist-ssr
 
 # Ảnh xem trước do Claude gửi, không phải code
 Claude outputs/
+.env
