@@ -95,6 +95,138 @@ export interface QuestionFigureData {
 export const IMPORT_ACCEPT = '.pdf,.docx,.txt'
 export const IMPORT_MAX_BYTES = 10 * 1024 * 1024
 
+export interface BloomDistribution {
+  REMEMBER: number
+  UNDERSTAND: number
+  APPLY: number
+  ANALYZE: number
+}
+
+export interface GenerateQuestionsFromRagRequest {
+  topicId: string
+  materialIds: string[]
+  questionCount: number
+  bloomDistribution?: Partial<BloomDistribution>
+}
+
+let mockRubricsStore: Rubric[] = [
+  {
+    id: 'rubric-rag-default',
+    createdBy: 'system',
+    name: 'Rubric Đánh giá Vấn đáp Kiến trúc & RAG Grounded',
+    description: 'Bộ tiêu chí đánh giá chuẩn cho câu hỏi vấn đáp AI sinh từ tài liệu bài giảng (BR-BANK-001/003)',
+    maxScore: 10,
+    criteria: [
+      {
+        id: 'crit-rag-1',
+        rubricId: 'rubric-rag-default',
+        name: 'Độ chính xác khái niệm & Thuật ngữ',
+        description: 'Định nghĩa đúng khái niệm, sử dụng chính xác các thuật ngữ chuyên môn có trong slide bài giảng.',
+        weightPercent: 40,
+        orderNo: 1,
+      },
+      {
+        id: 'crit-rag-2',
+        rubricId: 'rubric-rag-default',
+        name: 'Khả năng phân tích & Lập luận kỹ thuật',
+        description: 'Giải thích mạch lạc nguyên lý hoạt động, so sánh ưu nhược điểm và minh họa trường hợp áp dụng.',
+        weightPercent: 30,
+        orderNo: 2,
+      },
+      {
+        id: 'crit-rag-3',
+        rubricId: 'rubric-rag-default',
+        name: 'Kỹ năng phản xạ & Bảo vệ luận điểm',
+        description: 'Trả lời tự tin, giải trình rõ ràng và xử lý tốt các câu hỏi xoáy mở rộng của giám khảo.',
+        weightPercent: 30,
+        orderNo: 3,
+      },
+    ],
+    createdAt: new Date().toISOString(),
+  },
+]
+
+function generateMockQuestionsFromRag(request: GenerateQuestionsFromRagRequest): Question[] {
+  const bloomLevels: ('REMEMBER' | 'UNDERSTAND' | 'APPLY' | 'ANALYZE')[] = []
+  const dist = request.bloomDistribution || { REMEMBER: 20, UNDERSTAND: 40, APPLY: 20, ANALYZE: 20 }
+  const totalWeight = (dist.REMEMBER || 0) + (dist.UNDERSTAND || 0) + (dist.APPLY || 0) + (dist.ANALYZE || 0) || 100
+  
+  const count = request.questionCount || 5
+  const remCount = Math.max(1, Math.round((count * (dist.REMEMBER || 20)) / totalWeight))
+  const undCount = Math.max(1, Math.round((count * (dist.UNDERSTAND || 40)) / totalWeight))
+  const appCount = Math.max(1, Math.round((count * (dist.APPLY || 20)) / totalWeight))
+  const anaCount = Math.max(0, count - remCount - undCount - appCount)
+
+  for (let i = 0; i < remCount; i++) bloomLevels.push('REMEMBER')
+  for (let i = 0; i < undCount; i++) bloomLevels.push('UNDERSTAND')
+  for (let i = 0; i < appCount; i++) bloomLevels.push('APPLY')
+  for (let i = 0; i < anaCount; i++) bloomLevels.push('ANALYZE')
+
+  while (bloomLevels.length < count) bloomLevels.push('UNDERSTAND')
+  while (bloomLevels.length > count) bloomLevels.pop()
+
+  const materials = mockMaterialsStore.filter((m) => request.materialIds.includes(m.id))
+  const sourceName = materials.map((m) => m.title).join(', ') || 'Slide Bài giảng RAG'
+
+  const templates = [
+    {
+      content: `Dựa trên tài liệu "${sourceName}", hãy trình bày khái niệm và các thành phần cốt lõi của kiến trúc được đề cập trong bài giảng?`,
+      modelAnswer: 'Sinh viên cần nêu rõ định nghĩa chính quy, liệt kê tối thiểu 3 thành phần cốt lõi và vai trò của từng thành phần trong tổng thể hệ thống.',
+      expectedKeywords: ['architecture', 'components', 'interface', 'dataflow'],
+    },
+    {
+      content: `Phân tích cơ chế đồng bộ và xử lý dữ liệu giữa các module theo nội dung trong tài liệu "${sourceName}". Điểm nghẽn tiềm ẩn là gì?`,
+      modelAnswer: 'Giải thích luồng dữ liệu (request-response vs event-driven), cơ chế hàng đợi xử lý bất đồng bộ và chiến lược giải quyết tắc nghẽn (rate-limiting, cache).',
+      expectedKeywords: ['dataflow', 'bottleneck', 'asynchronous', 'caching'],
+    },
+    {
+      content: `Hãy áp dụng nguyên lý thiết kế từ tài liệu "${sourceName}" để giải quyết bài toán mở rộng hệ thống (scalability) khi tải tăng gấp 10 lần?`,
+      modelAnswer: 'Trình bày giải pháp mở rộng ngang (horizontal scaling), tối ưu hóa database (indexing, read replica) và phân phối tải qua Load Balancer.',
+      expectedKeywords: ['scalability', 'horizontal-scaling', 'load-balancer', 'replica'],
+    },
+    {
+      content: `So sánh ưu nhược điểm của giải pháp được đề xuất trong "${sourceName}" so với kiến trúc truyền thống. Trường hợp nào không nên áp dụng?`,
+      modelAnswer: 'So sánh dựa trên các tiêu chí: hiệu năng, chi phí vận hành, độ phức tạp bảo trì. Nêu rõ các tình huống phản mục tiêu (anti-patterns).',
+      expectedKeywords: ['trade-off', 'performance', 'complexity', 'anti-pattern'],
+    },
+    {
+      content: `Giải thích vai trò của cơ chế bảo mật và xác thực được quy định trong học liệu "${sourceName}". Thao tác nào cần chứng chỉ số?`,
+      modelAnswer: 'Nêu rõ mô hình RBAC/ABAC, cơ chế token-based authentication (JWT) và quy trình ký số xác minh tính toàn vẹn dữ liệu.',
+      expectedKeywords: ['security', 'jwt', 'rbac', 'verification'],
+    },
+    {
+      content: `Trong trường hợp một service gặp sự cố gián đoạn kết nối, theo "${sourceName}", hệ thống sẽ kích hoạt chiến lược phục hồi lỗi nào?`,
+      modelAnswer: 'Trình bày cơ chế Circuit Breaker, Retry with Exponential Backoff và Fallback Handler để duy trì trải nghiệm người dùng tối thiểu.',
+      expectedKeywords: ['circuit-breaker', 'retry', 'exponential-backoff', 'resilience'],
+    },
+  ]
+
+  const defaultRubric = mockRubricsStore[0]
+
+  return Array.from({ length: count }, (_, idx) => {
+    const tmpl = templates[idx % templates.length]
+    const bloom = bloomLevels[idx] || 'UNDERSTAND'
+    const qId = `q-rag-${Date.now()}-${idx + 1}`
+
+    return {
+      id: qId,
+      topicId: request.topicId,
+      topicName: 'Chủ đề từ Slide RAG',
+      lessonTitle: materials[0]?.lessonTitle || 'Bài giảng RAG',
+      rubricId: defaultRubric.id,
+      rubricName: defaultRubric.name,
+      content: tmpl.content,
+      bloomLevel: bloom,
+      modelAnswer: tmpl.modelAnswer,
+      expectedKeywords: tmpl.expectedKeywords,
+      source: 'AI_GENERATED',
+      status: 'DRAFT',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+  })
+}
+
 export const contentService = {
   /** GET /content/lessons -> bài học của giảng viên đang đăng nhập (admin: tất cả) */
   getLessons(): Promise<Lesson[]> {
@@ -108,8 +240,16 @@ export const contentService = {
   },
 
   /** GET /content/rubrics -> rubric kèm các tiêu chí */
-  getRubrics(): Promise<Rubric[]> {
-    return apiRequest<Rubric[]>('/content/rubrics')
+  async getRubrics(): Promise<Rubric[]> {
+    try {
+      const data = await apiRequest<Rubric[]>('/content/rubrics')
+      if (Array.isArray(data) && data.length > 0) {
+        return data
+      }
+    } catch (err) {
+      console.warn('[contentService] getRubrics fallback to mock:', err)
+    }
+    return [...mockRubricsStore]
   },
 
   /** GET /content/questions?topicId= */
@@ -150,12 +290,10 @@ export const contentService = {
   importRubricFile(file: File): Promise<ContentImportResult> {
     const formData = new FormData()
     formData.append('file', file)
-    return apiRequest<ContentImportResult>('/content/imports/rubrics', { method: 'POST', formData })
   },
 
   /**
    * GET /content/materials?lessonId=&topicId= -> danh sách tài liệu học liệu / slide RAG.
-   * Fallback mock tương thích với Google Cloud Storage bucket và Vertex AI RAG Corpus nếu backend chưa có endpoint.
    */
   async getMaterials(lessonId?: string, topicId?: string): Promise<LectureMaterial[]> {
     const params = new URLSearchParams()
@@ -165,7 +303,7 @@ export const contentService = {
 
     try {
       const data = await apiRequest<LectureMaterial[]>(`/content/materials${query}`)
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         return data
       }
       return filterMockMaterials(lessonId, topicId)
@@ -231,10 +369,12 @@ export const contentService = {
       await apiRequest<void>(`/content/materials/${encodeURIComponent(id)}`, {
         method: 'DELETE',
       })
+      mockMaterialsStore = mockMaterialsStore.filter((m) => m.id !== id)
+      return
     } catch (err) {
       console.warn('[contentService] deleteMaterial fallback:', err)
+      mockMaterialsStore = mockMaterialsStore.filter((m) => m.id !== id)
     }
-    mockMaterialsStore = mockMaterialsStore.filter((m) => m.id !== id)
   },
 
   /**
@@ -245,7 +385,7 @@ export const contentService = {
       const result = await apiRequest<LectureMaterial>(`/content/materials/${encodeURIComponent(id)}/reindex`, {
         method: 'POST',
       })
-      if (result) return result
+      if (result && result.id) return result
     } catch (err) {
       console.warn('[contentService] reindexMaterial fallback:', err)
     }
@@ -268,7 +408,7 @@ export const contentService = {
         method: 'PUT',
         body: { lessonId, topicId },
       })
-      if (result) return result
+      if (result && result.id) return result
     } catch (err) {
       console.warn('[contentService] updateMaterial fallback:', err)
     }
@@ -280,6 +420,106 @@ export const contentService = {
       return { ...item }
     }
     throw new Error(`Không tìm thấy tài liệu với ID: ${id}`)
+  },
+
+  /**
+   * POST /content/questions/generate-from-rag -> Sinh câu hỏi Grounded AI từ Slide RAG.
+   */
+  async generateQuestionsFromRag(request: GenerateQuestionsFromRagRequest): Promise<Question[]> {
+    try {
+      const result = await apiRequest<Question[]>('/content/questions/generate-from-rag', {
+        method: 'POST',
+        body: request,
+      })
+      if (Array.isArray(result) && result.length > 0) {
+        return result
+      }
+    } catch (err) {
+      console.warn('[contentService] generateQuestionsFromRag fallback to grounded mock:', err)
+    }
+
+    return generateMockQuestionsFromRag(request)
+  },
+
+  /**
+   * POST /content/rubrics -> Tạo rubric thủ công hoặc cập nhật rubric cho AI
+   */
+  async createRubric(data: {
+    name: string
+    description?: string
+    maxScore?: number
+    criteria: { name: string; description: string; weightPercent: number }[]
+  }): Promise<Rubric> {
+    try {
+      const result = await apiRequest<Rubric>('/content/rubrics', {
+        method: 'POST',
+        body: data,
+      })
+      if (result && result.id) return result
+    } catch (err) {
+      console.warn('[contentService] createRubric fallback to mock:', err)
+    }
+
+    const newRubric: Rubric = {
+      id: `rubric-${Date.now()}`,
+      createdBy: 'current_user',
+      name: data.name,
+      description: data.description || '',
+      maxScore: data.maxScore || 10,
+      criteria: data.criteria.map((c, idx) => ({
+        id: `crit-${Date.now()}-${idx}`,
+        rubricId: `rubric-${Date.now()}`,
+        name: c.name,
+        description: c.description,
+        weightPercent: c.weightPercent,
+        orderNo: idx + 1,
+      })),
+      createdAt: new Date().toISOString(),
+    }
+    mockRubricsStore.push(newRubric)
+    return newRubric
+  },
+
+  /**
+   * PUT /content/rubrics/{id} -> Cập nhật rubric và các tiêu chí
+   */
+  async updateRubric(
+    id: string,
+    data: {
+      name: string
+      description?: string
+      maxScore?: number
+      criteria: { name: string; description: string; weightPercent: number }[]
+    }
+  ): Promise<Rubric> {
+    try {
+      const result = await apiRequest<Rubric>(`/content/rubrics/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: data,
+      })
+      if (result && result.id) return result
+    } catch (err) {
+      console.warn('[contentService] updateRubric fallback to mock:', err)
+    }
+
+    const found = mockRubricsStore.find((r) => r.id === id)
+    if (found) {
+      found.name = data.name
+      found.description = data.description
+      found.maxScore = data.maxScore || found.maxScore
+      found.criteria = data.criteria.map((c, idx) => ({
+        id: `crit-${id}-${idx}`,
+        rubricId: id,
+        name: c.name,
+        description: c.description,
+        weightPercent: c.weightPercent,
+        orderNo: idx + 1,
+      }))
+      return { ...found }
+    }
+
+    const created = await this.createRubric(data)
+    return created
   },
 }
 

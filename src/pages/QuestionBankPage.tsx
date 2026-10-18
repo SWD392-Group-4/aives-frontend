@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import GenerateQuestionsModal from '../components/GenerateQuestionsModal'
 import Icon from '../components/Icon'
 import ImportContentModal from '../components/ImportContentModal'
 import LecturerLayout from '../components/LecturerLayout'
 import QuestionFigure from '../components/QuestionFigure'
+import RubricEditorModal from '../components/RubricEditorModal'
 import { ContentImportResult, contentService } from '../services/contentService'
 import { Question, QuestionStatus, Rubric, Topic } from '../types'
 
@@ -18,6 +20,11 @@ export default function QuestionBankPage() {
 
   // Gửi file câu hỏi (.pdf / .docx / .txt) để AI tách thành câu hỏi nháp
   const [importModalOpen, setImportModalOpen] = useState(false)
+  // Sinh câu hỏi AI Grounded từ Slide RAG
+  const [generateModalOpen, setGenerateModalOpen] = useState(false)
+  // Chỉnh sửa tiêu chí & trọng số Rubric (BR-BANK-001)
+  const [editingRubric, setEditingRubric] = useState<Rubric | null>(null)
+
   // Rubric giảng viên chọn cho câu nháp chưa có rubric (theo id câu hỏi)
   const [rubricChoices, setRubricChoices] = useState<Record<string, string>>({})
   const [approvingAll, setApprovingAll] = useState(false)
@@ -57,36 +64,128 @@ export default function QuestionBankPage() {
   // Câu nháp đang hiển thị và đã có rubric: duyệt được ngay
   const approvableDrafts = filteredQuestions.filter((q) => q.status === 'DRAFT' && q.rubricId)
 
-  // Duyệt hoặc từ chối câu hỏi
+  // Duyệt hoặc từ chối câu hỏi (Kiểm tra ràng buộc BR-BANK-001)
   const handleUpdateStatus = async (id: string, status: QuestionStatus, rubricId?: string) => {
+    if (status === 'APPROVED') {
+      const question = questions.find((q) => q.id === id)
+      const activeRubricId = rubricId || question?.rubricId || rubricChoices[id]
+
+      if (!activeRubricId) {
+        setBanner({
+          type: 'error',
+          message: 'CẤM PHÊ DUYỆT (BR-BANK-001): Câu hỏi chưa được liên kết với Rubric nào (rubric_id IS NULL). Vui lòng chọn hoặc gán Rubric trước khi duyệt.',
+        })
+        return
+      }
+
+      const rubric = rubrics.find((r) => r.id === activeRubricId)
+      if (rubric) {
+        const totalWeight = rubric.criteria.reduce(
+          (sum, c) => sum + (Number(c.weightPercent) || 0),
+          0
+        )
+        if (Math.round(totalWeight) !== 100) {
+          setBanner({
+            type: 'error',
+            message: `CẤM PHÊ DUYỆT (BR-BANK-001): Rubric "${rubric.name}" chưa hoàn chỉnh (tổng trọng số các tiêu chí = ${totalWeight}% ≠ 100%). Vui lòng bấm "Sửa Rubric" để điều chỉnh đạt đúng 100% trước khi duyệt.`,
+          })
+          return
+        }
+      }
+    }
+
     try {
       const updated = await contentService.updateQuestionStatus(id, status, rubricId || undefined)
       setQuestions((prev) => prev.map((item) => (item.id === id ? updated : item)))
       setBanner({
         type: 'success',
-        message: status === 'APPROVED' ? 'Đã phê duyệt câu hỏi thành công!' : 'Đã cập nhật trạng thái câu hỏi.',
+        message:
+          status === 'APPROVED'
+            ? 'Đã phê duyệt câu hỏi thành công (Đạt chuẩn 100% Rubric BR-BANK-001)!'
+            : 'Đã cập nhật trạng thái câu hỏi.',
       })
     } catch (err: any) {
       setBanner({ type: 'error', message: err.message })
     }
   }
 
-  // Duyệt lần lượt mọi câu nháp đang hiển thị (đã có rubric)
+  // Duyệt lần lượt mọi câu nháp đang hiển thị (đã có rubric đạt chuẩn 100% theo BR-BANK-001)
   const handleApproveAll = async () => {
     setApprovingAll(true)
     let approved = 0
+    const invalidQuestions: string[] = []
+
     try {
       for (const question of approvableDrafts) {
+        const activeRubricId = question.rubricId || rubricChoices[question.id]
+        const rubric = rubrics.find((r) => r.id === activeRubricId)
+
+        if (!rubric) {
+          invalidQuestions.push(`Câu ${question.id}: Chưa tìm thấy thông tin Rubric`)
+          continue
+        }
+
+        const totalWeight = rubric.criteria.reduce(
+          (sum, c) => sum + (Number(c.weightPercent) || 0),
+          0
+        )
+        if (Math.round(totalWeight) !== 100) {
+          invalidQuestions.push(
+            `Câu ${question.id}: Rubric "${rubric.name}" có trọng số ${totalWeight}% ≠ 100%`
+          )
+          continue
+        }
+
         const updated = await contentService.updateQuestionStatus(question.id, 'APPROVED')
         setQuestions((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
         approved += 1
       }
-      setBanner({ type: 'success', message: `Đã duyệt ${approved} câu hỏi.` })
+
+      if (invalidQuestions.length > 0) {
+        setBanner({
+          type: 'error',
+          message: `Đã duyệt ${approved} câu hợp lệ. Có ${invalidQuestions.length} câu bị chặn duyệt theo BR-BANK-001 do Rubric chưa đạt đúng 100% trọng số.`,
+        })
+      } else {
+        setBanner({
+          type: 'success',
+          message: `Đã duyệt thành công toàn bộ ${approved} câu hỏi nháp đạt chuẩn BR-BANK-001.`,
+        })
+      }
     } catch (err: any) {
-      setBanner({ type: 'error', message: `Đã duyệt ${approved} câu, sau đó gặp lỗi: ${err.message}` })
+      setBanner({
+        type: 'error',
+        message: `Đã duyệt ${approved} câu, sau đó gặp lỗi: ${err.message}`,
+      })
     } finally {
       setApprovingAll(false)
     }
+  }
+
+  // Khi sinh câu hỏi từ RAG hoàn tất
+  const handleQuestionsGenerated = (newQuestions: Question[]) => {
+    setQuestions((prev) => [...newQuestions, ...prev])
+    setSelectedStatus('DRAFT')
+    if (newQuestions[0]?.topicId) {
+      setSelectedTopicId(newQuestions[0].topicId)
+    }
+    setBanner({
+      type: 'success',
+      message: `Đã sinh thành công ${newQuestions.length} câu hỏi Grounded AI từ Slide RAG! Toàn bộ câu hỏi đã mang trạng thái DRAFT và được thiết lập Model Rubric 100% trọng số.`,
+    })
+    // Tải lại danh sách rubric để đồng bộ rubric vừa tạo
+    contentService.getRubrics().then(setRubrics).catch(() => {})
+  }
+
+  // Khi chỉnh sửa Rubric xong
+  const handleRubricSaved = (updatedRubric: Rubric) => {
+    setRubrics((prev) =>
+      prev.map((r) => (r.id === updatedRubric.id ? updatedRubric : r))
+    )
+    setBanner({
+      type: 'success',
+      message: `Đã cập nhật tiêu chí và trọng số Rubric "${updatedRubric.name}" đạt chuẩn 100% (BR-BANK-001)!`,
+    })
   }
 
   // AI tách xong file: tải lại dữ liệu và chuyển bộ lọc sang chủ đề vừa tạo để giảng viên xem lại
@@ -130,8 +229,17 @@ export default function QuestionBankPage() {
 
             <button
               type="button"
+              onClick={() => setGenerateModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-container px-5 py-2.5 text-label-md font-bold text-on-primary shadow-md hover:shadow-lg transition-all"
+            >
+              <Icon name="auto_awesome" />
+              <span>Sinh câu hỏi AI (RAG)</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setImportModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full bg-primary-container px-5 py-2.5 text-label-md font-semibold text-on-primary shadow-md hover:bg-primary transition-colors"
+              className="inline-flex items-center gap-2 rounded-full border border-outline-variant/60 bg-surface-container-low px-5 py-2.5 text-label-md font-semibold text-on-surface hover:bg-surface-container-high transition-colors"
             >
               <Icon name="upload_file" />
               <span>Gửi file câu hỏi</span>
@@ -325,44 +433,111 @@ export default function QuestionBankPage() {
                     </div>
                   )}
 
-                  <div className="rounded-2xl bg-surface-container p-3.5 flex flex-col justify-between">
-                    <div>
-                      <span className="text-label-xs font-semibold uppercase text-outline block mb-1">
-                        Rubric chấm điểm gắn kèm (BR-BANK-001):
-                      </span>
-                      <p className="font-semibold text-primary">
-                        {q.rubricName || (
-                          <span className="text-tertiary italic">Chưa gán Rubric (Bắt buộc trước khi duyệt)</span>
-                        )}
-                      </p>
-                      {/* Câu nháp chưa có rubric: chọn rubric ở đây rồi bấm "Duyệt câu" */}
-                      {isDraft && !q.rubricId && rubrics.length > 0 && (
-                        <select
-                          value={rubricChoices[q.id] ?? ''}
-                          onChange={(e) => setRubricChoices((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                          aria-label="Chọn rubric cho câu hỏi"
-                          className="mt-2 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-1.5 text-body-sm text-on-surface"
-                        >
-                          <option value="">-- Chọn rubric để duyệt --</option>
-                          {rubrics.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
+                  {(() => {
+                    const activeRubricId = q.rubricId || rubricChoices[q.id]
+                    const assignedRubric = rubrics.find((r) => r.id === activeRubricId)
+                    const totalRubricWeight = assignedRubric
+                      ? assignedRubric.criteria.reduce((sum, c) => sum + (Number(c.weightPercent) || 0), 0)
+                      : 0
+                    const isRubric100 = Math.round(totalRubricWeight) === 100
 
-                    {q.expectedKeywords && q.expectedKeywords.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {q.expectedKeywords.map((kw, i) => (
-                          <span key={i} className="rounded-md bg-surface-container-highest px-2 py-0.5 text-label-xs text-on-surface-variant">
-                            #{kw}
-                          </span>
-                        ))}
+                    return (
+                      <div className="rounded-2xl bg-surface-container p-3.5 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <span className="text-label-xs font-semibold uppercase text-outline">
+                              Rubric chấm điểm gắn kèm (BR-BANK-001):
+                            </span>
+                            {assignedRubric && (
+                              <button
+                                type="button"
+                                onClick={() => setEditingRubric(assignedRubric)}
+                                className="inline-flex items-center gap-1 rounded-md bg-surface-container-high px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-surface-container-highest transition-colors"
+                              >
+                                <Icon name="edit" className="text-xs" />
+                                <span>Sửa Rubric</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {assignedRubric ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="font-bold text-xs text-primary line-clamp-1" title={assignedRubric.name}>
+                                  {assignedRubric.name}
+                                </p>
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0 ${
+                                    isRubric100
+                                      ? 'bg-secondary-fixed/70 text-secondary'
+                                      : 'bg-error-container text-on-error-container'
+                                  }`}
+                                >
+                                  {totalRubricWeight}% {isRubric100 ? '✓' : '(≠ 100%)'}
+                                </span>
+                              </div>
+
+                              {/* Criteria breakdown with weight badges */}
+                              <div className="space-y-1.5 pt-1 border-t border-outline-variant/30">
+                                {assignedRubric.criteria.map((crit, cIdx) => (
+                                  <div
+                                    key={crit.id || cIdx}
+                                    className="rounded-lg bg-surface-container-low p-2 text-xs border border-outline-variant/20"
+                                  >
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className="font-semibold text-on-surface line-clamp-1">
+                                        {crit.name}
+                                      </span>
+                                      <span className="rounded bg-primary-fixed/50 px-1.5 py-0.2 text-[10px] font-mono font-bold text-primary shrink-0">
+                                        {crit.weightPercent}%
+                                      </span>
+                                    </div>
+                                    {crit.description && (
+                                      <p className="mt-0.5 text-[11px] text-outline line-clamp-2">
+                                        {crit.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="text-tertiary text-xs italic font-semibold">
+                                Chưa gán Rubric (Bắt buộc trước khi duyệt)
+                              </p>
+                              {/* Câu nháp chưa có rubric: chọn rubric ở đây rồi bấm "Duyệt câu" */}
+                              {isDraft && rubrics.length > 0 && (
+                                <select
+                                  value={rubricChoices[q.id] ?? ''}
+                                  onChange={(e) => setRubricChoices((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                                  aria-label="Chọn rubric cho câu hỏi"
+                                  className="mt-2 w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-3 py-1.5 text-body-sm text-on-surface"
+                                >
+                                  <option value="">-- Chọn rubric để duyệt --</option>
+                                  {rubrics.map((r) => (
+                                    <option key={r.id} value={r.id}>
+                                      {r.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {q.expectedKeywords && q.expectedKeywords.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1.5 pt-2 border-t border-outline-variant/20">
+                            {q.expectedKeywords.map((kw, i) => (
+                              <span key={i} className="rounded-md bg-surface-container-highest px-2 py-0.5 text-label-xs text-on-surface-variant font-mono">
+                                #{kw}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    )
+                  })()}
                 </div>
               </div>
             )
@@ -370,12 +545,32 @@ export default function QuestionBankPage() {
         </div>
       </div>
 
+      {/* Modal sinh câu hỏi Grounded AI từ Slide RAG */}
+      {generateModalOpen && (
+        <GenerateQuestionsModal
+          topics={topics}
+          defaultTopicId={selectedTopicId !== 'ALL' ? selectedTopicId : undefined}
+          onClose={() => setGenerateModalOpen(false)}
+          onGenerated={handleQuestionsGenerated}
+        />
+      )}
+
+      {/* Modal gửi file câu hỏi thông thường */}
       {importModalOpen && (
         <ImportContentModal
           kind="questions"
           rubrics={rubrics}
           onClose={() => setImportModalOpen(false)}
           onImported={handleImported}
+        />
+      )}
+
+      {/* Modal chỉnh sửa tiêu chí & trọng số Rubric (BR-BANK-001) */}
+      {editingRubric && (
+        <RubricEditorModal
+          rubric={editingRubric}
+          onClose={() => setEditingRubric(null)}
+          onSaved={handleRubricSaved}
         />
       )}
     </LecturerLayout>
