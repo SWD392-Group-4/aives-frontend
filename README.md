@@ -1,4 +1,4 @@
-# aives-frontend
+npm run dev# aives-frontend
 
 Frontend của **AIVES – AI-powered Viva Exam System** (Vite + React).
 
