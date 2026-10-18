@@ -383,6 +383,13 @@ export default function LecturerDashboardPage() {
                 Chương trình học
               </Link>
               <Link
+                to="/lecturer/materials"
+                className="inline-flex items-center gap-2 rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-4 py-2.5 text-xs font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
+              >
+                <Icon name="slideshow" className="text-base text-amber-600" />
+                Học liệu & Slide RAG
+              </Link>
+              <Link
                 to="/lecturer/reviews"
                 className="inline-flex items-center gap-2 rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-4 py-2.5 text-xs font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
               >

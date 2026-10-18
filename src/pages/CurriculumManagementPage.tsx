@@ -436,6 +436,13 @@ export default function CurriculumManagementPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:self-center">
+            <Link
+              to="/lecturer/materials"
+              className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/60 bg-surface-container px-3.5 py-1.5 text-xs font-semibold text-primary hover:bg-surface-container-high transition-colors"
+            >
+              <Icon name="slideshow" className="text-amber-600 text-base" />
+              <span>Học liệu & Slide</span>
+            </Link>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3.5 py-1.5 text-xs font-semibold text-on-surface">
               <Icon name="library_books" className="text-primary text-base" />
               {lessons.length} Bài học

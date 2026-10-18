@@ -92,6 +92,9 @@ export default function Navbar({ showHomeSections = false }: NavbarProps) {
                 <NavLink to="/lecturer/curriculum" className={navLinkClass}>
                   Chương trình học
                 </NavLink>
+                <NavLink to="/lecturer/materials" className={navLinkClass}>
+                  Học liệu & Slide RAG
+                </NavLink>
                 <NavLink to="/lecturer/questions" className={navLinkClass}>
                   Ngân hàng câu hỏi
                 </NavLink>

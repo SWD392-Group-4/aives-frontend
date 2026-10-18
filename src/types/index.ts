@@ -286,3 +286,25 @@ export interface AdminOperationalMetrics {
   }
 }
 
+export type RagStatus = 'UPLOADING' | 'INDEXING' | 'READY' | 'FAILED';
+
+export interface LectureMaterial {
+  id: string;
+  lecturerId: string;
+  lessonId?: string | null;
+  lessonTitle?: string | null;
+  topicId?: string | null;
+  topicName?: string | null;
+  title: string;
+  fileName: string;
+  fileSize: number;
+  fileType: 'pptx' | 'ppt' | 'pdf' | 'docx';
+  gcsUri: string;
+  ragCorpusId?: string;
+  ragStatus: RagStatus;
+  chunkCount?: number;
+  errorMessage?: string | null;
+  uploadedAt: string;
+}
+
+

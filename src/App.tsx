@@ -16,6 +16,7 @@ import LecturerDashboardPage from './pages/LecturerDashboardPage'
 import LecturerReviewPage from './pages/LecturerReviewPage'
 import LiveExamMonitorPage from './pages/LiveExamMonitorPage'
 import LoginPage from './pages/LoginPage'
+import MaterialsManagementPage from './pages/MaterialsManagementPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
 import PolicyPage from './pages/PolicyPage'
@@ -133,6 +134,14 @@ function App() {
         element={
           <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
             <ExamSessionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lecturer/materials"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <MaterialsManagementPage />
           </ProtectedRoute>
         }
       />

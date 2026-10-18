@@ -123,6 +123,14 @@ export default function QuestionBankPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Link
+              to="/lecturer/materials"
+              className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/60 bg-surface-container px-4 py-2 text-label-md font-semibold text-primary hover:bg-surface-container-high transition-colors"
+            >
+              <Icon name="slideshow" />
+              <span>Quản lý Slide RAG</span>
+            </Link>
+
+            <Link
               to="/lecturer/rubrics"
               className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/60 bg-surface-container px-4 py-2 text-label-md font-semibold text-primary hover:bg-surface-container-high transition-colors"
             >
