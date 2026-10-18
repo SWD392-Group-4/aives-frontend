@@ -771,6 +771,16 @@ export default function ExamRoomPage() {
                     {question?.questionText ?? 'Đang tải câu hỏi...'}
                   </p>
 
+                  {question?.questionImage && (
+                    <div className="mt-4 overflow-hidden rounded-2xl border border-outline-variant/40 bg-white p-2">
+                      <img
+                        src={question.questionImage}
+                        alt="Hình vẽ của câu hỏi"
+                        className="mx-auto block max-h-[360px] w-auto max-w-full object-contain"
+                      />
+                    </div>
+                  )}
+
                   <div className="mt-4 flex flex-wrap gap-2 text-label-xs text-on-surface-variant">
                     <span className="rounded-md bg-surface-container px-2.5 py-1">
                       Thời gian suy nghĩ: {question?.prepareSeconds ?? '-'}s
@@ -801,7 +811,6 @@ export default function ExamRoomPage() {
                     {phase === 'STUDENT_PREPARE' && 'Thời gian chuẩn bị suy nghĩ'}
                     {phase === 'STUDENT_SPEAKING' &&
                       (listening ? 'Micro đang bật - Hãy trả lời' : 'Hãy nhập câu trả lời bằng bàn phím')}
-                    {phase === 'EVAL_AND_DECIDE' && 'AI đang phân tích câu trả lời...'}
                     {phase === 'ERROR' && 'Chưa gửi được lên máy chủ'}
                     {phase === 'TTS_PLAY' && 'Lắng nghe giám khảo đọc đề'}
                   </span>
@@ -908,13 +917,17 @@ export default function ExamRoomPage() {
                   </div>
                 )}
 
+                {/* Chờ backend xử lý câu trả lời: chỉ hiện animation, không ghi chữ AI đang chấm / quyết định */}
                 {phase === 'EVAL_AND_DECIDE' && (
-                  <div className="flex flex-col items-center gap-3">
-                    <Icon name="cognition" className="animate-spin text-primary text-5xl" />
-                    <p className="text-headline-xs font-semibold text-on-surface">AI đang phân tích câu trả lời...</p>
-                    <p className="text-body-sm text-on-surface-variant max-w-sm">
-                      Hệ thống đang phân tích các ý chính để quyết định câu hỏi tiếp theo hoặc hỏi xoáy thích ứng.
-                    </p>
+                  <div role="status" aria-live="polite" className="flex items-center justify-center gap-2.5 py-6">
+                    {[0, 150, 300].map((delay) => (
+                      <span
+                        key={delay}
+                        className="h-3.5 w-3.5 rounded-full bg-primary animate-bounce"
+                        style={{ animationDelay: `${delay}ms` }}
+                      />
+                    ))}
+                    <span className="sr-only">Đang tải</span>
                   </div>
                 )}
 

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Icon from '../components/Icon'
 import ImportContentModal from '../components/ImportContentModal'
 import Navbar from '../components/Navbar'
+import QuestionFigure from '../components/QuestionFigure'
 import { ContentImportResult, contentService } from '../services/contentService'
 import { Question, QuestionStatus, Rubric, Topic } from '../types'
 
@@ -313,6 +314,7 @@ export default function QuestionBankPage() {
 
                 {/* Nội dung câu hỏi */}
                 <h3 className="mt-4 text-headline-xs font-bold text-on-surface leading-snug">{q.content}</h3>
+                {q.hasFigure && <QuestionFigure questionId={q.id} />}
 
                 {/* Model answer & keywords */}
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 text-body-sm">
