@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Icon from './Icon'
 import { contentService, GenerateQuestionsFromRagRequest } from '../services/contentService'
-import { LectureMaterial, Question, Topic } from '../types'
+import { LectureMaterial, Lesson, Question, Topic } from '../types'
 
 interface GenerateQuestionsModalProps {
   topics: Topic[]
@@ -18,7 +18,13 @@ export default function GenerateQuestionsModal({
   onClose,
   onGenerated,
 }: GenerateQuestionsModalProps) {
-  const [actualTopics, setActualTopics] = useState<Topic[]>(topics)
+  const [actualTopics, setActualTopics] = useState<Topic[]>(topics || [])
+  const [loadingTopics, setLoadingTopics] = useState(true)
+  const [lessons, setLessons] = useState<Lesson[]>([])
+  const [showCreateTopic, setShowCreateTopic] = useState(false)
+  const [newTopicName, setNewTopicName] = useState('')
+  const [newTopicLessonId, setNewTopicLessonId] = useState('')
+  const [creatingTopic, setCreatingTopic] = useState(false)
 
   // Topic state
   const [selectedTopicId, setSelectedTopicId] = useState<string>(
@@ -27,23 +33,78 @@ export default function GenerateQuestionsModal({
       : topics[0]?.id || ''
   )
 
+  // Tải danh sách chủ đề và bài học thực tế từ máy chủ
   useEffect(() => {
-    if (topics && topics.length > 0) {
-      setActualTopics(topics)
-      if (!selectedTopicId) {
-        setSelectedTopicId(defaultTopicId && defaultTopicId !== 'ALL' ? defaultTopicId : topics[0].id)
-      }
-    } else {
-      contentService.getTopics().then((res) => {
-        if (res && res.length > 0) {
-          setActualTopics(res)
-          setSelectedTopicId((prev) => (prev ? prev : res[0].id))
+    let isMounted = true
+    const loadCurriculum = async () => {
+      try {
+        setLoadingTopics(true)
+        const [topList, lesList] = await Promise.all([
+          contentService.getTopics(),
+          contentService.getLessons(),
+        ])
+        if (isMounted) {
+          const validTopics = Array.isArray(topList) ? topList : []
+          setActualTopics(validTopics)
+          setLessons(Array.isArray(lesList) ? lesList : [])
+
+          if (validTopics.length > 0) {
+            setSelectedTopicId((prev) => {
+              if (prev && validTopics.some((t) => t.id === prev)) return prev
+              if (defaultTopicId && defaultTopicId !== 'ALL' && validTopics.some((t) => t.id === defaultTopicId)) {
+                return defaultTopicId
+              }
+              return validTopics[0].id
+            })
+          }
+          if (lesList && lesList.length > 0) {
+            setNewTopicLessonId(lesList[0].id)
+          }
         }
-      }).catch((err) => {
-        console.warn('Could not load topics:', err)
-      })
+      } catch (err) {
+        console.warn('Failed to load topics in modal:', err)
+      } finally {
+        if (isMounted) setLoadingTopics(false)
+      }
     }
-  }, [topics, defaultTopicId])
+    loadCurriculum()
+    return () => {
+      isMounted = false
+    }
+  }, [defaultTopicId])
+
+  // Tạo nhanh chủ đề mới ngay trong modal
+  const handleQuickCreateTopic = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTopicName.trim()) return
+    let targetLessonId = newTopicLessonId
+    try {
+      setCreatingTopic(true)
+      if (!targetLessonId) {
+        const defaultLesson = await contentService.createLesson({
+          title: 'Bài 1: Kiến trúc Phần mềm & Công nghệ',
+          description: 'Bài học mặc định tạo từ ngân hàng câu hỏi',
+        })
+        targetLessonId = defaultLesson.id
+        setLessons((prev) => [defaultLesson, ...prev])
+      }
+
+      const createdTopic = await contentService.createTopic({
+        lessonId: targetLessonId,
+        name: newTopicName.trim(),
+      })
+
+      setActualTopics((prev) => [createdTopic, ...prev])
+      setSelectedTopicId(createdTopic.id)
+      setNewTopicName('')
+      setShowCreateTopic(false)
+    } catch (err: any) {
+      console.error('Failed to quick create topic:', err)
+      setError(err?.message || 'Không thể tạo chủ đề mới.')
+    } finally {
+      setCreatingTopic(false)
+    }
+  }
 
   // Materials state
   const [materials, setMaterials] = useState<LectureMaterial[]>([])
@@ -359,14 +420,90 @@ export default function GenerateQuestionsModal({
                   <Icon name="topic" className="text-primary text-base" />
                   1. Chọn Chủ đề môn học (Topic)
                 </label>
-                <span className="text-xs text-outline font-medium">
-                  {actualTopics.length} chủ đề khả dụng
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-outline font-medium">
+                    {loadingTopics ? 'Đang tải...' : `${actualTopics.length} chủ đề khả dụng`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateTopic((prev) => !prev)}
+                    className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5"
+                  >
+                    <Icon name={showCreateTopic ? 'close' : 'add'} className="text-sm" />
+                    <span>{showCreateTopic ? 'Đóng' : '+ Thêm chủ đề mới'}</span>
+                  </button>
+                </div>
               </div>
 
-              {actualTopics.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-outline-variant/60 bg-surface-container-lowest p-3 text-xs text-on-surface-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                  <span>Chưa có chủ đề nào trong hệ thống. Vui lòng thiết lập Bài học & Chủ đề trước.</span>
+              {showCreateTopic && (
+                <div className="mb-3 rounded-xl border border-primary/30 bg-primary/5 p-3.5 space-y-3">
+                  <div className="text-xs font-bold text-primary flex items-center gap-1">
+                    <Icon name="add_circle" className="text-sm" />
+                    Tạo nhanh Chủ đề mới
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">
+                        Tên chủ đề <span className="text-error">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newTopicName}
+                        onChange={(e) => setNewTopicName(e.target.value)}
+                        placeholder="VD: Creational Patterns & Singleton"
+                        className="w-full rounded-lg border border-outline-variant/60 bg-surface-container-lowest px-3 py-1.5 text-xs text-on-surface focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">
+                        Thuộc Bài học
+                      </label>
+                      <select
+                        value={newTopicLessonId}
+                        onChange={(e) => setNewTopicLessonId(e.target.value)}
+                        className="w-full rounded-lg border border-outline-variant/60 bg-surface-container-lowest px-2.5 py-1.5 text-xs text-on-surface focus:border-primary focus:outline-none"
+                      >
+                        {lessons.length === 0 ? (
+                          <option value="">Tự động tạo Bài học mặc định</option>
+                        ) : (
+                          lessons.map((l) => (
+                            <option key={l.id} value={l.id}>
+                              {l.title}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateTopic(false)}
+                      className="px-3 py-1 text-xs text-on-surface-variant hover:bg-surface-container rounded-lg"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      disabled={creatingTopic || !newTopicName.trim()}
+                      onClick={handleQuickCreateTopic}
+                      className="px-3 py-1 text-xs font-semibold bg-primary text-on-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {creatingTopic ? <Icon name="hourglass_top" className="animate-spin text-xs" /> : <Icon name="check" className="text-xs" />}
+                      Tạo & Chọn ngay
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {loadingTopics ? (
+                <div className="py-2.5 px-3 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-xs text-on-surface-variant flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                  <span>Đang tải danh sách chủ đề môn học...</span>
+                </div>
+              ) : actualTopics.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-outline-variant/60 bg-surface-container-lowest p-3.5 text-xs text-on-surface-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <span>Chưa có chủ đề nào trong hệ thống. Bạn có thể bấm <strong>"+ Thêm chủ đề mới"</strong> ở trên hoặc sang trang Quản lý.</span>
                   <a
                     href="/lecturer/curriculum"
                     className="font-bold text-primary hover:underline shrink-0"

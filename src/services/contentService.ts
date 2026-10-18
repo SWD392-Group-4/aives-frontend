@@ -454,19 +454,14 @@ export const contentService = {
    * POST /content/questions/generate-from-rag -> Sinh câu hỏi Grounded AI từ Slide RAG.
    */
   async generateQuestionsFromRag(request: GenerateQuestionsFromRagRequest): Promise<Question[]> {
-    try {
-      const result = await apiRequest<Question[]>('/content/questions/generate-from-rag', {
-        method: 'POST',
-        body: request,
-      })
-      if (Array.isArray(result) && result.length > 0) {
-        return result
-      }
-    } catch (err) {
-      console.warn('[contentService] generateQuestionsFromRag fallback to grounded mock:', err)
+    const result = await apiRequest<Question[]>('/content/questions/generate-from-rag', {
+      method: 'POST',
+      body: request,
+    })
+    if (Array.isArray(result) && result.length > 0) {
+      return result
     }
-
-    return generateMockQuestionsFromRag(request)
+    throw new Error('Máy chủ không trả về danh sách câu hỏi hợp lệ từ tài liệu RAG.')
   },
 
   /**
