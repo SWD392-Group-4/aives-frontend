@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google'
 import Icon from '../components/Icon.jsx'
 import LanguageSwitch from '../components/LanguageSwitch.jsx'
 import Logo from '../components/Logo.jsx'
@@ -27,7 +28,7 @@ function validate(form: { email?: string; password?: string }, t: (key: string) 
 }
 
 function LoginPage() {
-  const { user, login } = useAuth()
+  const { user, login, loginWithGoogle } = useAuth()
   const { t, language } = useLanguage()
   const location = useLocation()
   const navigate = useNavigate()
@@ -76,6 +77,27 @@ function LoginPage() {
       setFormError(getErrorMessage(error, language))
       setSubmitting(false)
     }
+  }
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      setFormError(t('login.googleLoginNoCredential'))
+      return
+    }
+    setSubmitting(true)
+    setFormError('')
+    try {
+      const account = await loginWithGoogle(credentialResponse.credential)
+      navigate(getTargetPath(account), { replace: true })
+    } catch (error: any) {
+      setErrors(error?.fieldErrors ?? {})
+      setFormError(getErrorMessage(error, language))
+      setSubmitting(false)
+    }
+  }
+
+  const handleGoogleError = () => {
+    setFormError(t('login.googleLoginFailed'))
   }
 
   return (
@@ -228,6 +250,25 @@ function LoginPage() {
                 </button>
               </div>
             </form>
+
+            <div className="relative my-6 flex items-center justify-center">
+              <div className="w-full border-t border-surface-variant" />
+              <span className="absolute bg-surface-container-lowest px-4 text-label-sm text-on-surface-variant">
+                {t('login.orLoginWith')}
+              </span>
+            </div>
+
+            <div className={`flex justify-center ${submitting ? 'pointer-events-none opacity-60' : ''}`}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                shape="pill"
+                size="large"
+                theme="outline"
+                text="signin_with"
+                containerProps={{ className: 'flex justify-center w-full' }}
+              />
+            </div>
           </div>
 
           <div className="mt-8 space-y-2 border-t border-surface-variant pt-6 text-center sm:text-left">

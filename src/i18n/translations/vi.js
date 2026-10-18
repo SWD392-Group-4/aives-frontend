@@ -362,6 +362,9 @@ const vi = {
     noAccount: 'Chưa có tài khoản sinh viên?',
     registerNow: 'Đăng ký ngay',
     lecturerNote: 'Tài khoản giảng viên do quản trị viên cấp.',
+    orLoginWith: 'Hoặc đăng nhập bằng',
+    googleLoginFailed: 'Đăng nhập bằng Google không thành công. Vui lòng thử lại.',
+    googleLoginNoCredential: 'Không nhận được mã xác thực từ Google.',
   },
 
   register: {

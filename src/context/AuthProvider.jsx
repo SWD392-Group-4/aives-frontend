@@ -52,6 +52,13 @@ function AuthProvider({ children }) {
     return result.user
   }, [])
 
+  const loginWithGoogle = useCallback(async (idToken) => {
+    const result = await authService.loginWithGoogle({ idToken })
+    saveSession({ accessToken: result.accessToken, user: result.user })
+    setUser(result.user)
+    return result.user
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       await authService.logout()
@@ -70,8 +77,8 @@ function AuthProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, isAuthenticated: user !== null, login, logout, updateUser }),
-    [user, login, logout, updateUser],
+    () => ({ user, isAuthenticated: user !== null, login, loginWithGoogle, logout, updateUser }),
+    [user, login, loginWithGoogle, logout, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

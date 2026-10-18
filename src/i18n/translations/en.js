@@ -361,6 +361,9 @@ const en = {
     noAccount: 'No student account yet?',
     registerNow: 'Sign up',
     lecturerNote: 'Lecturer accounts are created by an administrator.',
+    orLoginWith: 'Or continue with',
+    googleLoginFailed: 'Google sign-in failed. Please try again.',
+    googleLoginNoCredential: 'No credential received from Google.',
   },
 
   register: {

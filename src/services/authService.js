@@ -13,6 +13,15 @@ export function login({ email, password }) {
   })
 }
 
+/** POST /auth/google -> { accessToken, tokenType, expiresIn, user } */
+export function loginWithGoogle({ idToken }) {
+  return apiRequest('/auth/google', {
+    method: 'POST',
+    body: { idToken },
+    auth: false,
+  })
+}
+
 /**
  * POST /auth/send-otp -> Gửi mã xác thực OTP qua email.
  */
