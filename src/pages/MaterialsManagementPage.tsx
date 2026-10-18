@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import ConfirmModal from '../components/ConfirmModal'
 import CopyButton from '../components/CopyButton'
 import Icon from '../components/Icon'
-import Navbar from '../components/Navbar'
+import LecturerLayout from '../components/LecturerLayout'
 import UploadMaterialModal from '../components/UploadMaterialModal'
 import { contentService } from '../services/contentService'
 import { LectureMaterial, Lesson, RagStatus, Topic } from '../types'
@@ -173,10 +173,8 @@ export default function MaterialsManagementPage() {
   )
 
   return (
-    <div className="min-h-screen bg-background text-on-surface">
-      <Navbar />
-
-      <main className="mx-auto max-w-7xl px-4 pt-24 pb-16 sm:px-6 lg:px-8">
+    <LecturerLayout breadcrumbs={[{ label: 'Học liệu & Slide RAG' }]}>
+      <div className="space-y-6">
         {/* Banner Feedback */}
         {banner && (
           <div
@@ -663,7 +661,7 @@ export default function MaterialsManagementPage() {
             </div>
           </div>
         )}
-      </main>
+      </div>
 
       {/* Upload Modal */}
       {uploadModalOpen && (
@@ -695,6 +693,6 @@ export default function MaterialsManagementPage() {
           onConfirm={handleDeleteConfirm}
         />
       )}
-    </div>
+    </LecturerLayout>
   )
 }

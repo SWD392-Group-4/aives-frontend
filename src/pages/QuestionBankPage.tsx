@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from '../components/Icon'
 import ImportContentModal from '../components/ImportContentModal'
-import Navbar from '../components/Navbar'
+import LecturerLayout from '../components/LecturerLayout'
 import QuestionFigure from '../components/QuestionFigure'
 import { ContentImportResult, contentService } from '../services/contentService'
 import { Question, QuestionStatus, Rubric, Topic } from '../types'
@@ -108,10 +108,8 @@ export default function QuestionBankPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-on-surface">
-      <Navbar />
-
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-24 pb-16 sm:px-6 lg:px-8">
+    <LecturerLayout breadcrumbs={[{ label: 'Ngân hàng câu hỏi' }]}>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-outline-variant/40 pb-6">
           <div>
@@ -378,7 +376,7 @@ export default function QuestionBankPage() {
             )
           })}
         </div>
-      </main>
+      </div>
 
       {importModalOpen && (
         <ImportContentModal
@@ -388,6 +386,6 @@ export default function QuestionBankPage() {
           onImported={handleImported}
         />
       )}
-    </div>
+    </LecturerLayout>
   )
 }

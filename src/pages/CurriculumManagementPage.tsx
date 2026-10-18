@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import ConfirmModal from '../components/ConfirmModal'
 import Icon from '../components/Icon'
 import Modal from '../components/Modal'
-import Navbar from '../components/Navbar'
+import LecturerLayout from '../components/LecturerLayout'
 import TextField from '../components/TextField'
 import { contentService } from '../services/contentService'
 import { Lesson, Topic } from '../types'
@@ -389,10 +389,8 @@ export default function CurriculumManagementPage() {
   )
 
   return (
-    <div className="min-h-screen bg-background text-on-surface">
-      <Navbar />
-
-      <main className="mx-auto max-w-7xl px-4 pt-24 pb-16 sm:px-6 lg:px-8">
+    <LecturerLayout breadcrumbs={[{ label: 'Chương trình học' }]}>
+      <div className="space-y-6">
         {/* Banner Notification */}
         {banner && (
           <div
@@ -839,7 +837,7 @@ export default function CurriculumManagementPage() {
             onConfirm={handleDeleteTopic}
           />
         )}
-      </main>
-    </div>
+      </div>
+    </LecturerLayout>
   )
 }

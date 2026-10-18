@@ -5,7 +5,7 @@ import CopyButton from '../components/CopyButton.jsx'
 import ErrorBanner from '../components/ErrorBanner.jsx'
 import Icon from '../components/Icon.jsx'
 import Modal from '../components/Modal.jsx'
-import Navbar from '../components/Navbar.jsx'
+import LecturerLayout from '../components/LecturerLayout'
 import TextField from '../components/TextField'
 import { ROLES } from '../constants/roles.js'
 import { useAuth } from '../hooks/useAuth.js'
@@ -634,11 +634,9 @@ function ExamSessionsPage() {
   const willCancel = (sessionToDelete?.attemptCount ?? 0) > 0
 
   return (
-    <>
-      <Navbar />
-
-      <main className="min-h-screen w-full bg-surface-container-low pt-20">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-12 lg:py-10">
+    <LecturerLayout breadcrumbs={[{ label: 'Phiên thi & Giám sát' }]}>
+      <div className="space-y-6">
+        <div>
           {/* ---------- Tiêu đề ---------- */}
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -931,7 +929,7 @@ function ExamSessionsPage() {
             </div>
           )}
         </div>
-      </main>
+      </div>
 
       {formTarget !== undefined && (
         <SessionFormModal session={formTarget} onClose={() => setFormTarget(undefined)} onSaved={handleSaved} />
@@ -976,7 +974,7 @@ function ExamSessionsPage() {
           onConfirm={handleDelete}
         />
       )}
-    </>
+    </LecturerLayout>
   )
 }
 

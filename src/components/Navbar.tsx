@@ -80,34 +80,15 @@ export default function Navbar({ showHomeSections = false }: NavbarProps) {
               </>
             )}
 
-            {/* Menu Giảng viên (khi không phải Admin hoặc đang ở chế độ Giảng viên) */}
+            {/* Menu Giảng viên (khi không phải Admin: chuyển hướng nhanh sang Cổng Giảng Viên dạng Sidebar) */}
             {isLecturer && !isAdmin && (
-              <>
-                <NavLink to="/lecturer/dashboard" className={navLinkClass}>
-                  Bảng điều khiển
-                </NavLink>
-                <NavLink to="/exam-sessions" className={navLinkClass}>
-                  Phiên thi
-                </NavLink>
-                <NavLink to="/lecturer/curriculum" className={navLinkClass}>
-                  Chương trình học
-                </NavLink>
-                <NavLink to="/lecturer/materials" className={navLinkClass}>
-                  Học liệu & Slide RAG
-                </NavLink>
-                <NavLink to="/lecturer/questions" className={navLinkClass}>
-                  Ngân hàng câu hỏi
-                </NavLink>
-                <NavLink to="/lecturer/rubrics" className={navLinkClass}>
-                  Rubric
-                </NavLink>
-                <NavLink to="/lecturer/reviews" className={navLinkClass}>
-                  Thẩm định điểm (HITL)
-                </NavLink>
-                <NavLink to="/lecturer/appeals" className={navLinkClass}>
-                  Phúc khảo
-                </NavLink>
-              </>
+              <NavLink
+                to="/lecturer/dashboard"
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary-fixed px-4 py-2 text-label-sm font-bold text-primary transition-all hover:bg-primary hover:text-on-primary shadow-xs"
+              >
+                <Icon name="co_present" className="text-base" />
+                Cổng Giảng Viên (Lecturer Portal)
+              </NavLink>
             )}
 
             {/* Menu Quản trị viên (Admin Portal - điều hướng sang giao diện Sidebar chuyên biệt) */}

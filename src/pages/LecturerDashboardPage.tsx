@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from '../components/Icon'
-import Navbar from '../components/Navbar'
+import LecturerLayout from '../components/LecturerLayout'
 import { useAuth } from '../hooks/useAuth'
 import { contentService } from '../services/contentService'
 import { getExamSessions } from '../services/examSessionService'
@@ -224,10 +224,8 @@ export default function LecturerDashboardPage() {
   )
 
   return (
-    <div className="min-h-screen bg-background text-on-surface">
-      <Navbar />
-
-      <main className="mx-auto max-w-7xl px-4 pt-24 pb-16 sm:px-6 lg:px-8">
+    <LecturerLayout breadcrumbs={[{ label: 'Bảng Điều Khiển' }]}>
+      <div className="space-y-8">
         {/* Header Greeting */}
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
@@ -632,7 +630,7 @@ export default function LecturerDashboardPage() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </LecturerLayout>
   )
 }

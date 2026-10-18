@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from '../components/Icon'
-import Navbar from '../components/Navbar'
+import LecturerLayout from '../components/LecturerLayout'
 import { gradingService } from '../services/gradingService'
 import { GradeAppeal } from '../types'
 import { formatDateTime } from '../utils/dateTime'
@@ -67,10 +67,8 @@ export default function AppealsManagementPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-on-surface">
-      <Navbar />
-
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-24 pb-16 sm:px-6 lg:px-8">
+    <LecturerLayout breadcrumbs={[{ label: 'Đơn phúc khảo' }]}>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-outline-variant/40 pb-6">
           <div>
@@ -191,7 +189,7 @@ export default function AppealsManagementPage() {
             <p className="p-8 text-center text-body-md text-on-surface-variant">Chưa có đơn phúc khảo nào.</p>
           )}
         </div>
-      </main>
+      </div>
 
       {/* Modal xử lý phúc khảo */}
       {selectedAppeal && (
@@ -272,6 +270,6 @@ export default function AppealsManagementPage() {
           </div>
         </div>
       )}
-    </div>
+    </LecturerLayout>
   )
 }

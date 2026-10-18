@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import CopyButton from '../components/CopyButton'
 import Icon from '../components/Icon'
 import Modal from '../components/Modal'
-import Navbar from '../components/Navbar'
+import LecturerLayout from '../components/LecturerLayout'
 import { getExamSessionById } from '../services/examSessionService'
 import { ExamSession } from '../types'
 import { formatDateTime } from '../utils/dateTime'
@@ -359,10 +359,8 @@ export default function LiveExamMonitorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-on-surface">
-      <Navbar />
-
-      <main className="mx-auto max-w-7xl px-4 pt-24 pb-16 sm:px-6 lg:px-8">
+    <LecturerLayout breadcrumbs={[{ label: 'Phiên thi', to: '/exam-sessions' }, { label: 'Giám sát trực tiếp' }]}>
+      <div className="space-y-6">
         {/* Navigation Breadcrumb */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2 text-primary font-medium">
@@ -992,7 +990,7 @@ export default function LiveExamMonitorPage() {
             </div>
           </Modal>
         )}
-      </main>
-    </div>
+      </div>
+    </LecturerLayout>
   )
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from '../components/Icon'
 import ImportContentModal from '../components/ImportContentModal'
-import Navbar from '../components/Navbar'
+import LecturerLayout from '../components/LecturerLayout'
 import { ContentImportResult, contentService } from '../services/contentService'
 import { Rubric } from '../types'
 import { formatDateTime } from '../utils/dateTime'
@@ -39,10 +39,8 @@ export default function RubricManagementPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-on-surface">
-      <Navbar />
-
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-24 pb-16 sm:px-6 lg:px-8">
+    <LecturerLayout breadcrumbs={[{ label: 'Tiêu chuẩn Rubric' }]}>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-outline-variant/40 pb-6">
           <div>
@@ -141,11 +139,11 @@ export default function RubricManagementPage() {
             </div>
           ))}
         </div>
-      </main>
+      </div>
 
       {importModalOpen && (
         <ImportContentModal kind="rubrics" onClose={() => setImportModalOpen(false)} onImported={handleImported} />
       )}
-    </div>
+    </LecturerLayout>
   )
 }
