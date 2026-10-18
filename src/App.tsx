@@ -23,7 +23,6 @@ import PolicyPage from './pages/PolicyPage'
 import QuestionBankPage from './pages/QuestionBankPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
-import RubricManagementPage from './pages/RubricManagementPage'
 import StudentAppealsPage from './pages/StudentAppealsPage'
 import StudentDashboardPage from './pages/StudentDashboardPage'
 import StudentResultsPage from './pages/StudentResultsPage'
@@ -150,14 +149,6 @@ function App() {
         element={
           <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
             <QuestionBankPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/rubrics"
-        element={
-          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <RubricManagementPage />
           </ProtectedRoute>
         }
       />

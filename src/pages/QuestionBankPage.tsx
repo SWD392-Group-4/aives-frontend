@@ -128,14 +128,6 @@ export default function QuestionBankPage() {
               <span>Quản lý Slide RAG</span>
             </Link>
 
-            <Link
-              to="/lecturer/rubrics"
-              className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/60 bg-surface-container px-4 py-2 text-label-md font-semibold text-primary hover:bg-surface-container-high transition-colors"
-            >
-              <Icon name="rule" />
-              <span>Quản lý Rubric</span>
-            </Link>
-
             <button
               type="button"
               onClick={() => setImportModalOpen(true)}

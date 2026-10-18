@@ -32,7 +32,6 @@ const EXAM_OPS_ITEMS: NavItem[] = [
   { to: '/lecturer/curriculum', label: 'Chương trình học', icon: 'account_tree' },
   { to: '/lecturer/materials', label: 'Học liệu & RAG', icon: 'folder_open' },
   { to: '/lecturer/questions', label: 'Ngân hàng câu hỏi', icon: 'quiz' },
-  { to: '/lecturer/rubrics', label: 'Rubric đánh giá', icon: 'fact_check' },
   { to: '/lecturer/reviews', label: 'Thẩm định điểm (HITL)', icon: 'rate_review' },
   { to: '/lecturer/appeals', label: 'Đơn phúc khảo', icon: 'gavel' },
 ]
