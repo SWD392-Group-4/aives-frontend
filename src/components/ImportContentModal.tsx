@@ -159,6 +159,9 @@ export default function ImportContentModal({ kind, rubrics = [], onClose, onImpo
             <>
               <span className="text-label-lg font-semibold text-on-surface">Bấm để chọn file hoặc kéo thả vào đây</span>
               <span className="text-body-xs text-outline">.pdf, .docx hoặc .txt · tối đa {formatSize(IMPORT_MAX_BYTES)}</span>
+              {isQuestions && (
+                <span className="text-body-xs text-outline">Câu hỏi có hình vẽ: gửi file .pdf để hệ thống tự cắt hình kèm câu hỏi</span>
+              )}
             </>
           )}
         </button>

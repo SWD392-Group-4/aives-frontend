@@ -21,6 +21,8 @@ export interface InterviewState {
   exchangeId?: string
   type?: 'MAIN' | 'FOLLOW_UP'
   questionText?: string
+  // Hình vẽ của câu hỏi gốc (data:image/png;base64,...), câu hỏi xoáy vẫn kèm hình của câu gốc
+  questionImage?: string
   questionNo?: number
   followUpNo?: number
   maxFollowUps?: number

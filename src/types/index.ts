@@ -68,6 +68,8 @@ export interface Question {
   source: QuestionSource
   status: QuestionStatus
   questionAudioKey?: string
+  // true: câu hỏi có hình vẽ (cắt từ file PDF), tải bằng contentService.getQuestionFigure
+  hasFigure?: boolean
   createdAt: string
   updatedAt?: string
 }

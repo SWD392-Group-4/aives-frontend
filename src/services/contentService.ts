@@ -15,6 +15,14 @@ export interface ContentImportResult {
   questions: Question[]
 }
 
+/** Hình vẽ của câu hỏi, dataUrl gắn thẳng vào thẻ img. */
+export interface QuestionFigureData {
+  questionId: string
+  dataUrl: string
+  width: number
+  height: number
+}
+
 /** File được nhận khi gửi câu hỏi / rubric. Giới hạn dung lượng khớp với backend. */
 export const IMPORT_ACCEPT = '.pdf,.docx,.txt'
 export const IMPORT_MAX_BYTES = 10 * 1024 * 1024
@@ -40,6 +48,11 @@ export const contentService = {
   getQuestions(topicId?: string): Promise<Question[]> {
     const query = topicId ? `?topicId=${encodeURIComponent(topicId)}` : ''
     return apiRequest<Question[]>(`/content/questions${query}`)
+  },
+
+  /** GET /content/questions/{id}/figure -> hình vẽ của câu hỏi (chỉ câu có hasFigure = true) */
+  getQuestionFigure(id: string): Promise<QuestionFigureData> {
+    return apiRequest<QuestionFigureData>(`/content/questions/${encodeURIComponent(id)}/figure`)
   },
 
   /**
