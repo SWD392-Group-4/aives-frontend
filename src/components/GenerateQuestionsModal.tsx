@@ -18,12 +18,32 @@ export default function GenerateQuestionsModal({
   onClose,
   onGenerated,
 }: GenerateQuestionsModalProps) {
+  const [actualTopics, setActualTopics] = useState<Topic[]>(topics)
+
   // Topic state
   const [selectedTopicId, setSelectedTopicId] = useState<string>(
     defaultTopicId && defaultTopicId !== 'ALL'
       ? defaultTopicId
       : topics[0]?.id || ''
   )
+
+  useEffect(() => {
+    if (topics && topics.length > 0) {
+      setActualTopics(topics)
+      if (!selectedTopicId) {
+        setSelectedTopicId(defaultTopicId && defaultTopicId !== 'ALL' ? defaultTopicId : topics[0].id)
+      }
+    } else {
+      contentService.getTopics().then((res) => {
+        if (res && res.length > 0) {
+          setActualTopics(res)
+          setSelectedTopicId((prev) => (prev ? prev : res[0].id))
+        }
+      }).catch((err) => {
+        console.warn('Could not load topics:', err)
+      })
+    }
+  }, [topics, defaultTopicId])
 
   // Materials state
   const [materials, setMaterials] = useState<LectureMaterial[]>([])
@@ -340,22 +360,34 @@ export default function GenerateQuestionsModal({
                   1. Chọn Chủ đề môn học (Topic)
                 </label>
                 <span className="text-xs text-outline font-medium">
-                  {topics.length} chủ đề khả dụng
+                  {actualTopics.length} chủ đề khả dụng
                 </span>
               </div>
 
-              <select
-                id="topic-select"
-                value={selectedTopicId}
-                onChange={(e) => setSelectedTopicId(e.target.value)}
-                className="w-full rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-3.5 py-2.5 text-sm text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
-              >
-                {topics.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} {t.lessonTitle ? `(${t.lessonTitle})` : ''}
-                  </option>
-                ))}
-              </select>
+              {actualTopics.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-outline-variant/60 bg-surface-container-lowest p-3 text-xs text-on-surface-variant flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <span>Chưa có chủ đề nào trong hệ thống. Vui lòng thiết lập Bài học & Chủ đề trước.</span>
+                  <a
+                    href="/lecturer/curriculum"
+                    className="font-bold text-primary hover:underline shrink-0"
+                  >
+                    Đến trang Quản lý ➔
+                  </a>
+                </div>
+              ) : (
+                <select
+                  id="topic-select"
+                  value={selectedTopicId}
+                  onChange={(e) => setSelectedTopicId(e.target.value)}
+                  className="w-full rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-3.5 py-2.5 text-sm text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                >
+                  {actualTopics.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} {t.lessonTitle ? `(${t.lessonTitle})` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* 2. Chọn Tài liệu Slide RAG Nguồn */}

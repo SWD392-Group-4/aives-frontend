@@ -233,10 +233,56 @@ export const contentService = {
     return apiRequest<Lesson[]>('/content/lessons')
   },
 
+  /** POST /content/lessons -> tạo bài học mới */
+  createLesson(data: { title: string; description?: string }): Promise<Lesson> {
+    return apiRequest<Lesson>('/content/lessons', {
+      method: 'POST',
+      body: data,
+    })
+  },
+
+  /** PUT /content/lessons/{id} -> cập nhật bài học */
+  updateLesson(id: string, data: { title: string; description?: string }): Promise<Lesson> {
+    return apiRequest<Lesson>(`/content/lessons/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: data,
+    })
+  },
+
+  /** DELETE /content/lessons/{id} -> xoá bài học (khi chưa có chủ đề) */
+  deleteLesson(id: string): Promise<void> {
+    return apiRequest<void>(`/content/lessons/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
+
   /** GET /content/topics?lessonId= */
   getTopics(lessonId?: string): Promise<Topic[]> {
     const query = lessonId ? `?lessonId=${encodeURIComponent(lessonId)}` : ''
     return apiRequest<Topic[]>(`/content/topics${query}`)
+  },
+
+  /** POST /content/topics -> tạo chủ đề mới thuộc bài học */
+  createTopic(data: { lessonId: string; name: string; description?: string }): Promise<Topic> {
+    return apiRequest<Topic>('/content/topics', {
+      method: 'POST',
+      body: data,
+    })
+  },
+
+  /** PUT /content/topics/{id} -> cập nhật chủ đề */
+  updateTopic(id: string, data: { name: string; description?: string }): Promise<Topic> {
+    return apiRequest<Topic>(`/content/topics/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: data,
+    })
+  },
+
+  /** DELETE /content/topics/{id} -> xoá chủ đề (khi chưa có câu hỏi) */
+  deleteTopic(id: string): Promise<void> {
+    return apiRequest<void>(`/content/topics/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
   },
 
   /** GET /content/rubrics -> rubric kèm các tiêu chí */

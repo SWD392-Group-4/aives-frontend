@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ConfirmModal from '../components/ConfirmModal'
 import Icon from '../components/Icon'
@@ -22,162 +22,91 @@ interface TopicWithStats extends Topic {
   }
 }
 
-const INITIAL_MOCK_LESSONS: LessonWithStats[] = [
+const SAMPLE_CURRICULUM_SEED = [
   {
-    id: 'LES_001',
-    lecturerId: 'LEC_01',
     title: 'Bài 1: Kiến trúc Hướng đối tượng & Design Patterns',
     description: 'Nguyên lý SOLID, các mẫu thiết kế Creational, Structural và Behavioral trong phát triển phần mềm chuyên nghiệp.',
-    topicsCount: 3,
-    questionsCount: 28,
-    createdAt: '2026-09-01T08:00:00Z',
+    topics: [
+      {
+        name: 'Creational Patterns (Factory, Abstract Factory, Singleton)',
+        description: 'Mẫu khởi tạo đối tượng, kiểm soát khởi tạo instance duy nhất và trừu tượng hoá quy trình tạo lập.',
+      },
+      {
+        name: 'Structural Patterns (Adapter, Decorator, Facade)',
+        description: 'Mẫu cấu trúc ghép nối các interface không tương thích và mở rộng hành vi linh hoạt lúc runtime.',
+      },
+      {
+        name: 'Behavioral Patterns (Observer, Strategy, Command)',
+        description: 'Mẫu hành vi phân định trách nhiệm thuật toán và cơ chế Publish-Subscribe giữa các đối tượng.',
+      },
+    ],
   },
   {
-    id: 'LES_002',
-    lecturerId: 'LEC_01',
     title: 'Bài 2: Kiến trúc Microservices & Phân Tán',
     description: 'Thiết kế hệ thống phân tán, giao tiếp đồng bộ/bất đồng bộ qua REST/gRPC/Kafka và các mẫu chịu lỗi (Fault Tolerance).',
-    topicsCount: 3,
-    questionsCount: 22,
-    createdAt: '2026-09-10T08:00:00Z',
+    topics: [
+      {
+        name: 'Clean Architecture & Onion Architecture',
+        description: 'Tách biệt Domain layer, Application use cases và Infrastructure theo quy tắc Dependency Inversion.',
+      },
+      {
+        name: 'Giao tiếp Dịch vụ: RESTful API vs gRPC vs Message Queue',
+        description: 'So sánh độ trễ, serialization (JSON vs Protobuf) và kịch bản áp dụng Event-Driven Architecture.',
+      },
+      {
+        name: 'Resilience Patterns: Circuit Breaker, Retry & Rate Limiter',
+        description: 'Thiết kế hệ thống chịu tải, ngắt mạch tự động khi dịch vụ phụ thuộc quá tải hoặc sụp đổ.',
+      },
+    ],
   },
   {
-    id: 'LES_003',
-    lecturerId: 'LEC_01',
     title: 'Bài 3: CSDL Phân Tán & Quản Lý Transaction',
     description: 'Mô hình nhất quán dữ liệu (CAP theorem), Eventual Consistency, giao dịch phân tán 2PC và Saga Pattern.',
-    topicsCount: 2,
-    questionsCount: 16,
-    createdAt: '2026-09-20T08:00:00Z',
+    topics: [
+      {
+        name: 'CAP Theorem, Eventual Consistency & Caching',
+        description: 'Cân bằng giữa Consistency và Availability, chiến lược Cache Aside, Write-Through và Cache Invalidation.',
+      },
+      {
+        name: 'Giao Dịch Phân Tán: Two-Phase Commit & Saga Pattern',
+        description: 'Xử lý Rollback và Compensating Transactions trong môi trường phân tán nhiều database riêng biệt.',
+      },
+    ],
   },
   {
-    id: 'LES_004',
-    lecturerId: 'LEC_01',
     title: 'Bài 4: Bảo Mật Hệ Thống & Xác Thực Phân Quyền',
     description: 'Mô hình RBAC, ABAC, chuẩn xác thực OAuth 2.0, OpenID Connect và bảo vệ API Gateway chống tấn công mạng.',
-    topicsCount: 2,
-    questionsCount: 14,
-    createdAt: '2026-09-28T08:00:00Z',
+    topics: [
+      {
+        name: 'OAuth 2.0, OpenID Connect & Stateless JWT',
+        description: 'Cơ chế uỷ quyền token, Access Token vs Refresh Token, ký số asymmetric RSA vs symmetric HMAC.',
+      },
+      {
+        name: 'Phân Quyền RBAC/ABAC & Bảo Mật Lớp API Gateway',
+        description: 'Kiểm soát truy cập theo vai trò và thuộc tính động, phòng chống tấn công OWASP Top 10.',
+      },
+    ],
   },
 ]
 
-const INITIAL_MOCK_TOPICS: Record<string, TopicWithStats[]> = {
-  LES_001: [
-    {
-      id: 'TOP_001_1',
-      lessonId: 'LES_001',
-      name: 'Creational Patterns (Factory, Abstract Factory, Singleton)',
-      description: 'Mẫu khởi tạo đối tượng, kiểm soát khởi tạo instance duy nhất và trừu tượng hoá quy trình tạo lập.',
-      questionCount: 10,
-      approvedQuestionCount: 9,
-      bloomDistribution: { remember: 2, understand: 3, apply: 3, analyze: 2 },
-    },
-    {
-      id: 'TOP_001_2',
-      lessonId: 'LES_001',
-      name: 'Structural Patterns (Adapter, Decorator, Facade)',
-      description: 'Mẫu cấu trúc ghép nối các interface không tương thích và mở rộng hành vi linh hoạt lúc runtime.',
-      questionCount: 10,
-      approvedQuestionCount: 8,
-      bloomDistribution: { remember: 2, understand: 3, apply: 4, analyze: 1 },
-    },
-    {
-      id: 'TOP_001_3',
-      lessonId: 'LES_001',
-      name: 'Behavioral Patterns (Observer, Strategy, Command)',
-      description: 'Mẫu hành vi phân định trách nhiệm thuật toán và cơ chế Publish-Subscribe giữa các đối tượng.',
-      questionCount: 8,
-      approvedQuestionCount: 7,
-      bloomDistribution: { remember: 1, understand: 2, apply: 3, analyze: 2 },
-    },
-  ],
-  LES_002: [
-    {
-      id: 'TOP_002_1',
-      lessonId: 'LES_002',
-      name: 'Clean Architecture & Onion Architecture',
-      description: 'Tách biệt Domain layer, Application use cases và Infrastructure theo quy tắc Dependency Inversion.',
-      questionCount: 8,
-      approvedQuestionCount: 7,
-      bloomDistribution: { remember: 2, understand: 3, apply: 2, analyze: 1 },
-    },
-    {
-      id: 'TOP_002_2',
-      lessonId: 'LES_002',
-      name: 'Giao tiếp Dịch vụ: RESTful API vs gRPC vs Message Queue',
-      description: 'So sánh độ trễ, serialization (JSON vs Protobuf) và kịch bản áp dụng Event-Driven Architecture.',
-      questionCount: 8,
-      approvedQuestionCount: 8,
-      bloomDistribution: { remember: 2, understand: 2, apply: 2, analyze: 2 },
-    },
-    {
-      id: 'TOP_002_3',
-      lessonId: 'LES_002',
-      name: 'Resilience Patterns: Circuit Breaker, Retry & Rate Limiter',
-      description: 'Thiết kế hệ thống chịu tải, ngắt mạch tự động khi dịch vụ phụ thuộc quá tải hoặc sụp đổ.',
-      questionCount: 6,
-      approvedQuestionCount: 5,
-      bloomDistribution: { remember: 1, understand: 2, apply: 2, analyze: 1 },
-    },
-  ],
-  LES_003: [
-    {
-      id: 'TOP_003_1',
-      lessonId: 'LES_003',
-      name: 'CAP Theorem, Eventual Consistency & Caching',
-      description: 'Cân bằng giữa Consistency và Availability, chiến lược Cache Aside, Write-Through và Cache Invalidation.',
-      questionCount: 8,
-      approvedQuestionCount: 8,
-      bloomDistribution: { remember: 2, understand: 2, apply: 2, analyze: 2 },
-    },
-    {
-      id: 'TOP_003_2',
-      lessonId: 'LES_003',
-      name: 'Giao Dịch Phân Tán: Two-Phase Commit & Saga Pattern',
-      description: 'Xử lý Rollback và Compensating Transactions trong môi trường phân tán nhiều database riêng biệt.',
-      questionCount: 8,
-      approvedQuestionCount: 6,
-      bloomDistribution: { remember: 1, understand: 3, apply: 2, analyze: 2 },
-    },
-  ],
-  LES_004: [
-    {
-      id: 'TOP_004_1',
-      lessonId: 'LES_004',
-      name: 'OAuth 2.0, OpenID Connect & Stateless JWT',
-      description: 'Cơ chế uỷ quyền token, Access Token vs Refresh Token, ký số asymmetric RSA vs symmetric HMAC.',
-      questionCount: 8,
-      approvedQuestionCount: 7,
-      bloomDistribution: { remember: 2, understand: 2, apply: 3, analyze: 1 },
-    },
-    {
-      id: 'TOP_004_2',
-      lessonId: 'LES_004',
-      name: 'Phân Quyền RBAC/ABAC & Bảo Mật Lớp API Gateway',
-      description: 'Kiểm soát truy cập theo vai trò và thuộc tính động, phòng chống tấn công OWASP Top 10.',
-      questionCount: 6,
-      approvedQuestionCount: 5,
-      bloomDistribution: { remember: 1, understand: 2, apply: 2, analyze: 1 },
-    },
-  ],
-}
-
 export default function CurriculumManagementPage() {
-  const [lessons, setLessons] = useState<LessonWithStats[]>(INITIAL_MOCK_LESSONS)
-  const [topicsMap, setTopicsMap] = useState<Record<string, TopicWithStats[]>>(INITIAL_MOCK_TOPICS)
-  const [selectedLessonId, setSelectedLessonId] = useState<string>('LES_001')
+  const [loading, setLoading] = useState(true)
+  const [lessons, setLessons] = useState<LessonWithStats[]>([])
+  const [topicsMap, setTopicsMap] = useState<Record<string, TopicWithStats[]>>({})
+  const [selectedLessonId, setSelectedLessonId] = useState<string>('')
 
   const [lessonSearch, setLessonSearch] = useState('')
   const [topicSearch, setTopicSearch] = useState('')
 
   // Toast / Banner
-  const [banner, setBanner] = useState<{ type: 'success' | 'info'; message: string } | null>(null)
+  const [banner, setBanner] = useState<{ type: 'success' | 'info' | 'error'; message: string } | null>(null)
 
   // Lesson Modals
   const [lessonModalOpen, setLessonModalOpen] = useState(false)
   const [editingLesson, setEditingLesson] = useState<LessonWithStats | null>(null)
   const [lessonForm, setLessonForm] = useState({ title: '', description: '' })
   const [lessonFormError, setLessonFormError] = useState('')
+  const [savingLesson, setSavingLesson] = useState(false)
 
   // Delete Lesson Confirm
   const [deletingLesson, setDeletingLesson] = useState<LessonWithStats | null>(null)
@@ -187,33 +116,61 @@ export default function CurriculumManagementPage() {
   const [editingTopic, setEditingTopic] = useState<TopicWithStats | null>(null)
   const [topicForm, setTopicForm] = useState({ name: '', description: '' })
   const [topicFormError, setTopicFormError] = useState('')
+  const [savingTopic, setSavingTopic] = useState(false)
 
   // Delete Topic Confirm
   const [deletingTopic, setDeletingTopic] = useState<TopicWithStats | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
-  // Load from backend if available, fallback gracefully
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const backendLessons = await contentService.getLessons()
-        if (backendLessons && backendLessons.length > 0) {
-          const mapped: LessonWithStats[] = backendLessons.map((l) => ({
-            ...l,
-            topicsCount: l.topicCount || 2,
-            questionsCount: l.questionCount || 10,
-          }))
-          setLessons(mapped)
-          if (!selectedLessonId && mapped.length > 0) {
-            setSelectedLessonId(mapped[0].id)
-          }
+  // Seeding
+  const [seeding, setSeeding] = useState(false)
+
+  // Fetch Curriculum from Backend API
+  const fetchCurriculum = useCallback(async () => {
+    try {
+      setLoading(true)
+      const [backendLessons, backendTopics] = await Promise.all([
+        contentService.getLessons(),
+        contentService.getTopics(),
+      ])
+
+      const newTopicsMap: Record<string, TopicWithStats[]> = {}
+      for (const t of backendTopics) {
+        if (!newTopicsMap[t.lessonId]) {
+          newTopicsMap[t.lessonId] = []
         }
-      } catch (err) {
-        // Fallback to rich mock data
-        console.debug('Using initial mock curriculum data:', err)
+        newTopicsMap[t.lessonId].push(t)
       }
+
+      const mappedLessons: LessonWithStats[] = backendLessons.map((l) => ({
+        ...l,
+        topicsCount: (newTopicsMap[l.id] || []).length,
+        questionsCount: l.questionCount || 0,
+      }))
+
+      setLessons(mappedLessons)
+      setTopicsMap(newTopicsMap)
+
+      setSelectedLessonId((prev) => {
+        if (prev && mappedLessons.some((l) => l.id === prev)) {
+          return prev
+        }
+        return mappedLessons.length > 0 ? mappedLessons[0].id : ''
+      })
+    } catch (err: any) {
+      console.error('Error fetching curriculum:', err)
+      setBanner({
+        type: 'error',
+        message: err.message || 'Không thể tải danh sách chương trình học từ server.',
+      })
+    } finally {
+      setLoading(false)
     }
-    fetchData()
-  }, [selectedLessonId])
+  }, [])
+
+  useEffect(() => {
+    fetchCurriculum()
+  }, [fetchCurriculum])
 
   const selectedLesson = lessons.find((l) => l.id === selectedLessonId) || lessons[0]
   const currentTopics = (selectedLesson ? topicsMap[selectedLesson.id] : []) || []
@@ -247,62 +204,54 @@ export default function CurriculumManagementPage() {
     setLessonModalOpen(true)
   }
 
-  const handleSaveLesson = () => {
+  const handleSaveLesson = async () => {
     if (!lessonForm.title.trim()) {
       setLessonFormError('Vui lòng nhập tiêu đề bài học')
       return
     }
 
-    if (editingLesson) {
-      // Edit
-      setLessons((prev) =>
-        prev.map((l) =>
-          l.id === editingLesson.id
-            ? { ...l, title: lessonForm.title.trim(), description: lessonForm.description.trim() }
-            : l,
-        ),
-      )
-      setBanner({ type: 'success', message: `Đã cập nhật bài học "${lessonForm.title.trim()}" thành công!` })
-    } else {
-      // Create
-      const newId = `LES_${Date.now().toString().slice(-4)}`
-      const newLesson: LessonWithStats = {
-        id: newId,
-        lecturerId: 'LEC_CURRENT',
-        title: lessonForm.title.trim(),
-        description: lessonForm.description.trim(),
-        topicsCount: 0,
-        questionsCount: 0,
-        createdAt: new Date().toISOString(),
+    try {
+      setSavingLesson(true)
+      if (editingLesson) {
+        const updated = await contentService.updateLesson(editingLesson.id, {
+          title: lessonForm.title.trim(),
+          description: lessonForm.description.trim(),
+        })
+        setBanner({ type: 'success', message: `Đã cập nhật bài học "${updated.title}" thành công!` })
+      } else {
+        const created = await contentService.createLesson({
+          title: lessonForm.title.trim(),
+          description: lessonForm.description.trim(),
+        })
+        setSelectedLessonId(created.id)
+        setBanner({ type: 'success', message: `Đã tạo bài học mới "${created.title}" thành công!` })
       }
-      setLessons((prev) => [...prev, newLesson])
-      setTopicsMap((prev) => ({ ...prev, [newId]: [] }))
-      setSelectedLessonId(newId)
-      setBanner({ type: 'success', message: `Đã tạo bài học mới "${newLesson.title}" thành công!` })
+      setLessonModalOpen(false)
+      await fetchCurriculum()
+    } catch (err: any) {
+      setLessonFormError(err.message || 'Lỗi khi lưu bài học lên máy chủ.')
+    } finally {
+      setSavingLesson(false)
     }
-
-    setLessonModalOpen(false)
   }
 
   const handleDeleteLesson = async () => {
     if (!deletingLesson) return
-    const idToDelete = deletingLesson.id
-    setLessons((prev) => prev.filter((l) => l.id !== idToDelete))
-    setTopicsMap((prev) => {
-      const next = { ...prev }
-      delete next[idToDelete]
-      return next
-    })
-
-    if (selectedLessonId === idToDelete) {
-      const remaining = lessons.filter((l) => l.id !== idToDelete)
-      if (remaining.length > 0) {
-        setSelectedLessonId(remaining[0].id)
-      }
+    try {
+      setDeleting(true)
+      await contentService.deleteLesson(deletingLesson.id)
+      setBanner({ type: 'success', message: `Đã xóa bài học "${deletingLesson.title}".` })
+      setDeletingLesson(null)
+      await fetchCurriculum()
+    } catch (err: any) {
+      setBanner({
+        type: 'error',
+        message: err.message || `Không thể xóa bài học "${deletingLesson.title}". Vui lòng xóa hết các chủ đề thuộc bài học trước.`,
+      })
+      setDeletingLesson(null)
+    } finally {
+      setDeleting(false)
     }
-
-    setBanner({ type: 'info', message: `Đã xóa bài học "${deletingLesson.title}".` })
-    setDeletingLesson(null)
   }
 
   // Topic Handlers
@@ -320,65 +269,87 @@ export default function CurriculumManagementPage() {
     setTopicModalOpen(true)
   }
 
-  const handleSaveTopic = () => {
+  const handleSaveTopic = async () => {
     if (!selectedLesson) return
     if (!topicForm.name.trim()) {
       setTopicFormError('Vui lòng nhập tên chủ đề')
       return
     }
 
-    const currentList = topicsMap[selectedLesson.id] || []
-
-    if (editingTopic) {
-      // Edit Topic
-      const updatedList = currentList.map((t) =>
-        t.id === editingTopic.id
-          ? { ...t, name: topicForm.name.trim(), description: topicForm.description.trim() }
-          : t,
-      )
-      setTopicsMap((prev) => ({ ...prev, [selectedLesson.id]: updatedList }))
-      setBanner({ type: 'success', message: `Đã cập nhật chủ đề "${topicForm.name.trim()}" thành công!` })
-    } else {
-      // Create Topic
-      const newTopicId = `TOP_${selectedLesson.id}_${Date.now().toString().slice(-4)}`
-      const newTopic: TopicWithStats = {
-        id: newTopicId,
-        lessonId: selectedLesson.id,
-        name: topicForm.name.trim(),
-        description: topicForm.description.trim(),
-        questionCount: 0,
-        approvedQuestionCount: 0,
-        bloomDistribution: { remember: 0, understand: 0, apply: 0, analyze: 0 },
+    try {
+      setSavingTopic(true)
+      if (editingTopic) {
+        const updated = await contentService.updateTopic(editingTopic.id, {
+          name: topicForm.name.trim(),
+          description: topicForm.description.trim(),
+        })
+        setBanner({ type: 'success', message: `Đã cập nhật chủ đề "${updated.name}" thành công!` })
+      } else {
+        const created = await contentService.createTopic({
+          lessonId: selectedLesson.id,
+          name: topicForm.name.trim(),
+          description: topicForm.description.trim(),
+        })
+        setBanner({ type: 'success', message: `Đã thêm chủ đề "${created.name}" vào bài học!` })
       }
-      const updatedList = [...currentList, newTopic]
-      setTopicsMap((prev) => ({ ...prev, [selectedLesson.id]: updatedList }))
-
-      // Update parent lesson topicCount
-      setLessons((prev) =>
-        prev.map((l) => (l.id === selectedLesson.id ? { ...l, topicsCount: updatedList.length } : l)),
-      )
-
-      setBanner({ type: 'success', message: `Đã thêm chủ đề "${newTopic.name}" vào bài học!` })
+      setTopicModalOpen(false)
+      await fetchCurriculum()
+    } catch (err: any) {
+      setTopicFormError(err.message || 'Lỗi khi lưu chủ đề lên máy chủ.')
+    } finally {
+      setSavingTopic(false)
     }
-
-    setTopicModalOpen(false)
   }
 
   const handleDeleteTopic = async () => {
-    if (!deletingTopic || !selectedLesson) return
-    const idToDelete = deletingTopic.id
-    const currentList = topicsMap[selectedLesson.id] || []
-    const updatedList = currentList.filter((t) => t.id !== idToDelete)
+    if (!deletingTopic) return
+    try {
+      setDeleting(true)
+      await contentService.deleteTopic(deletingTopic.id)
+      setBanner({ type: 'success', message: `Đã xóa chủ đề "${deletingTopic.name}".` })
+      setDeletingTopic(null)
+      await fetchCurriculum()
+    } catch (err: any) {
+      setBanner({
+        type: 'error',
+        message: err.message || `Không thể xóa chủ đề "${deletingTopic.name}". Vui lòng xóa các câu hỏi thuộc chủ đề trước.`,
+      })
+      setDeletingTopic(null)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
-    setTopicsMap((prev) => ({ ...prev, [selectedLesson.id]: updatedList }))
-
-    // Update parent lesson stats
-    setLessons((prev) =>
-      prev.map((l) => (l.id === selectedLesson.id ? { ...l, topicsCount: updatedList.length } : l)),
-    )
-
-    setBanner({ type: 'info', message: `Đã xóa chủ đề "${deletingTopic.name}".` })
-    setDeletingTopic(null)
+  // Khởi tạo bộ dữ liệu mẫu SWD trực tiếp qua API
+  const handleSeedSampleCurriculum = async () => {
+    try {
+      setSeeding(true)
+      for (const item of SAMPLE_CURRICULUM_SEED) {
+        const createdLesson = await contentService.createLesson({
+          title: item.title,
+          description: item.description,
+        })
+        for (const topic of item.topics) {
+          await contentService.createTopic({
+            lessonId: createdLesson.id,
+            name: topic.name,
+            description: topic.description,
+          })
+        }
+      }
+      setBanner({
+        type: 'success',
+        message: 'Đã khởi tạo thành công chương trình môn học mẫu (4 Bài học & 10 Chủ đề) vào cơ sở dữ liệu!',
+      })
+      await fetchCurriculum()
+    } catch (err: any) {
+      setBanner({
+        type: 'error',
+        message: err.message || 'Lỗi khi khởi tạo chương trình môn học mẫu.',
+      })
+    } finally {
+      setSeeding(false)
+    }
   }
 
   // Summary counts
@@ -397,11 +368,16 @@ export default function CurriculumManagementPage() {
             className={`mb-6 flex items-center justify-between rounded-2xl p-4 shadow-sm transition-all ${
               banner.type === 'success'
                 ? 'bg-secondary-fixed/50 text-on-secondary-fixed-variant'
-                : 'bg-primary-fixed/50 text-on-primary-fixed-variant'
+                : banner.type === 'error'
+                  ? 'bg-error-container text-on-error-container'
+                  : 'bg-primary-fixed/50 text-on-primary-fixed-variant'
             }`}
           >
             <div className="flex items-center gap-2">
-              <Icon name={banner.type === 'success' ? 'check_circle' : 'info'} className="text-xl" />
+              <Icon
+                name={banner.type === 'success' ? 'check_circle' : banner.type === 'error' ? 'error' : 'info'}
+                className="text-xl"
+              />
               <span className="text-sm font-semibold">{banner.message}</span>
             </div>
             <button
@@ -434,6 +410,17 @@ export default function CurriculumManagementPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:self-center">
+            {lessons.length === 0 && !loading && (
+              <button
+                type="button"
+                onClick={handleSeedSampleCurriculum}
+                disabled={seeding}
+                className="inline-flex items-center gap-1.5 rounded-full border border-secondary/40 bg-secondary-container px-3.5 py-1.5 text-xs font-bold text-on-secondary-container hover:bg-secondary hover:text-on-secondary transition-colors disabled:opacity-60"
+              >
+                <Icon name={seeding ? 'hourglass_top' : 'auto_awesome'} className={seeding ? 'animate-spin text-base' : 'text-base'} />
+                <span>{seeding ? 'Đang khởi tạo...' : 'Nạp mẫu môn học SWD'}</span>
+              </button>
+            )}
             <Link
               to="/lecturer/materials"
               className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/60 bg-surface-container px-3.5 py-1.5 text-xs font-semibold text-primary hover:bg-surface-container-high transition-colors"
@@ -456,253 +443,286 @@ export default function CurriculumManagementPage() {
           </div>
         </div>
 
-        {/* 2-Column Split Layout */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* CỘT TRÁI: DANH SÁCH BÀI HỌC (LESSONS) - 5 Cols */}
-          <div className="lg:col-span-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-fixed text-primary">
-                  <Icon name="book" className="text-lg" />
-                </div>
-                <h2 className="text-base font-bold text-on-surface">Danh sách Bài học (Lessons)</h2>
-              </div>
+        {/* Loading state */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-16 text-center shadow-sm">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4"></div>
+            <p className="text-sm font-semibold text-on-surface">Đang tải cấu trúc chương trình học từ máy chủ...</p>
+          </div>
+        ) : lessons.length === 0 ? (
+          /* Empty state */
+          <div className="rounded-3xl border border-dashed border-outline-variant/80 bg-surface-container-lowest p-12 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Icon name="menu_book" className="text-3xl" />
+            </div>
+            <h3 className="text-base font-bold text-on-surface">Chưa có bài học nào trong môn học</h3>
+            <p className="mt-1 text-sm text-on-surface-variant max-w-md mx-auto">
+              Hãy tạo bài học đầu tiên hoặc khởi tạo cấu trúc mẫu (Software Architecture) để bắt đầu phân loại slide và câu hỏi vấn đáp.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={handleOpenCreateLesson}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-primary-container px-3 py-1.5 text-xs font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-semibold text-on-primary shadow-sm hover:bg-primary/90 transition-colors"
               >
                 <Icon name="add" className="text-base" />
-                Thêm bài học
+                <span>Thêm bài học thủ công</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSeedSampleCurriculum}
+                disabled={seeding}
+                className="inline-flex items-center gap-2 rounded-xl border border-secondary bg-secondary-container px-5 py-2.5 text-xs font-semibold text-on-secondary-container shadow-sm hover:bg-secondary hover:text-on-secondary transition-colors disabled:opacity-60"
+              >
+                <Icon name={seeding ? 'hourglass_top' : 'auto_awesome'} className={seeding ? 'animate-spin text-base' : 'text-base'} />
+                <span>{seeding ? 'Đang tạo môn học mẫu...' : 'Khởi tạo cấu trúc mẫu SWD (4 bài, 10 chủ đề)'}</span>
               </button>
             </div>
+          </div>
+        ) : (
+          /* 2-Column Split Layout */
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            {/* CỘT TRÁI: DANH SÁCH BÀI HỌC (LESSONS) - 5 Cols */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-fixed text-primary">
+                    <Icon name="book" className="text-lg" />
+                  </div>
+                  <h2 className="text-base font-bold text-on-surface">Danh sách Bài học (Lessons)</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenCreateLesson}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary-container px-3 py-1.5 text-xs font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary"
+                >
+                  <Icon name="add" className="text-base" />
+                  Thêm bài học
+                </button>
+              </div>
 
-            {/* Lesson Search */}
-            <div className="relative">
-              <Icon name="search" className="pointer-events-none absolute left-3.5 top-2.5 text-lg text-outline" />
-              <input
-                type="text"
-                value={lessonSearch}
-                onChange={(e) => setLessonSearch(e.target.value)}
-                placeholder="Tìm bài học..."
-                className="w-full rounded-xl border border-outline-variant/40 bg-surface-container-lowest py-2 pr-4 pl-10 text-xs text-on-surface placeholder:text-outline focus:border-primary focus:outline-none"
-              />
+              {/* Lesson Search */}
+              <div className="relative">
+                <Icon name="search" className="pointer-events-none absolute left-3.5 top-2.5 text-lg text-outline" />
+                <input
+                  type="text"
+                  value={lessonSearch}
+                  onChange={(e) => setLessonSearch(e.target.value)}
+                  placeholder="Tìm bài học..."
+                  className="w-full rounded-xl border border-outline-variant/40 bg-surface-container-lowest py-2 pr-4 pl-10 text-xs text-on-surface placeholder:text-outline focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              {/* Lesson List */}
+              <div className="space-y-3">
+                {filteredLessons.length === 0 ? (
+                  <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-8 text-center text-xs text-on-surface-variant">
+                    Không tìm thấy bài học nào phù hợp.
+                  </div>
+                ) : (
+                  filteredLessons.map((lesson, idx) => {
+                    const isSelected = selectedLesson?.id === lesson.id
+                    const topicsOfThis = topicsMap[lesson.id] || []
+
+                    return (
+                      <div
+                        key={lesson.id}
+                        onClick={() => setSelectedLessonId(lesson.id)}
+                        className={`group relative cursor-pointer rounded-2xl border p-4 transition-all ${
+                          isSelected
+                            ? 'border-primary bg-primary/5 shadow-md ring-1 ring-primary'
+                            : 'border-outline-variant/30 bg-surface-container-lowest hover:border-outline hover:bg-surface-container-low'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-container-high text-[10px] font-bold text-on-surface-variant">
+                                {idx + 1}
+                              </span>
+                              <h3 className="text-sm font-bold text-on-surface truncate">
+                                {lesson.title}
+                              </h3>
+                            </div>
+                            {lesson.description && (
+                              <p className="text-xs text-on-surface-variant line-clamp-2">
+                                {lesson.description}
+                              </p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-on-surface-variant">
+                              <span className="inline-flex items-center gap-1 rounded-md bg-surface-container px-2 py-0.5 font-medium">
+                                <Icon name="topic" className="text-xs text-primary" />
+                                {topicsOfThis.length} chủ đề
+                              </span>
+                              <span className="inline-flex items-center gap-1 rounded-md bg-surface-container px-2 py-0.5 font-medium">
+                                <Icon name="help_outline" className="text-xs text-secondary" />
+                                {lesson.questionsCount || 0} câu hỏi
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100">
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenEditLesson(lesson, e)}
+                              title="Sửa bài học"
+                              className="flex h-7 w-7 items-center justify-center rounded-lg text-outline hover:bg-surface-container hover:text-on-surface"
+                            >
+                              <Icon name="edit" className="text-sm" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDeletingLesson(lesson)
+                              }}
+                              title="Xóa bài học"
+                              className="flex h-7 w-7 items-center justify-center rounded-lg text-outline hover:bg-error-container hover:text-error"
+                            >
+                              <Icon name="delete" className="text-sm" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
             </div>
 
-            {/* Lesson List */}
-            <div className="space-y-3">
-              {filteredLessons.length === 0 ? (
-                <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-8 text-center text-xs text-on-surface-variant">
-                  Không tìm thấy bài học nào phù hợp.
+            {/* CỘT PHẢI: DANH SÁCH CHỦ ĐỀ (TOPICS) CỦA BÀI HỌC - 7 Cols */}
+            <div className="lg:col-span-7 space-y-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary-fixed text-secondary">
+                      <Icon name="category" className="text-lg" />
+                    </div>
+                    <h2 className="text-base font-bold text-on-surface">
+                      Chủ đề thuộc: <span className="text-primary">{selectedLesson?.title || 'Chưa chọn'}</span>
+                    </h2>
+                  </div>
+                  <p className="mt-0.5 text-xs text-on-surface-variant">
+                    Các chủ đề con được dùng để bốc ngẫu nhiên câu hỏi theo chuẩn ma trận đề viva
+                  </p>
                 </div>
-              ) : (
-                filteredLessons.map((lesson, idx) => {
-                  const isSelected = selectedLesson?.id === lesson.id
-                  const topicsOfThis = topicsMap[lesson.id] || []
 
-                  return (
-                    <div
-                      key={lesson.id}
-                      onClick={() => setSelectedLessonId(lesson.id)}
-                      className={`group relative cursor-pointer rounded-2xl border p-4 transition-all ${
-                        isSelected
-                          ? 'border-primary bg-primary/5 shadow-md ring-1 ring-primary'
-                          : 'border-outline-variant/30 bg-surface-container-lowest hover:border-outline hover:bg-surface-container-low'
-                      }`}
+                <button
+                  type="button"
+                  onClick={handleOpenCreateTopic}
+                  disabled={!selectedLesson}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-3 py-1.5 text-xs font-semibold text-on-secondary shadow-sm transition-colors hover:bg-secondary/90 disabled:opacity-50"
+                >
+                  <Icon name="add" className="text-base" />
+                  Thêm chủ đề mới
+                </button>
+              </div>
+
+              {/* Topic Search */}
+              <div className="relative">
+                <Icon name="search" className="pointer-events-none absolute left-3.5 top-2.5 text-lg text-outline" />
+                <input
+                  type="text"
+                  value={topicSearch}
+                  onChange={(e) => setTopicSearch(e.target.value)}
+                  placeholder="Tìm chủ đề trong bài học này..."
+                  className="w-full rounded-xl border border-outline-variant/40 bg-surface-container-lowest py-2 pr-4 pl-10 text-xs text-on-surface placeholder:text-outline focus:border-secondary focus:outline-none"
+                />
+              </div>
+
+              {/* Topic List Cards */}
+              <div className="space-y-3">
+                {filteredTopics.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-outline-variant/60 bg-surface-container-lowest p-10 text-center">
+                    <Icon name="post_add" className="mx-auto text-3xl text-outline mb-2" />
+                    <h3 className="text-sm font-bold text-on-surface">Chưa có chủ đề nào trong bài học này</h3>
+                    <p className="mt-1 text-xs text-on-surface-variant max-w-sm mx-auto">
+                      Mỗi bài học cần ít nhất một chủ đề để phân loại và quản lý câu hỏi đánh giá vấn đáp.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleOpenCreateTopic}
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-secondary px-4 py-2 text-xs font-semibold text-on-secondary shadow-sm hover:bg-secondary/90"
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <Icon name="add" className="text-base" />
+                      Thêm chủ đề đầu tiên
+                    </button>
+                  </div>
+                ) : (
+                  filteredTopics.map((topic) => (
+                    <div
+                      key={topic.id}
+                      className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-sm transition-all hover:border-outline-variant hover:shadow-md"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1.5 flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-container-high text-[10px] font-bold text-on-surface-variant">
-                              {idx + 1}
-                            </span>
-                            <h3 className="text-sm font-bold text-on-surface truncate">
-                              {lesson.title}
-                            </h3>
+                            <span className="flex h-2 w-2 rounded-full bg-secondary"></span>
+                            <h4 className="text-sm font-bold text-on-surface">{topic.name}</h4>
                           </div>
-                          {lesson.description && (
-                            <p className="text-xs text-on-surface-variant line-clamp-2">
-                              {lesson.description}
+                          {topic.description && (
+                            <p className="text-xs text-on-surface-variant leading-relaxed">
+                              {topic.description}
                             </p>
                           )}
-                          <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-on-surface-variant">
-                            <span className="inline-flex items-center gap-1 rounded-md bg-surface-container px-2 py-0.5 font-medium">
-                              <Icon name="topic" className="text-xs text-primary" />
-                              {topicsOfThis.length} chủ đề
+
+                          {/* Badges & Statistics */}
+                          <div className="flex flex-wrap items-center gap-2 pt-2 text-[11px]">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-surface-container-high px-2.5 py-0.5 font-semibold text-on-surface">
+                              <Icon name="quiz" className="text-xs text-primary" />
+                              {topic.questionCount || 0} câu hỏi
                             </span>
-                            <span className="inline-flex items-center gap-1 rounded-md bg-surface-container px-2 py-0.5 font-medium">
-                              <Icon name="help_outline" className="text-xs text-secondary" />
-                              {lesson.questionsCount || 0} câu hỏi
+                            <span className="inline-flex items-center gap-1 rounded-full bg-secondary-container/50 px-2.5 py-0.5 font-bold text-on-secondary-fixed-variant">
+                              <Icon name="check_circle" className="text-xs text-secondary" />
+                              {topic.approvedQuestionCount || 0} đã duyệt (APPROVED)
                             </span>
                           </div>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100">
+                        {/* Action buttons */}
+                        <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 sm:pt-0">
+                          {/* Link to Question Bank */}
+                          <Link
+                            to={`/lecturer/questions?topicId=${topic.id}`}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-primary-fixed px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary hover:text-on-primary"
+                          >
+                            <Icon name="auto_awesome" className="text-sm" />
+                            Soạn câu hỏi
+                          </Link>
+
                           <button
                             type="button"
-                            onClick={(e) => handleOpenEditLesson(lesson, e)}
-                            title="Sửa bài học"
-                            className="flex h-7 w-7 items-center justify-center rounded-lg text-outline hover:bg-surface-container hover:text-on-surface"
+                            onClick={() => handleOpenEditTopic(topic)}
+                            title="Sửa chủ đề"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-outline-variant/40 text-outline hover:bg-surface-container hover:text-on-surface"
                           >
                             <Icon name="edit" className="text-sm" />
                           </button>
+
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setDeletingLesson(lesson)
-                            }}
-                            title="Xóa bài học"
-                            className="flex h-7 w-7 items-center justify-center rounded-lg text-outline hover:bg-error-container hover:text-error"
+                            onClick={() => setDeletingTopic(topic)}
+                            title="Xóa chủ đề"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-outline-variant/40 text-outline hover:bg-error-container hover:text-error"
                           >
                             <Icon name="delete" className="text-sm" />
                           </button>
                         </div>
                       </div>
                     </div>
-                  )
-                })
-              )}
-            </div>
-          </div>
-
-          {/* CỘT PHẢI: DANH SÁCH CHỦ ĐỀ (TOPICS) CỦA BÀI HỌC - 7 Cols */}
-          <div className="lg:col-span-7 space-y-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary-fixed text-secondary">
-                    <Icon name="category" className="text-lg" />
-                  </div>
-                  <h2 className="text-base font-bold text-on-surface">
-                    Chủ đề thuộc: <span className="text-primary">{selectedLesson?.title || 'Chưa chọn'}</span>
-                  </h2>
-                </div>
-                <p className="mt-0.5 text-xs text-on-surface-variant">
-                  Các chủ đề con được dùng để bốc ngẫu nhiên câu hỏi theo chuẩn ma trận đề viva
-                </p>
+                  ))
+                )}
               </div>
-
-              <button
-                type="button"
-                onClick={handleOpenCreateTopic}
-                disabled={!selectedLesson}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-3 py-1.5 text-xs font-semibold text-on-secondary shadow-sm transition-colors hover:bg-secondary/90 disabled:opacity-50"
-              >
-                <Icon name="add" className="text-base" />
-                Thêm chủ đề mới
-              </button>
-            </div>
-
-            {/* Topic Search */}
-            <div className="relative">
-              <Icon name="search" className="pointer-events-none absolute left-3.5 top-2.5 text-lg text-outline" />
-              <input
-                type="text"
-                value={topicSearch}
-                onChange={(e) => setTopicSearch(e.target.value)}
-                placeholder="Tìm chủ đề trong bài học này..."
-                className="w-full rounded-xl border border-outline-variant/40 bg-surface-container-lowest py-2 pr-4 pl-10 text-xs text-on-surface placeholder:text-outline focus:border-secondary focus:outline-none"
-              />
-            </div>
-
-            {/* Topic List Cards */}
-            <div className="space-y-3">
-              {filteredTopics.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-outline-variant/60 bg-surface-container-lowest p-10 text-center">
-                  <Icon name="post_add" className="mx-auto text-3xl text-outline mb-2" />
-                  <h3 className="text-sm font-bold text-on-surface">Chưa có chủ đề nào trong bài học này</h3>
-                  <p className="mt-1 text-xs text-on-surface-variant max-w-sm mx-auto">
-                    Mỗi bài học cần ít nhất một chủ đề để phân loại và quản lý câu hỏi đánh giá vấn đáp.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleOpenCreateTopic}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-secondary px-4 py-2 text-xs font-semibold text-on-secondary shadow-sm hover:bg-secondary/90"
-                  >
-                    <Icon name="add" className="text-base" />
-                    Thêm chủ đề đầu tiên
-                  </button>
-                </div>
-              ) : (
-                filteredTopics.map((topic) => (
-                  <div
-                    key={topic.id}
-                    className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-sm transition-all hover:border-outline-variant hover:shadow-md"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="space-y-1.5 flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-2 w-2 rounded-full bg-secondary"></span>
-                          <h4 className="text-sm font-bold text-on-surface">{topic.name}</h4>
-                        </div>
-                        {topic.description && (
-                          <p className="text-xs text-on-surface-variant leading-relaxed">
-                            {topic.description}
-                          </p>
-                        )}
-
-                        {/* Badges & Statistics */}
-                        <div className="flex flex-wrap items-center gap-2 pt-2 text-[11px]">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-surface-container-high px-2.5 py-0.5 font-semibold text-on-surface">
-                            <Icon name="quiz" className="text-xs text-primary" />
-                            {topic.questionCount || 0} câu hỏi
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-secondary-container/50 px-2.5 py-0.5 font-bold text-on-secondary-fixed-variant">
-                            <Icon name="check_circle" className="text-xs text-secondary" />
-                            {topic.approvedQuestionCount || 0} đã duyệt (APPROVED)
-                          </span>
-                          {topic.bloomDistribution && (
-                            <span className="text-on-surface-variant text-[10px]">
-                              Bloom: {topic.bloomDistribution.remember} Nhớ • {topic.bloomDistribution.understand} Hiểu • {topic.bloomDistribution.apply} Dụng • {topic.bloomDistribution.analyze} Tích
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 sm:pt-0">
-                        {/* Link to Question Bank */}
-                        <Link
-                          to={`/lecturer/questions?topicId=${topic.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-primary-fixed px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary hover:text-on-primary"
-                        >
-                          <Icon name="auto_awesome" className="text-sm" />
-                          Soạn câu hỏi
-                        </Link>
-
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditTopic(topic)}
-                          title="Sửa chủ đề"
-                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-outline-variant/40 text-outline hover:bg-surface-container hover:text-on-surface"
-                        >
-                          <Icon name="edit" className="text-sm" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setDeletingTopic(topic)}
-                          title="Xóa chủ đề"
-                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-outline-variant/40 text-outline hover:bg-error-container hover:text-error"
-                        >
-                          <Icon name="delete" className="text-sm" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
           </div>
-        </div>
+        )}
 
         {/* Modal Thêm / Sửa Bài Học */}
         {lessonModalOpen && (
           <Modal
             title={editingLesson ? 'Chỉnh sửa bài học' : 'Thêm bài học mới'}
-            onClose={() => setLessonModalOpen(false)}
+            onClose={() => !savingLesson && setLessonModalOpen(false)}
           >
             <div className="space-y-4">
               <TextField
@@ -736,16 +756,19 @@ export default function CurriculumManagementPage() {
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   type="button"
+                  disabled={savingLesson}
                   onClick={() => setLessonModalOpen(false)}
-                  className="rounded-full px-5 py-2.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container"
+                  className="rounded-full px-5 py-2.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container disabled:opacity-50"
                 >
                   Hủy
                 </button>
                 <button
                   type="button"
+                  disabled={savingLesson}
                   onClick={handleSaveLesson}
-                  className="rounded-full bg-primary-container px-6 py-2.5 text-xs font-semibold text-on-primary shadow-sm hover:bg-primary"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary-container px-6 py-2.5 text-xs font-semibold text-on-primary shadow-sm hover:bg-primary disabled:opacity-50"
                 >
+                  {savingLesson && <Icon name="hourglass_top" className="animate-spin text-sm" />}
                   {editingLesson ? 'Cập nhật bài học' : 'Tạo bài học'}
                 </button>
               </div>
@@ -757,13 +780,13 @@ export default function CurriculumManagementPage() {
         {deletingLesson && (
           <ConfirmModal
             title="Xóa bài học"
-            message={`Bạn có chắc chắn muốn xóa bài học "${deletingLesson.title}" cùng toàn bộ các chủ đề trực thuộc không? Thao tác này không thể hoàn tác.`}
+            message={`Bạn có chắc chắn muốn xóa bài học "${deletingLesson.title}" không? Lưu ý: Chỉ có thể xóa bài học khi bài học đó không còn chứa chủ đề nào.`}
             confirmLabel="Xác nhận xóa"
             cancelLabel="Hủy bỏ"
             pendingLabel="Đang xóa..."
             icon="delete"
             danger
-            onClose={() => setDeletingLesson(null)}
+            onClose={() => !deleting && setDeletingLesson(null)}
             onConfirm={handleDeleteLesson}
           />
         )}
@@ -772,7 +795,7 @@ export default function CurriculumManagementPage() {
         {topicModalOpen && (
           <Modal
             title={editingTopic ? 'Chỉnh sửa chủ đề' : `Thêm chủ đề vào "${selectedLesson?.title}"`}
-            onClose={() => setTopicModalOpen(false)}
+            onClose={() => !savingTopic && setTopicModalOpen(false)}
           >
             <div className="space-y-4">
               <TextField
@@ -806,16 +829,19 @@ export default function CurriculumManagementPage() {
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   type="button"
+                  disabled={savingTopic}
                   onClick={() => setTopicModalOpen(false)}
-                  className="rounded-full px-5 py-2.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container"
+                  className="rounded-full px-5 py-2.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container disabled:opacity-50"
                 >
                   Hủy
                 </button>
                 <button
                   type="button"
+                  disabled={savingTopic}
                   onClick={handleSaveTopic}
-                  className="rounded-full bg-secondary px-6 py-2.5 text-xs font-semibold text-on-secondary shadow-sm hover:bg-secondary/90"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-6 py-2.5 text-xs font-semibold text-on-secondary shadow-sm hover:bg-secondary/90 disabled:opacity-50"
                 >
+                  {savingTopic && <Icon name="hourglass_top" className="animate-spin text-sm" />}
                   {editingTopic ? 'Lưu thay đổi' : 'Thêm chủ đề'}
                 </button>
               </div>
@@ -827,13 +853,13 @@ export default function CurriculumManagementPage() {
         {deletingTopic && (
           <ConfirmModal
             title="Xóa chủ đề"
-            message={`Bạn có chắc chắn muốn xóa chủ đề "${deletingTopic.name}"? Các câu hỏi đã liên kết trong chủ đề này sẽ bị ảnh hưởng.`}
+            message={`Bạn có chắc chắn muốn xóa chủ đề "${deletingTopic.name}"? Lưu ý: Chỉ có thể xóa chủ đề khi chưa có câu hỏi nào gắn vào chủ đề này.`}
             confirmLabel="Xác nhận xóa"
             cancelLabel="Hủy bỏ"
             pendingLabel="Đang xóa..."
             icon="delete"
             danger
-            onClose={() => setDeletingTopic(null)}
+            onClose={() => !deleting && setDeletingTopic(null)}
             onConfirm={handleDeleteTopic}
           />
         )}
