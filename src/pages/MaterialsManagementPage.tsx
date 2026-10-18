@@ -32,6 +32,7 @@ export default function MaterialsManagementPage() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [deletingMaterial, setDeletingMaterial] = useState<LectureMaterial | null>(null)
   const [reindexingId, setReindexingId] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
 
   // Feedback Banner
   const [banner, setBanner] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
@@ -160,6 +161,28 @@ export default function MaterialsManagementPage() {
     }
   }
 
+  // Handle Sync from Cloud RAG
+  const handleSyncCloud = async () => {
+    try {
+      setSyncing(true)
+      setBanner(null)
+      const synced = await contentService.syncMaterials()
+      setMaterials(synced)
+      setBanner({
+        type: 'success',
+        message: `Đã đồng bộ thành công ${synced.length} tài liệu từ Vertex AI RAG Corpus về hệ thống!`,
+      })
+    } catch (err: any) {
+      console.error('Sync error:', err)
+      setBanner({
+        type: 'error',
+        message: err?.message || 'Lỗi khi đồng bộ tài liệu từ Vertex AI RAG Corpus.',
+      })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   // Reset all filters
   const handleResetFilters = () => {
     setSearchQuery('')
@@ -237,6 +260,17 @@ export default function MaterialsManagementPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-3">
+            <button
+              type="button"
+              disabled={syncing}
+              onClick={handleSyncCloud}
+              className="inline-flex items-center gap-2 rounded-full border border-outline-variant/60 bg-surface-container-low px-4 py-2.5 text-label-md font-semibold text-on-surface transition-all hover:bg-surface-container disabled:opacity-50"
+              title="Đồng bộ danh sách file từ Vertex AI RAG Corpus trên Google Cloud về hệ thống"
+            >
+              <Icon name="sync" className={`text-xl text-primary ${syncing ? 'animate-spin' : ''}`} />
+              <span>{syncing ? 'Đang đồng bộ...' : 'Đồng bộ Cloud RAG'}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setUploadModalOpen(true)}

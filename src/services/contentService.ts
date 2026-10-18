@@ -323,42 +323,24 @@ export const contentService = {
     if (lessonId) formData.append('lessonId', lessonId)
     if (topicId) formData.append('topicId', topicId)
 
-    try {
-      const result = await apiRequest<LectureMaterial>('/content/materials/upload', {
-        method: 'POST',
-        formData,
-      })
-      if (result && result.id) {
-        return result
-      }
-    } catch (err) {
-      console.warn('[contentService] uploadMaterial fallback to mock:', err)
+    const result = await apiRequest<LectureMaterial>('/content/materials/upload', {
+      method: 'POST',
+      formData,
+    })
+    if (result && result.id) {
+      return result
     }
+    throw new Error('Không nhận được phản hồi hợp lệ từ server sau khi tải lên.')
+  },
 
-    // Fallback tự sinh mock
-    const ext = (file.name.split('.').pop() || 'pptx').toLowerCase()
-    const validExt: 'pptx' | 'ppt' | 'pdf' | 'docx' =
-      ext === 'ppt' || ext === 'pdf' || ext === 'docx' ? ext : 'pptx'
-    const newMaterial: LectureMaterial = {
-      id: `mat-${Date.now()}`,
-      lecturerId: 'lec-current',
-      lessonId: lessonId || null,
-      lessonTitle: lessonId ? `Bài học ${lessonId}` : null,
-      topicId: topicId || null,
-      topicName: topicId ? `Chủ đề ${topicId}` : null,
-      title: title || file.name,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: validExt,
-      gcsUri: `gs://exam-slides-bucket-2026/${file.name}`,
-      ragCorpusId: '6917529027641081856',
-      ragStatus: 'READY',
-      chunkCount: Math.floor(Math.random() * 30) + 15,
-      errorMessage: null,
-      uploadedAt: new Date().toISOString(),
-    }
-    mockMaterialsStore.unshift(newMaterial)
-    return newMaterial
+  /**
+   * POST /content/materials/sync -> đồng bộ tài liệu từ Vertex AI RAG Corpus về hệ thống.
+   */
+  async syncMaterials(): Promise<LectureMaterial[]> {
+    const data = await apiRequest<LectureMaterial[]>('/content/materials/sync', {
+      method: 'POST',
+    })
+    return Array.isArray(data) ? data : []
   },
 
   /**
