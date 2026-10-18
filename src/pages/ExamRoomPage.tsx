@@ -580,7 +580,6 @@ export default function ExamRoomPage() {
   }
 
   const voiceMode = micReady && speechSupported
-  const followUpNo = question?.followUpNo ?? 0
 
   if (loading) {
     return (
@@ -732,21 +731,6 @@ export default function ExamRoomPage() {
                   </p>
                 </div>
               </div>
-
-              {/* Trạng thái vòng hỏi xoáy */}
-              {followUpNo > 0 ? (
-                <div className="inline-flex items-center gap-2 rounded-full bg-tertiary-fixed px-4 py-1.5 text-label-md text-tertiary font-semibold animate-pulse">
-                  <Icon name="psychology_alt" />
-                  <span>
-                    Hỏi xoáy thích ứng (Follow-up #{followUpNo}/{question?.maxFollowUps ?? followUpNo})
-                  </span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-2 rounded-full bg-secondary-container px-3.5 py-1 text-label-sm text-secondary font-medium">
-                  <Icon name="verified" />
-                  <span>Câu hỏi ban đầu</span>
-                </div>
-              )}
             </div>
 
             {/* Khung câu hỏi Giám khảo AI */}
