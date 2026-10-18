@@ -60,6 +60,11 @@ export function createExamSession(payload: CreateExamSessionPayload): Promise<Ex
   })
 }
 
+/** GET /exam-sessions/{id} -> chi tiết 1 phiên thi */
+export function getExamSessionById(id: string): Promise<ExamSession> {
+  return apiRequest<ExamSession>(`/exam-sessions/${encodeURIComponent(id)}`)
+}
+
 /** PUT /exam-sessions/{id} -> phiên sau khi sửa */
 export function updateExamSession(
   id: string,

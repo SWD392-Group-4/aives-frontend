@@ -1,20 +1,30 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import { ROLES } from './constants/roles'
+import AdminAuditLogsPage from './pages/AdminAuditLogsPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminSettingsPage from './pages/AdminSettingsPage'
 import AdminUsersPage from './pages/AdminUsersPage'
 import AppealsManagementPage from './pages/AppealsManagementPage'
+import CurriculumManagementPage from './pages/CurriculumManagementPage'
 import ExamRoomPage from './pages/ExamRoomPage'
 import ExamSessionsPage from './pages/ExamSessionsPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import HomePage from './pages/HomePage'
 import JoinExamPage from './pages/JoinExamPage'
+import LecturerDashboardPage from './pages/LecturerDashboardPage'
 import LecturerReviewPage from './pages/LecturerReviewPage'
+import LiveExamMonitorPage from './pages/LiveExamMonitorPage'
 import LoginPage from './pages/LoginPage'
+import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
 import PolicyPage from './pages/PolicyPage'
 import QuestionBankPage from './pages/QuestionBankPage'
 import RegisterPage from './pages/RegisterPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import RubricManagementPage from './pages/RubricManagementPage'
+import StudentAppealsPage from './pages/StudentAppealsPage'
+import StudentDashboardPage from './pages/StudentDashboardPage'
 import StudentResultsPage from './pages/StudentResultsPage'
 
 function App() {
@@ -24,6 +34,8 @@ function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/privacy-policy" element={<PolicyPage type="privacy" />} />
       <Route path="/terms-of-service" element={<PolicyPage type="terms" />} />
 
@@ -38,6 +50,14 @@ function App() {
       />
 
       {/* Dành cho SINH VIÊN (STUDENT) */}
+      <Route
+        path="/student/dashboard"
+        element={
+          <ProtectedRoute roles={[ROLES.STUDENT]}>
+            <StudentDashboardPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/exam/join"
         element={
@@ -70,8 +90,44 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/student/appeals"
+        element={
+          <ProtectedRoute roles={[ROLES.STUDENT]}>
+            <StudentAppealsPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Dành cho GIẢNG VIÊN (LECTURER) và QUẢN TRỊ VIÊN (ADMIN) */}
+      <Route
+        path="/lecturer"
+        element={<Navigate to="/lecturer/dashboard" replace />}
+      />
+      <Route
+        path="/lecturer/dashboard"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <LecturerDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lecturer/curriculum"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <CurriculumManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lecturer/exam-sessions/:id/monitor"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <LiveExamMonitorPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/exam-sessions"
         element={
@@ -123,6 +179,18 @@ function App() {
 
       {/* Chỉ dành riêng cho QUẢN TRỊ VIÊN (ADMIN) */}
       <Route
+        path="/admin"
+        element={<Navigate to="/admin/dashboard" replace />}
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute roles={[ROLES.ADMIN]}>
+            <AdminDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/users"
         element={
           <ProtectedRoute roles={[ROLES.ADMIN]}>
@@ -138,9 +206,17 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/admin/audit-logs"
+        element={
+          <ProtectedRoute roles={[ROLES.ADMIN]}>
+            <AdminAuditLogsPage />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* Đường dẫn không tồn tại thì quay về trang chủ */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Trang 404 Không Tìm Thấy cho mọi đường dẫn không tồn tại */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import Icon from '../components/Icon.jsx'
 import Modal from '../components/Modal.jsx'
 import Navbar from '../components/Navbar.jsx'
@@ -371,6 +372,17 @@ function AdminUsersPage() {
           {/* ---------- Tiêu đề ---------- */}
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Link to="/admin/dashboard" className="text-body-sm text-primary hover:underline flex items-center gap-1 font-semibold">
+                  <Icon name="arrow_back" className="text-base" /> Dashboard
+                </Link>
+                <span className="text-outline">/</span>
+                <span className="text-body-sm text-on-surface-variant font-medium">Tài khoản</span>
+                <span className="text-outline">/</span>
+                <Link to="/admin/audit-logs" className="text-body-sm text-on-surface-variant hover:text-primary transition-colors">
+                  Nhật ký Audit
+                </Link>
+              </div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-container-highest px-3 py-1 text-label-sm text-primary">
                 <Icon name="shield_person" filled className="text-base" />
                 {t('admin.badge')}

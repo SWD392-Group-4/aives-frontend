@@ -17,5 +17,8 @@ export const ROLE_BADGE_CLASSES = {
 
 /** Trang mặc định sau khi đăng nhập, theo role. */
 export function getHomePathForRole(role) {
-  return role === ROLES.ADMIN ? '/admin/users' : '/'
+  if (role === ROLES.ADMIN) return '/admin/dashboard'
+  if (role === ROLES.STUDENT) return '/student/dashboard'
+  if (role === ROLES.LECTURER) return '/lecturer/dashboard'
+  return '/'
 }

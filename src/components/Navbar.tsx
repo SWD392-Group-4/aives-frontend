@@ -65,11 +65,17 @@ export default function Navbar({ showHomeSections = false }: NavbarProps) {
             {/* Menu Sinh viên */}
             {isStudent && (
               <>
+                <NavLink to="/student/dashboard" className={navLinkClass}>
+                  Bảng điều khiển
+                </NavLink>
                 <NavLink to="/exam/join" className={navLinkClass}>
                   Vào ca thi
                 </NavLink>
                 <NavLink to="/student/results" className={navLinkClass}>
                   Kết quả thi
+                </NavLink>
+                <NavLink to="/student/appeals" className={navLinkClass}>
+                  Phúc khảo
                 </NavLink>
               </>
             )}
@@ -77,8 +83,14 @@ export default function Navbar({ showHomeSections = false }: NavbarProps) {
             {/* Menu Giảng viên / Admin */}
             {(isLecturer || isAdmin) && (
               <>
+                <NavLink to="/lecturer/dashboard" className={navLinkClass}>
+                  Bảng điều khiển
+                </NavLink>
                 <NavLink to="/exam-sessions" className={navLinkClass}>
                   Phiên thi
+                </NavLink>
+                <NavLink to="/lecturer/curriculum" className={navLinkClass}>
+                  Chương trình học
                 </NavLink>
                 <NavLink to="/lecturer/questions" className={navLinkClass}>
                   Ngân hàng câu hỏi
@@ -98,11 +110,17 @@ export default function Navbar({ showHomeSections = false }: NavbarProps) {
             {/* Menu Admin */}
             {isAdmin && (
               <>
+                <NavLink to="/admin/dashboard" className={navLinkClass}>
+                  Dashboard
+                </NavLink>
                 <NavLink to="/admin/users" className={navLinkClass}>
                   Tài khoản
                 </NavLink>
                 <NavLink to="/admin/settings" className={navLinkClass}>
-                  Cấu hình & Audit
+                  Cấu hình AI
+                </NavLink>
+                <NavLink to="/admin/audit-logs" className={navLinkClass}>
+                  Audit Logs
                 </NavLink>
               </>
             )}

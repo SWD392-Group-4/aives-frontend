@@ -235,10 +235,54 @@ export interface AuditLog {
   id: string
   actorId: string
   actorName: string
+  actorEmail?: string
+  actorRole?: Role
   action: string
   entityType: string
   entityId: string
   oldValue?: string
   newValue?: string
+  reason?: string
   timestamp: string
+  ipAddress?: string
+  metadata?: Record<string, any>
 }
+
+export interface SystemHealthService {
+  name: string
+  status: 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY'
+  latencyMs: number
+  detail: string
+  uptime?: string
+}
+
+export interface SystemHealthStatus {
+  database: SystemHealthService
+  speechApi: SystemHealthService
+  geminiModel: SystemHealthService
+  backgroundJobs: SystemHealthService
+}
+
+export interface AiQuotaMetric {
+  name: string
+  used: number
+  total: number
+  unit: string
+  percent: number
+}
+
+export interface AdminOperationalMetrics {
+  totalUsers: number
+  studentCount: number
+  lecturerCount: number
+  adminCount: number
+  activeExamsCount: number
+  onlineCandidatesCount: number
+  health: SystemHealthStatus
+  quota: {
+    stt: AiQuotaMetric
+    tts: AiQuotaMetric
+    llm: AiQuotaMetric
+  }
+}
+

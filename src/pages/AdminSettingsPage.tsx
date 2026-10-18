@@ -55,13 +55,21 @@ export default function AdminSettingsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-outline-variant/40 pb-6">
           <div>
             <div className="flex items-center gap-2">
-              <Link to="/admin/users" className="text-body-sm text-primary hover:underline flex items-center gap-1">
-                <Icon name="arrow_back" className="text-base" /> Quản lý tài khoản
+              <Link to="/admin/dashboard" className="text-body-sm text-primary hover:underline flex items-center gap-1 font-semibold">
+                <Icon name="arrow_back" className="text-base" /> Dashboard
+              </Link>
+              <span className="text-outline">/</span>
+              <Link to="/admin/users" className="text-body-sm text-on-surface-variant hover:text-primary transition-colors">
+                Tài khoản
+              </Link>
+              <span className="text-outline">/</span>
+              <Link to="/admin/audit-logs" className="text-body-sm text-on-surface-variant hover:text-primary transition-colors">
+                Nhật ký Audit
               </Link>
             </div>
-            <h1 className="mt-2 text-headline-md font-bold text-on-surface">Cấu hình Hệ thống & Nhật ký Audit (AIVES)</h1>
+            <h1 className="mt-2 text-headline-md font-bold text-on-surface">Cấu hình Hệ thống & Tham số AI (AIVES)</h1>
             <p className="mt-1 text-body-md text-on-surface-variant">
-              Tùy biến tham số AI (LLM, STT, TTS), giới hạn an toàn phòng thi và theo dõi vết thao tác quan trọng.
+              Tùy biến tham số AI (LLM, STT, TTS), giới hạn an toàn phòng thi và kiểm soát hoạt động hệ thống.
             </p>
           </div>
         </div>

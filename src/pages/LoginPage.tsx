@@ -188,6 +188,15 @@ function LoginPage() {
                 error={errors.password}
               />
 
+              <div className="flex justify-end pt-0.5">
+                <Link
+                  to="/forgot-password"
+                  className="text-label-sm font-semibold text-primary transition-colors hover:text-primary-container hover:underline"
+                >
+                  {t('login.forgotPassword')}
+                </Link>
+              </div>
+
               {(registeredEmail || passwordChanged) && !formError && (
                 <p role="status" className="flex items-start gap-2 rounded-2xl bg-secondary-container/40 px-4 py-3 text-body-sm text-on-secondary-fixed">
                   <Icon name="check_circle" className="text-lg text-secondary" />
