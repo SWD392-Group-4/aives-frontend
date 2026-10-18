@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import AdminLayout from '../components/AdminLayout'
 import Icon from '../components/Icon'
-import Navbar from '../components/Navbar'
 import { systemService } from '../services/systemService'
 import { AuditLog, SystemSetting } from '../types'
 import { formatDateTime } from '../utils/dateTime'
@@ -47,27 +47,12 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-on-surface">
-      <Navbar />
-
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-24 pb-16 sm:px-6 lg:px-8">
+    <AdminLayout breadcrumbs={[{ label: 'Cấu hình Tham số AI' }]}>
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-outline-variant/40 pb-6">
           <div>
-            <div className="flex items-center gap-2">
-              <Link to="/admin/dashboard" className="text-body-sm text-primary hover:underline flex items-center gap-1 font-semibold">
-                <Icon name="arrow_back" className="text-base" /> Dashboard
-              </Link>
-              <span className="text-outline">/</span>
-              <Link to="/admin/users" className="text-body-sm text-on-surface-variant hover:text-primary transition-colors">
-                Tài khoản
-              </Link>
-              <span className="text-outline">/</span>
-              <Link to="/admin/audit-logs" className="text-body-sm text-on-surface-variant hover:text-primary transition-colors">
-                Nhật ký Audit
-              </Link>
-            </div>
-            <h1 className="mt-2 text-headline-md font-bold text-on-surface">Cấu hình Hệ thống & Tham số AI (AIVES)</h1>
+            <h1 className="text-headline-md font-bold text-on-surface">Cấu hình Hệ thống & Tham số AI (AIVES)</h1>
             <p className="mt-1 text-body-md text-on-surface-variant">
               Tùy biến tham số AI (LLM, STT, TTS), giới hạn an toàn phòng thi và kiểm soát hoạt động hệ thống.
             </p>
@@ -212,7 +197,7 @@ export default function AdminSettingsPage() {
             </div>
           </section>
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   )
 }

@@ -80,8 +80,8 @@ export default function Navbar({ showHomeSections = false }: NavbarProps) {
               </>
             )}
 
-            {/* Menu Giảng viên / Admin */}
-            {(isLecturer || isAdmin) && (
+            {/* Menu Giảng viên (khi không phải Admin hoặc đang ở chế độ Giảng viên) */}
+            {isLecturer && !isAdmin && (
               <>
                 <NavLink to="/lecturer/dashboard" className={navLinkClass}>
                   Bảng điều khiển
@@ -110,22 +110,25 @@ export default function Navbar({ showHomeSections = false }: NavbarProps) {
               </>
             )}
 
-            {/* Menu Admin */}
+            {/* Menu Quản trị viên (Admin Portal - điều hướng sang giao diện Sidebar chuyên biệt) */}
             {isAdmin && (
-              <>
-                <NavLink to="/admin/dashboard" className={navLinkClass}>
-                  Dashboard
+              <div className="flex items-center gap-2">
+                <NavLink
+                  to="/admin/dashboard"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary-fixed px-4 py-2 text-label-sm font-bold text-primary transition-all hover:bg-primary hover:text-on-primary shadow-xs"
+                >
+                  <Icon name="dashboard" className="text-base" />
+                  Bảng Quản Trị Hệ Thống (Admin SOC)
                 </NavLink>
-                <NavLink to="/admin/users" className={navLinkClass}>
-                  Tài khoản
+                <NavLink
+                  to="/lecturer/dashboard"
+                  className={navLinkClass}
+                  title="Chuyển sang góc nhìn khảo thí & lớp học"
+                >
+                  <Icon name="school" className="text-base inline mr-1" />
+                  Góc nhìn Khảo thí
                 </NavLink>
-                <NavLink to="/admin/settings" className={navLinkClass}>
-                  Cấu hình AI
-                </NavLink>
-                <NavLink to="/admin/audit-logs" className={navLinkClass}>
-                  Audit Logs
-                </NavLink>
-              </>
+              </div>
             )}
           </nav>
         </div>

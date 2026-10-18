@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import AdminLayout from '../components/AdminLayout'
 import Icon from '../components/Icon'
-import Navbar from '../components/Navbar'
 import { ROLE_BADGE_CLASSES } from '../constants/roles'
 import { systemService } from '../services/systemService'
 import { AuditLog } from '../types'
@@ -365,23 +365,11 @@ export default function AdminAuditLogsPage() {
     searchTerm !== '' || actionFilter !== 'ALL' || entityFilter !== 'ALL' || dateRangeFilter !== 'ALL'
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-on-surface">
-      <Navbar />
-
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-24 pb-16 sm:px-6 lg:px-8">
+    <AdminLayout breadcrumbs={[{ label: 'Nhật ký Kiểm toán' }]}>
+      <div className="space-y-6">
         {/* ============ Header Navigation ============ */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-outline-variant/30 pb-6">
           <div>
-            <div className="flex items-center gap-2">
-              <Link
-                to="/admin/dashboard"
-                className="inline-flex items-center gap-1 text-body-sm font-semibold text-primary hover:underline"
-              >
-                <Icon name="arrow_back" className="text-base" /> Bảng điều khiển quản trị
-              </Link>
-              <span className="text-outline">/</span>
-              <span className="text-body-sm text-on-surface-variant">Kiểm toán hệ thống</span>
-            </div>
             <h1 className="mt-2 text-headline-md sm:text-headline-lg font-extrabold tracking-tight text-on-surface">
               Nhật Ký Kiểm Toán Hệ Thống (Audit Logs)
             </h1>
@@ -674,12 +662,12 @@ export default function AdminAuditLogsPage() {
             </div>
           )}
         </section>
-      </main>
+      </div>
 
       {/* Modal chi tiết đối chiếu */}
       {selectedLog && (
         <AuditDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} />
       )}
-    </div>
+    </AdminLayout>
   )
 }
