@@ -39,8 +39,23 @@ export default function GenerateQuestionsModal({
   // Materials state - strictly READY materials
   const [materials, setMaterials] = useState<LectureMaterial[]>([])
   const [loadingMaterials, setLoadingMaterials] = useState(true)
+  const [refreshingMaterials, setRefreshingMaterials] = useState(false)
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([])
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
+
+  // Tải lại danh sách tài liệu từ máy chủ (chỉ lấy tài liệu READY)
+  const reloadMaterials = async (silent = false) => {
+    try {
+      if (!silent) setRefreshingMaterials(true)
+      const data = await contentService.getMaterials()
+      const readyOnly = (data || []).filter((m) => m.ragStatus === 'READY')
+      setMaterials(readyOnly)
+    } catch (err: any) {
+      console.error('Failed to reload materials in modal:', err)
+    } finally {
+      if (!silent) setRefreshingMaterials(false)
+    }
+  }
 
   // Question configuration
   const [questionCount, setQuestionCount] = useState<number>(5)
@@ -257,11 +272,67 @@ export default function GenerateQuestionsModal({
     }, 2400)
 
     try {
+      const remW = bloomDist.REMEMBER ?? 0
+      const undW = bloomDist.UNDERSTAND ?? 0
+      const appW = bloomDist.APPLY ?? 0
+      const anaW = bloomDist.ANALYZE ?? 0
+      const totalW = remW + undW + appW + anaW || 100
+
+      let remCount = 0
+      let undCount = 0
+      let appCount = 0
+      let anaCount = 0
+
+      if (remW >= 100) {
+        remCount = questionCount
+      } else if (undW >= 100) {
+        undCount = questionCount
+      } else if (appW >= 100) {
+        appCount = questionCount
+      } else if (anaW >= 100) {
+        anaCount = questionCount
+      } else {
+        remCount = remW > 0 ? Math.round((questionCount * remW) / totalW) : 0
+        undCount = undW > 0 ? Math.round((questionCount * undW) / totalW) : 0
+        appCount = appW > 0 ? Math.round((questionCount * appW) / totalW) : 0
+        anaCount = anaW > 0 ? Math.round((questionCount * anaW) / totalW) : 0
+
+        let diff = questionCount - (remCount + undCount + appCount + anaCount)
+        const activeLevels = [
+          { w: remW, get: () => remCount, set: (v: number) => { remCount = v } },
+          { w: undW, get: () => undCount, set: (v: number) => { undCount = v } },
+          { w: appW, get: () => appCount, set: (v: number) => { appCount = v } },
+          { w: anaW, get: () => anaCount, set: (v: number) => { anaCount = v } },
+        ].filter((l) => l.w > 0)
+
+        if (activeLevels.length > 0) {
+          while (diff > 0) {
+            activeLevels.sort((a, b) => b.w - a.w)
+            activeLevels[0].set(activeLevels[0].get() + 1)
+            diff--
+          }
+          while (diff < 0) {
+            activeLevels.sort((a, b) => b.get() - a.get())
+            if (activeLevels[0].get() > 0) {
+              activeLevels[0].set(activeLevels[0].get() - 1)
+              diff++
+            } else {
+              break
+            }
+          }
+        }
+      }
+
       const request: GenerateQuestionsFromRagRequest = {
         topicId: selectedTopicId,
         materialIds: selectedMaterialIds,
         questionCount,
+        count: questionCount,
         bloomDistribution: bloomDist,
+        rememberCount: remCount,
+        understandCount: undCount,
+        applyCount: appCount,
+        analyzeCount: anaCount,
       }
 
       const generated = await contentService.generateQuestionsFromRag(request)
@@ -561,15 +632,35 @@ export default function GenerateQuestionsModal({
                     </div>
                   </div>
 
-                  {/* Nút Thêm tài liệu */}
-                  <button
-                    type="button"
-                    onClick={() => setUploadModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary px-3.5 py-1.5 text-xs font-bold transition-all hover:shadow-sm"
-                  >
-                    <Icon name="add" className="text-sm" />
-                    <span>Thêm tài liệu</span>
-                  </button>
+                  {/* Cụm nút Thao tác tài liệu */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => reloadMaterials(false)}
+                      disabled={loadingMaterials || refreshingMaterials}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/60 bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container-high transition-all disabled:opacity-50"
+                      title="Tải lại danh sách tài liệu từ hệ thống"
+                    >
+                      <Icon
+                        name="refresh"
+                        className={`text-sm ${
+                          refreshingMaterials || loadingMaterials
+                            ? 'animate-spin text-primary'
+                            : ''
+                        }`}
+                      />
+                      <span className="hidden sm:inline">Làm mới</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setUploadModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary px-3.5 py-1.5 text-xs font-bold transition-all hover:shadow-sm"
+                    >
+                      <Icon name="add" className="text-sm" />
+                      <span>Thêm tài liệu</span>
+                    </button>
+                  </div>
                 </div>
 
                 {loadingMaterials ? (
@@ -584,9 +675,28 @@ export default function GenerateQuestionsModal({
                       Chưa có tài liệu sẵn sàng nào thuộc chủ đề "{currentTopic?.name || ''}".
                     </p>
                     <p className="mt-1 text-[11px] text-on-surface-variant">
-                      Vui lòng bấm nút <strong>"+ Thêm tài liệu"</strong> ở góc trên để tải lên slide cho chủ đề này.
+                      Vui lòng bấm nút <strong>"+ Thêm tài liệu"</strong> ở góc trên để tải lên slide hoặc bấm <strong>"Làm mới"</strong> nếu tài liệu vừa tải lên xong.
                     </p>
+                    <div className="mt-3.5 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => reloadMaterials(false)}
+                        disabled={loadingMaterials || refreshingMaterials}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/80 bg-surface-container px-3.5 py-1 text-xs font-semibold text-on-surface hover:bg-surface-container-high transition-colors"
+                      >
+                        <Icon
+                          name="refresh"
+                          className={`text-xs ${
+                            refreshingMaterials || loadingMaterials
+                              ? 'animate-spin text-primary'
+                              : ''
+                          }`}
+                        />
+                        <span>Kiểm tra & Tải lại</span>
+                      </button>
+                    </div>
                   </div>
+
                 ) : (
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                     {readyMaterials.map((mat) => {
@@ -924,6 +1034,14 @@ export default function GenerateQuestionsModal({
                         />
                       </div>
                     </div>
+
+                    {/* Ghi chú Rubric thích ứng */}
+                    <div className="mt-3.5 rounded-xl border border-primary/20 bg-primary/5 p-2.5 text-[11px] text-on-surface-variant flex items-start gap-2">
+                      <Icon name="auto_awesome" className="text-primary text-sm shrink-0 mt-0.5" />
+                      <span>
+                        Khung tiêu chí chấm điểm (Rubric) sẽ tự động thích ứng theo tỷ lệ thang đo Bloom được cấu hình (ví dụ: mức Nhớ 100% sẽ ưu tiên tiêu chí độ chính xác định nghĩa và thuật ngữ cốt lõi).
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -985,14 +1103,17 @@ export default function GenerateQuestionsModal({
           defaultLessonId={selectedLessonId}
           defaultTopicId={selectedTopicId}
           onClose={() => setUploadModalOpen(false)}
-          onUploaded={(newMaterial) => {
+          onUploaded={async (newMaterial) => {
             setMaterials((prev) => [newMaterial, ...prev])
             if (newMaterial.ragStatus === 'READY') {
               setSelectedMaterialIds((prev) => [newMaterial.id, ...prev])
             }
             setUploadModalOpen(false)
+            // Tự động tải lại danh sách tài liệu mới nhất từ máy chủ
+            await reloadMaterials(true)
           }}
         />
+
       )}
     </div>
   )

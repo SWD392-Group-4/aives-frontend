@@ -107,6 +107,11 @@ export interface GenerateQuestionsFromRagRequest {
   materialIds: string[]
   questionCount: number
   bloomDistribution?: Partial<BloomDistribution>
+  count?: number
+  rememberCount?: number
+  understandCount?: number
+  applyCount?: number
+  analyzeCount?: number
 }
 
 let mockRubricsStore: Rubric[] = [
@@ -147,74 +152,384 @@ let mockRubricsStore: Rubric[] = [
 ]
 
 function generateMockQuestionsFromRag(request: GenerateQuestionsFromRagRequest): Question[] {
-  const bloomLevels: ('REMEMBER' | 'UNDERSTAND' | 'APPLY' | 'ANALYZE')[] = []
+  const count = request.questionCount || request.count || 5
   const dist = request.bloomDistribution || { REMEMBER: 20, UNDERSTAND: 40, APPLY: 20, ANALYZE: 20 }
-  const totalWeight = (dist.REMEMBER || 0) + (dist.UNDERSTAND || 0) + (dist.APPLY || 0) + (dist.ANALYZE || 0) || 100
-  
-  const count = request.questionCount || 5
-  const remCount = Math.max(1, Math.round((count * (dist.REMEMBER || 20)) / totalWeight))
-  const undCount = Math.max(1, Math.round((count * (dist.UNDERSTAND || 40)) / totalWeight))
-  const appCount = Math.max(1, Math.round((count * (dist.APPLY || 20)) / totalWeight))
-  const anaCount = Math.max(0, count - remCount - undCount - appCount)
 
+  const remWeight = dist.REMEMBER ?? 0
+  const undWeight = dist.UNDERSTAND ?? 0
+  const appWeight = dist.APPLY ?? 0
+  const anaWeight = dist.ANALYZE ?? 0
+  const totalWeight = remWeight + undWeight + appWeight + anaWeight || 100
+
+  let remCount = 0
+  let undCount = 0
+  let appCount = 0
+  let anaCount = 0
+
+  if (
+    request.rememberCount !== undefined ||
+    request.understandCount !== undefined ||
+    request.applyCount !== undefined ||
+    request.analyzeCount !== undefined
+  ) {
+    remCount = request.rememberCount ?? 0
+    undCount = request.understandCount ?? 0
+    appCount = request.applyCount ?? 0
+    anaCount = request.analyzeCount ?? 0
+  } else if (remWeight >= 100) {
+    remCount = count
+    undCount = 0
+    appCount = 0
+    anaCount = 0
+  } else if (undWeight >= 100) {
+    remCount = 0
+    undCount = count
+    appCount = 0
+    anaCount = 0
+  } else if (appWeight >= 100) {
+    remCount = 0
+    undCount = 0
+    appCount = count
+    anaCount = 0
+  } else if (anaWeight >= 100) {
+    remCount = 0
+    undCount = 0
+    appCount = 0
+    anaCount = count
+  } else {
+    remCount = remWeight > 0 ? Math.round((count * remWeight) / totalWeight) : 0
+    undCount = undWeight > 0 ? Math.round((count * undWeight) / totalWeight) : 0
+    appCount = appWeight > 0 ? Math.round((count * appWeight) / totalWeight) : 0
+    anaCount = anaWeight > 0 ? Math.round((count * anaWeight) / totalWeight) : 0
+
+    let diff = count - (remCount + undCount + appCount + anaCount)
+    const activeWeights = [
+      { weight: remWeight, get: () => remCount, set: (v: number) => { remCount = v } },
+      { weight: undWeight, get: () => undCount, set: (v: number) => { undCount = v } },
+      { weight: appWeight, get: () => appCount, set: (v: number) => { appCount = v } },
+      { weight: anaWeight, get: () => anaCount, set: (v: number) => { anaCount = v } },
+    ].filter((w) => w.weight > 0)
+
+    if (activeWeights.length > 0) {
+      while (diff > 0) {
+        activeWeights.sort((a, b) => b.weight - a.weight)
+        activeWeights[0].set(activeWeights[0].get() + 1)
+        diff--
+      }
+      while (diff < 0) {
+        activeWeights.sort((a, b) => b.get() - a.get())
+        if (activeWeights[0].get() > 0) {
+          activeWeights[0].set(activeWeights[0].get() - 1)
+          diff++
+        } else {
+          break
+        }
+      }
+    }
+  }
+
+  const bloomLevels: ('REMEMBER' | 'UNDERSTAND' | 'APPLY' | 'ANALYZE')[] = []
   for (let i = 0; i < remCount; i++) bloomLevels.push('REMEMBER')
   for (let i = 0; i < undCount; i++) bloomLevels.push('UNDERSTAND')
   for (let i = 0; i < appCount; i++) bloomLevels.push('APPLY')
   for (let i = 0; i < anaCount; i++) bloomLevels.push('ANALYZE')
 
-  while (bloomLevels.length < count) bloomLevels.push('UNDERSTAND')
-  while (bloomLevels.length > count) bloomLevels.pop()
+  while (bloomLevels.length < count) {
+    const fallbackLevel: 'REMEMBER' | 'UNDERSTAND' | 'APPLY' | 'ANALYZE' =
+      remWeight > 0 ? 'REMEMBER' : undWeight > 0 ? 'UNDERSTAND' : appWeight > 0 ? 'APPLY' : 'ANALYZE'
+    bloomLevels.push(fallbackLevel)
+  }
+  while (bloomLevels.length > count) {
+    bloomLevels.pop()
+  }
 
   const materials = mockMaterialsStore.filter((m) => request.materialIds.includes(m.id))
   const sourceName = materials.map((m) => m.title).join(', ') || 'Slide Bài giảng RAG'
+  const topicTitle = materials[0]?.topicName || 'Chủ đề từ Slide RAG'
 
-  const templates = [
-    {
-      content: `Dựa trên tài liệu "${sourceName}", hãy trình bày khái niệm và các thành phần cốt lõi của kiến trúc được đề cập trong bài giảng?`,
-      modelAnswer: 'Sinh viên cần nêu rõ định nghĩa chính quy, liệt kê tối thiểu 3 thành phần cốt lõi và vai trò của từng thành phần trong tổng thể hệ thống.',
-      expectedKeywords: ['architecture', 'components', 'interface', 'dataflow'],
-    },
-    {
-      content: `Phân tích cơ chế đồng bộ và xử lý dữ liệu giữa các module theo nội dung trong tài liệu "${sourceName}". Điểm nghẽn tiềm ẩn là gì?`,
-      modelAnswer: 'Giải thích luồng dữ liệu (request-response vs event-driven), cơ chế hàng đợi xử lý bất đồng bộ và chiến lược giải quyết tắc nghẽn (rate-limiting, cache).',
-      expectedKeywords: ['dataflow', 'bottleneck', 'asynchronous', 'caching'],
-    },
-    {
-      content: `Hãy áp dụng nguyên lý thiết kế từ tài liệu "${sourceName}" để giải quyết bài toán mở rộng hệ thống (scalability) khi tải tăng gấp 10 lần?`,
-      modelAnswer: 'Trình bày giải pháp mở rộng ngang (horizontal scaling), tối ưu hóa database (indexing, read replica) và phân phối tải qua Load Balancer.',
-      expectedKeywords: ['scalability', 'horizontal-scaling', 'load-balancer', 'replica'],
-    },
-    {
-      content: `So sánh ưu nhược điểm của giải pháp được đề xuất trong "${sourceName}" so với kiến trúc truyền thống. Trường hợp nào không nên áp dụng?`,
-      modelAnswer: 'So sánh dựa trên các tiêu chí: hiệu năng, chi phí vận hành, độ phức tạp bảo trì. Nêu rõ các tình huống phản mục tiêu (anti-patterns).',
-      expectedKeywords: ['trade-off', 'performance', 'complexity', 'anti-pattern'],
-    },
-    {
-      content: `Giải thích vai trò của cơ chế bảo mật và xác thực được quy định trong học liệu "${sourceName}". Thao tác nào cần chứng chỉ số?`,
-      modelAnswer: 'Nêu rõ mô hình RBAC/ABAC, cơ chế token-based authentication (JWT) và quy trình ký số xác minh tính toàn vẹn dữ liệu.',
-      expectedKeywords: ['security', 'jwt', 'rbac', 'verification'],
-    },
-    {
-      content: `Trong trường hợp một service gặp sự cố gián đoạn kết nối, theo "${sourceName}", hệ thống sẽ kích hoạt chiến lược phục hồi lỗi nào?`,
-      modelAnswer: 'Trình bày cơ chế Circuit Breaker, Retry with Exponential Backoff và Fallback Handler để duy trì trải nghiệm người dùng tối thiểu.',
-      expectedKeywords: ['circuit-breaker', 'retry', 'exponential-backoff', 'resilience'],
-    },
-  ]
+  // Sinh Rubric động thích ứng theo tỷ lệ Bloom
+  let dynamicRubric: Rubric
 
-  const defaultRubric = mockRubricsStore[0]
+  if (remWeight >= 100) {
+    const rubricId = `rubric-rem-${Date.now()}`
+    dynamicRubric = {
+      id: rubricId,
+      createdBy: 'system',
+      name: `Tiêu chí chấm thi vấn đáp (Mức Nhớ) - ${topicTitle}`,
+      description: `Bộ tiêu chí đánh giá chuẩn cho đề thi vấn đáp 100% mức Nhớ (Remember) từ học liệu: ${sourceName}`,
+      maxScore: 10,
+      criteria: [
+        {
+          id: `crit-${rubricId}-1`,
+          rubricId,
+          name: 'Độ chính xác định nghĩa & Thuật ngữ cốt lõi',
+          description: 'Định nghĩa đúng khái niệm, sử dụng chính xác các thuật ngữ chuyên môn có trong slide bài giảng.',
+          weightPercent: 50,
+          orderNo: 1,
+        },
+        {
+          id: `crit-${rubricId}-2`,
+          rubricId,
+          name: 'Khả năng tái hiện cấu trúc kiến thức bài giảng',
+          description: 'Liệt kê và trình bày đầy đủ các thành phần, nguyên lý hoặc sơ đồ kiến trúc bài giảng.',
+          weightPercent: 30,
+          orderNo: 2,
+        },
+        {
+          id: `crit-${rubricId}-3`,
+          rubricId,
+          name: 'Tác phong trả lời rõ ràng, chuẩn mực',
+          description: 'Trả lời lưu loát, tự tin, diễn đạt rõ ràng và chuẩn mực tác phong thi vấn đáp.',
+          weightPercent: 20,
+          orderNo: 3,
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    }
+  } else if (undWeight >= 100) {
+    const rubricId = `rubric-und-${Date.now()}`
+    dynamicRubric = {
+      id: rubricId,
+      createdBy: 'system',
+      name: `Tiêu chí chấm thi vấn đáp (Mức Hiểu) - ${topicTitle}`,
+      description: `Bộ tiêu chí đánh giá chuẩn cho đề thi vấn đáp 100% mức Hiểu (Understand) từ học liệu: ${sourceName}`,
+      maxScore: 10,
+      criteria: [
+        {
+          id: `crit-${rubricId}-1`,
+          rubricId,
+          name: 'Khả năng giải thích cơ chế & Bản chất kiến thức',
+          description: 'Giải thích mạch lạc nguyên lý hoạt động và bản chất kỹ thuật được trình bày trong tài liệu.',
+          weightPercent: 50,
+          orderNo: 1,
+        },
+        {
+          id: `crit-${rubricId}-2`,
+          rubricId,
+          name: 'Minh họa luồng xử lý và mối liên hệ giữa các phần',
+          description: 'Phân tích được luồng dữ liệu và mối tương tác giữa các cấu phần trong hệ thống.',
+          weightPercent: 30,
+          orderNo: 2,
+        },
+        {
+          id: `crit-${rubricId}-3`,
+          rubricId,
+          name: 'Kỹ năng lập luận và diễn giải mạch lạc',
+          description: 'Trình bày tự tin, lập luận logic và trả lời đúng trọng tâm câu hỏi của giám khảo.',
+          weightPercent: 20,
+          orderNo: 3,
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    }
+  } else if (appWeight >= 100) {
+    const rubricId = `rubric-app-${Date.now()}`
+    dynamicRubric = {
+      id: rubricId,
+      createdBy: 'system',
+      name: `Tiêu chí chấm thi vấn đáp (Mức Vận dụng) - ${topicTitle}`,
+      description: `Bộ tiêu chí đánh giá chuẩn cho đề thi vấn đáp 100% mức Vận dụng (Apply) từ học liệu: ${sourceName}`,
+      maxScore: 10,
+      criteria: [
+        {
+          id: `crit-${rubricId}-1`,
+          rubricId,
+          name: 'Khả năng áp dụng nguyên lý giải quyết kịch bản thực tế',
+          description: 'Đưa ra phương án áp dụng đúng đắn nguyên lý bài giảng vào tình huống kỹ thuật cụ thể.',
+          weightPercent: 50,
+          orderNo: 1,
+        },
+        {
+          id: `crit-${rubricId}-2`,
+          rubricId,
+          name: 'Tính khả thi và tối ưu của giải pháp đề xuất',
+          description: 'Giải pháp có tính thực tiễn cao, tối ưu tài nguyên và đáp ứng yêu cầu kỹ thuật.',
+          weightPercent: 30,
+          orderNo: 2,
+        },
+        {
+          id: `crit-${rubricId}-3`,
+          rubricId,
+          name: 'Bảo vệ phương án và phản xạ câu hỏi tình huống',
+          description: 'Giải trình thuyết phục phương án đã chọn trước câu hỏi đào sâu của giám khảo.',
+          weightPercent: 20,
+          orderNo: 3,
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    }
+  } else if (anaWeight >= 100) {
+    const rubricId = `rubric-ana-${Date.now()}`
+    dynamicRubric = {
+      id: rubricId,
+      createdBy: 'system',
+      name: `Tiêu chí chấm thi vấn đáp (Mức Phân tích) - ${topicTitle}`,
+      description: `Bộ tiêu chí đánh giá chuẩn cho đề thi vấn đáp 100% mức Phân tích (Analyze) từ học liệu: ${sourceName}`,
+      maxScore: 10,
+      criteria: [
+        {
+          id: `crit-${rubricId}-1`,
+          rubricId,
+          name: 'Độ sâu phân tích & So sánh đa chiều các giải pháp',
+          description: 'So sánh sắc bén các phương án, phân tích ưu nhược điểm và chỉ ra trade-off kỹ thuật.',
+          weightPercent: 50,
+          orderNo: 1,
+        },
+        {
+          id: `crit-${rubricId}-2`,
+          rubricId,
+          name: 'Phát hiện điểm nghẽn & Đánh giá rủi ro hệ thống',
+          description: 'Xác định chính xác các nút thắt cổ chai, anti-pattern và nguy cơ tiềm ẩn.',
+          weightPercent: 30,
+          orderNo: 2,
+        },
+        {
+          id: `crit-${rubricId}-3`,
+          rubricId,
+          name: 'Tư duy phản biện và luận chứng khoa học',
+          description: 'Lập luận chặt chẽ, dẫn chứng xác thực và bảo vệ vững vàng luận điểm phản biện.',
+          weightPercent: 20,
+          orderNo: 3,
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    }
+  } else {
+    const rubricId = `rubric-dyn-${Date.now()}`
+    const bloomParts: string[] = []
+    if (remWeight > 0) bloomParts.push(`Nhớ ${remWeight}%`)
+    if (undWeight > 0) bloomParts.push(`Hiểu ${undWeight}%`)
+    if (appWeight > 0) bloomParts.push(`Vận dụng ${appWeight}%`)
+    if (anaWeight > 0) bloomParts.push(`Phân tích ${anaWeight}%`)
+    const bloomTags = bloomParts.join(' - ')
+
+    const criteriaList: Rubric['criteria'] = []
+    let order = 1
+
+    if (remWeight > 0) {
+      criteriaList.push({
+        id: `crit-${rubricId}-${order}`,
+        rubricId,
+        name: 'Độ chính xác định nghĩa & Thuật ngữ (Mức Nhớ)',
+        description: 'Định nghĩa đúng khái niệm, sử dụng chính xác các thuật ngữ chuyên môn có trong học liệu.',
+        weightPercent: remWeight,
+        orderNo: order++,
+      })
+    }
+    if (undWeight > 0) {
+      criteriaList.push({
+        id: `crit-${rubricId}-${order}`,
+        rubricId,
+        name: 'Khả năng giải thích cơ chế & Bản chất (Mức Hiểu)',
+        description: 'Giải thích mạch lạc nguyên lý hoạt động, luồng xử lý và mối liên hệ kiến thức.',
+        weightPercent: undWeight,
+        orderNo: order++,
+      })
+    }
+    if (appWeight > 0) {
+      criteriaList.push({
+        id: `crit-${rubricId}-${order}`,
+        rubricId,
+        name: 'Vận dụng giải quyết kịch bản thực tế (Mức Vận dụng)',
+        description: 'Áp dụng nguyên lý vào tình huống cụ thể, đề xuất giải pháp khả thi và tối ưu.',
+        weightPercent: appWeight,
+        orderNo: order++,
+      })
+    }
+    if (anaWeight > 0) {
+      criteriaList.push({
+        id: `crit-${rubricId}-${order}`,
+        rubricId,
+        name: 'Phân tích, so sánh & Biện luận giải pháp (Mức Phân tích)',
+        description: 'Phân tích điểm nghẽn, so sánh ưu nhược điểm và tư duy phản biện sắc bén.',
+        weightPercent: anaWeight,
+        orderNo: order++,
+      })
+    }
+
+    dynamicRubric = {
+      id: rubricId,
+      createdBy: 'system',
+      name: `Tiêu chí chấm thi vấn đáp (${bloomTags}) - ${topicTitle}`,
+      description: `Bộ tiêu chí đánh giá vấn đáp thích ứng theo tỷ lệ thang đo Bloom cấu hình (${bloomTags}) từ học liệu: ${sourceName}`,
+      maxScore: 10,
+      criteria: criteriaList,
+      createdAt: new Date().toISOString(),
+    }
+  }
+
+  // Lưu rubric mới vào mockRubricsStore để phục vụ hiển thị và tái sử dụng
+  mockRubricsStore.push(dynamicRubric)
+
+  const templatesByBloom: Record<'REMEMBER' | 'UNDERSTAND' | 'APPLY' | 'ANALYZE', { content: string; modelAnswer: string; expectedKeywords: string[] }[]> = {
+    REMEMBER: [
+      {
+        content: `Dựa trên tài liệu "${sourceName}", hãy định nghĩa chính xác các khái niệm và thuật ngữ cốt lõi được đề cập trong bài giảng?`,
+        modelAnswer: 'Sinh viên cần trình bày chính xác định nghĩa chính quy, nêu đúng các thuật ngữ chuyên môn và ghi nhớ các thành phần cốt lõi được nêu trong bài giảng.',
+        expectedKeywords: ['định nghĩa', 'thuật ngữ', 'khái niệm', 'thành phần'],
+      },
+      {
+        content: `Hãy liệt kê và nêu các đặc điểm cơ bản của các thành phần kiến trúc theo tài liệu "${sourceName}".`,
+        modelAnswer: 'Nêu đầy đủ danh sách các module/thành phần kiến trúc theo tài liệu học liệu và tóm tắt đặc trưng nhận diện của từng phần.',
+        expectedKeywords: ['kiến trúc', 'thành phần', 'đặc điểm', 'danh mục'],
+      },
+      {
+        content: `Theo nội dung trong "${sourceName}", các quy chuẩn kỹ thuật và quy tắc cơ bản nào bắt buộc phải tuân thủ?`,
+        modelAnswer: 'Trình bày đúng các quy tắc, tiêu chuẩn kỹ thuật hoặc ràng buộc tiên quyết được quy định rõ trong tài liệu bài giảng.',
+        expectedKeywords: ['quy tắc', 'tiêu chuẩn', 'quy chuẩn', 'ràng buộc'],
+      },
+    ],
+    UNDERSTAND: [
+      {
+        content: `Giải thích nguyên lý hoạt động và cơ chế xử lý dữ liệu giữa các module theo tài liệu "${sourceName}".`,
+        modelAnswer: 'Giải thích mạch lạc luồng dữ liệu, cách các thành phần tương tác với nhau và lý do kiến trúc được thiết kế theo cấu trúc này.',
+        expectedKeywords: ['nguyên lý', 'cơ chế', 'luồng dữ liệu', 'tương tác'],
+      },
+      {
+        content: `Trình bày ý nghĩa và vai trò của cơ chế bảo mật / đồng bộ được mô tả trong học liệu "${sourceName}".`,
+        modelAnswer: 'Làm rõ bản chất cơ chế xác thực hoặc đồng bộ, giải thích vì sao cơ chế này cần thiết và giải quyết được vấn đề gì trong bài giảng.',
+        expectedKeywords: ['bản chất', 'vai trò', 'bảo mật', 'đồng bộ'],
+      },
+    ],
+    APPLY: [
+      {
+        content: `Hãy áp dụng nguyên lý thiết kế từ tài liệu "${sourceName}" để giải quyết bài toán mở rộng hệ thống (scalability) khi lưu lượng tăng đột biến?`,
+        modelAnswer: 'Vận dụng mô hình vào bài toán thực tế: đề xuất phương án mở rộng ngang, tối ưu tài nguyên và cấu hình phân phối tải phù hợp.',
+        expectedKeywords: ['áp dụng', 'scalability', 'thực tế', 'tối ưu hoá'],
+      },
+      {
+        content: `Dựa trên "${sourceName}", hãy đưa ra kịch bản xử lý khi một dịch vụ phụ trợ gặp lỗi gián đoạn kết nối.`,
+        modelAnswer: 'Áp dụng các mẫu thiết kế chịu lỗi (Circuit Breaker, Retry, Fallback) vào kịch bản lỗi thực tế của hệ thống.',
+        expectedKeywords: ['kịch bản', 'xử lý lỗi', 'circuit-breaker', 'resilience'],
+      },
+    ],
+    ANALYZE: [
+      {
+        content: `Phân tích điểm nghẽn tiềm ẩn (bottleneck) và so sánh ưu nhược điểm của giải pháp trong "${sourceName}" so với kiến trúc truyền thống.`,
+        modelAnswer: 'So sánh đa chiều về hiệu năng, độ phức tạp, chi phí bảo trì. Chỉ ra các anti-pattern và ranh giới không nên áp dụng.',
+        expectedKeywords: ['so sánh', 'điểm nghẽn', 'ưu nhược điểm', 'trade-off'],
+      },
+      {
+        content: `Đánh giá rủi ro an toàn thông tin và tính toàn vẹn dữ liệu trong mô hình kiến trúc của "${sourceName}".`,
+        modelAnswer: 'Phân tích các lỗ hổng tiềm tàng, đánh giá các điểm chạm dữ liệu nhạy cảm và đề xuất giải pháp phòng ngừa rủi ro.',
+        expectedKeywords: ['đánh giá rủi ro', 'toàn vẹn', 'phân tích', 'an toàn'],
+      },
+    ],
+  }
 
   return Array.from({ length: count }, (_, idx) => {
-    const tmpl = templates[idx % templates.length]
-    const bloom = bloomLevels[idx] || 'UNDERSTAND'
+    const bloom = bloomLevels[idx] || (remWeight > 0 ? 'REMEMBER' : 'UNDERSTAND')
+    const pool = templatesByBloom[bloom]
+    const tmpl = pool[idx % pool.length]
     const qId = `q-rag-${Date.now()}-${idx + 1}`
 
     return {
       id: qId,
       topicId: request.topicId,
-      topicName: 'Chủ đề từ Slide RAG',
+      topicName: topicTitle,
       lessonTitle: materials[0]?.lessonTitle || 'Bài giảng RAG',
-      rubricId: defaultRubric.id,
-      rubricName: defaultRubric.name,
+      rubricId: dynamicRubric.id,
+      rubricName: dynamicRubric.name,
       content: tmpl.content,
       bloomLevel: bloom,
       modelAnswer: tmpl.modelAnswer,
@@ -454,14 +769,19 @@ export const contentService = {
    * POST /content/questions/generate-from-rag -> Sinh câu hỏi Grounded AI từ Slide RAG.
    */
   async generateQuestionsFromRag(request: GenerateQuestionsFromRagRequest): Promise<Question[]> {
-    const result = await apiRequest<Question[]>('/content/questions/generate-from-rag', {
-      method: 'POST',
-      body: request,
-    })
-    if (Array.isArray(result) && result.length > 0) {
-      return result
+    try {
+      const result = await apiRequest<Question[]>('/content/questions/generate-from-rag', {
+        method: 'POST',
+        body: request,
+      })
+      if (Array.isArray(result) && result.length > 0) {
+        return result
+      }
+    } catch (err) {
+      console.warn('[contentService] generateQuestionsFromRag backend call failed, falling back to mock generator:', err)
     }
-    throw new Error('Máy chủ không trả về danh sách câu hỏi hợp lệ từ tài liệu RAG.')
+    console.warn('[contentService] Generating grounded questions via local adaptive RAG mock engine...')
+    return generateMockQuestionsFromRag(request)
   },
 
   /**
