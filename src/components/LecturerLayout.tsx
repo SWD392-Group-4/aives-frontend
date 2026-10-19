@@ -43,14 +43,14 @@ const LECTURER_GROUPS: NavGroup[] = [
     groupTitle: 'Học Liệu & Đề Thi',
     items: [
       { to: '/lecturer/curriculum', label: 'Chương trình học', icon: 'account_tree' },
-      { to: '/lecturer/materials', label: 'Học liệu & Slide RAG', icon: 'folder_open' },
+      { to: '/lecturer/materials', label: 'Tài liệu môn học', icon: 'folder_open' },
       { to: '/lecturer/questions', label: 'Ngân hàng câu hỏi', icon: 'quiz' },
     ],
   },
   {
     groupTitle: 'Chấm Điểm & Đánh Giá',
     items: [
-      { to: '/lecturer/reviews', label: 'Thẩm định điểm (HITL)', icon: 'rate_review' },
+      { to: '/lecturer/reviews', label: 'Thẩm định điểm thi', icon: 'rate_review' },
       { to: '/lecturer/appeals', label: 'Đơn phúc khảo', icon: 'gavel' },
     ],
   },
@@ -193,17 +193,17 @@ export default function LecturerLayout({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="flex h-2 w-2 rounded-full bg-brand-green ring-4 ring-brand-green/20" />
-                  <span className="text-label-xs font-bold text-on-surface">Voice Phòng Thi OK</span>
+                  <span className="text-label-xs font-bold text-on-surface">Hệ thống sẵn sàng</span>
                 </div>
                 <span className="font-mono text-label-2xs text-outline">v1.0.0</span>
               </div>
               <p className="mt-1 text-label-2xs text-on-surface-variant">
-                Google Cloud AI & RAG Engine
+                Trợ lý AI trực tuyến
               </p>
             </div>
           ) : (
             <div className="flex justify-center py-1">
-              <span className="flex h-3 w-3 rounded-full bg-brand-green ring-4 ring-brand-green/20" title="Voice Engine Sẵn sàng" />
+              <span className="flex h-3 w-3 rounded-full bg-brand-green ring-4 ring-brand-green/20" title="Hệ thống sẵn sàng" />
             </div>
           )}
 

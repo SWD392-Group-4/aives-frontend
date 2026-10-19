@@ -402,10 +402,10 @@ export default function CurriculumManagementPage() {
               <span>Chương trình học</span>
             </div>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">
-              Quản lý Bài học & Chủ đề (Curriculum)
+              Quản lý Chương trình học
             </h1>
             <p className="mt-1 text-sm text-on-surface-variant">
-              Tổ chức tri thức phân cấp: Môn học ➔ Bài học (Lessons) ➔ Chủ đề (Topics) ➔ Ngân hàng câu hỏi & Rubric
+              Cấu trúc môn học: Môn học ➔ Bài học ➔ Chủ đề ➔ Ngân hàng câu hỏi
             </p>
           </div>
 
@@ -418,15 +418,15 @@ export default function CurriculumManagementPage() {
                 className="inline-flex items-center gap-1.5 rounded-full border border-secondary/40 bg-secondary-container px-3.5 py-1.5 text-xs font-bold text-on-secondary-container hover:bg-secondary hover:text-on-secondary transition-colors disabled:opacity-60"
               >
                 <Icon name={seeding ? 'hourglass_top' : 'auto_awesome'} className={seeding ? 'animate-spin text-base' : 'text-base'} />
-                <span>{seeding ? 'Đang khởi tạo...' : 'Nạp mẫu môn học SWD'}</span>
+                <span>{seeding ? 'Đang tải...' : 'Tải dữ liệu mẫu môn học'}</span>
               </button>
             )}
             <Link
               to="/lecturer/materials"
               className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/60 bg-surface-container px-3.5 py-1.5 text-xs font-semibold text-primary hover:bg-surface-container-high transition-colors"
             >
-              <Icon name="slideshow" className="text-amber-600 text-base" />
-              <span>Học liệu & Slide</span>
+              <Icon name="folder_open" className="text-amber-600 text-base" />
+              <span>Tài liệu môn học</span>
             </Link>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/40 bg-surface-container-low px-3.5 py-1.5 text-xs font-semibold text-on-surface">
               <Icon name="library_books" className="text-primary text-base" />
@@ -457,7 +457,7 @@ export default function CurriculumManagementPage() {
             </div>
             <h3 className="text-base font-bold text-on-surface">Chưa có bài học nào trong môn học</h3>
             <p className="mt-1 text-sm text-on-surface-variant max-w-md mx-auto">
-              Hãy tạo bài học đầu tiên hoặc khởi tạo cấu trúc mẫu (Software Architecture) để bắt đầu phân loại slide và câu hỏi vấn đáp.
+              Hãy tạo bài học đầu tiên hoặc khởi tạo cấu trúc mẫu để bắt đầu phân loại tài liệu và câu hỏi vấn đáp.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <button
@@ -466,7 +466,7 @@ export default function CurriculumManagementPage() {
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-semibold text-on-primary shadow-sm hover:bg-primary/90 transition-colors"
               >
                 <Icon name="add" className="text-base" />
-                <span>Thêm bài học thủ công</span>
+                <span>Thêm bài học</span>
               </button>
               <button
                 type="button"
@@ -475,21 +475,21 @@ export default function CurriculumManagementPage() {
                 className="inline-flex items-center gap-2 rounded-xl border border-secondary bg-secondary-container px-5 py-2.5 text-xs font-semibold text-on-secondary-container shadow-sm hover:bg-secondary hover:text-on-secondary transition-colors disabled:opacity-60"
               >
                 <Icon name={seeding ? 'hourglass_top' : 'auto_awesome'} className={seeding ? 'animate-spin text-base' : 'text-base'} />
-                <span>{seeding ? 'Đang tạo môn học mẫu...' : 'Khởi tạo cấu trúc mẫu SWD (4 bài, 10 chủ đề)'}</span>
+                <span>{seeding ? 'Đang tạo môn học mẫu...' : 'Khởi tạo cấu trúc mẫu (4 bài, 10 chủ đề)'}</span>
               </button>
             </div>
           </div>
         ) : (
           /* 2-Column Split Layout */
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            {/* CỘT TRÁI: DANH SÁCH BÀI HỌC (LESSONS) - 5 Cols */}
+            {/* CỘT TRÁI: DANH SÁCH BÀI HỌC - 5 Cols */}
             <div className="lg:col-span-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-fixed text-primary">
                     <Icon name="book" className="text-lg" />
                   </div>
-                  <h2 className="text-base font-bold text-on-surface">Danh sách Bài học (Lessons)</h2>
+                  <h2 className="text-base font-bold text-on-surface">Danh sách Bài học</h2>
                 </div>
                 <button
                   type="button"
@@ -604,7 +604,7 @@ export default function CurriculumManagementPage() {
                     </h2>
                   </div>
                   <p className="mt-0.5 text-xs text-on-surface-variant">
-                    Các chủ đề con được dùng để bốc ngẫu nhiên câu hỏi theo chuẩn ma trận đề viva
+                    Các chủ đề dùng để phân loại và chọn câu hỏi cho các phiên thi vấn đáp
                   </p>
                 </div>
 
@@ -675,7 +675,7 @@ export default function CurriculumManagementPage() {
                             </span>
                             <span className="inline-flex items-center gap-1 rounded-full bg-secondary-container/50 px-2.5 py-0.5 font-bold text-on-secondary-fixed-variant">
                               <Icon name="check_circle" className="text-xs text-secondary" />
-                              {topic.approvedQuestionCount || 0} đã duyệt (APPROVED)
+                              {topic.approvedQuestionCount || 0} đã duyệt
                             </span>
                           </div>
                         </div>

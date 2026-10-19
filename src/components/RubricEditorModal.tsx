@@ -117,7 +117,7 @@ export default function RubricEditorModal({
 
     if (!isValid100) {
       setError(
-        `Ràng buộc BR-BANK-001: Tổng trọng số các tiêu chí phải đạt chính xác 100% (hiện tại: ${totalWeight}%).`
+        `Tổng trọng số các tiêu chí phải đạt chính xác 100% (hiện tại: ${totalWeight}%).`
       )
       return
     }
@@ -129,7 +129,7 @@ export default function RubricEditorModal({
         return
       }
       if (!criteria[i].description.trim()) {
-        setError(`Tiêu chí "${criteria[i].name}" cần có mô tả yêu cầu đạt điểm (BR-BANK-003).`)
+        setError(`Tiêu chí "${criteria[i].name}" cần có mô tả yêu cầu đạt điểm.`)
         return
       }
     }
@@ -185,7 +185,7 @@ export default function RubricEditorModal({
                 Chỉnh sửa Rubric Chấm điểm
               </h2>
               <p className="text-xs text-on-surface-variant">
-                Quy tắc bất biến <strong className="text-primary font-bold">BR-BANK-001</strong>: Tổng trọng số các tiêu chí con phải đạt chính xác 100%.
+                Lưu ý: Tổng trọng số các tiêu chí con phải đạt chính xác 100%.
               </p>
             </div>
           </div>
@@ -247,7 +247,7 @@ export default function RubricEditorModal({
           <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold uppercase tracking-wider text-on-surface">
-                Tiêu chuẩn kiểm soát trọng số (BR-BANK-001)
+                Kiểm tra tổng trọng số tiêu chí
               </span>
               <div className="flex items-center gap-2">
                 <span
@@ -358,7 +358,7 @@ export default function RubricEditorModal({
                       rows={2}
                       value={crit.description}
                       onChange={(e) => handleUpdateCriterion(idx, 'description', e.target.value)}
-                      placeholder="Mô tả chuẩn đạt điểm: Nêu rõ điều kiện để AI chấm điểm minh bạch (BR-BANK-003)..."
+                      placeholder="Mô tả yêu cầu đạt điểm: Nêu rõ điều kiện để chấm điểm minh bạch..."
                       className="w-full rounded-lg border border-outline-variant/60 bg-surface-container-low p-2 text-xs text-on-surface placeholder:text-outline focus:border-primary focus:ring-1 focus:ring-primary/20"
                     />
                   </div>
@@ -372,9 +372,9 @@ export default function RubricEditorModal({
         <div className="mt-6 flex items-center justify-between gap-3 border-t border-outline-variant/30 pt-4">
           <div className="text-xs text-outline">
             {isValid100 ? (
-              <span className="text-secondary font-medium">✓ Đạt chuẩn duyệt BR-BANK-001</span>
+              <span className="text-secondary font-medium">✓ Tổng trọng số đạt 100% hợp lệ</span>
             ) : (
-              <span className="text-error font-medium">⚠ Cần đúng 100% để có thể duyệt</span>
+              <span className="text-error font-medium">⚠ Cần đạt đúng 100% để có thể áp dụng</span>
             )}
           </div>
 

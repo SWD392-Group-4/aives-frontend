@@ -243,7 +243,7 @@ export default function LecturerDashboardPage() {
                 </span>
               </div>
               <p className="mt-1 text-sm text-on-surface-variant">
-                Bảng điều khiển khảo thí & quản lý phiên thi vấn đáp AI theo tiêu chuẩn HITL (Human-in-the-Loop)
+                Bảng điều khiển khảo thí & quản lý phiên thi vấn đáp thông minh
               </p>
             </div>
           </div>
@@ -278,13 +278,13 @@ export default function LecturerDashboardPage() {
             </div>
           </Link>
 
-          {/* Card 2: Chờ duyệt HITL */}
+          {/* Card 2: Chờ duyệt */}
           <Link
             to="/lecturer/reviews"
             className="group relative overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-sm transition-all hover:border-tertiary hover:shadow-md"
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-on-surface-variant">Bài chờ duyệt HITL</span>
+              <span className="text-sm font-medium text-on-surface-variant">Bài chờ thẩm định điểm</span>
               <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-tertiary-fixed text-tertiary">
                 <Icon name="gavel" className="text-2xl" />
                 {pendingReviewsCount > 0 && (
@@ -384,8 +384,8 @@ export default function LecturerDashboardPage() {
                 to="/lecturer/materials"
                 className="inline-flex items-center gap-2 rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-4 py-2.5 text-xs font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
               >
-                <Icon name="slideshow" className="text-base text-amber-600" />
-                Học liệu & Slide RAG
+                <Icon name="folder_open" className="text-base text-amber-600" />
+                Tài liệu môn học
               </Link>
               <Link
                 to="/lecturer/reviews"
@@ -497,14 +497,14 @@ export default function LecturerDashboardPage() {
 
             {/* Viva Grading Progress Card */}
             <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-sm">
-              <h3 className="text-base font-bold text-on-surface">Tiến độ thẩm định điểm Viva (HITL)</h3>
+              <h3 className="text-base font-bold text-on-surface">Tiến độ thẩm định điểm thi vấn đáp</h3>
               <p className="text-xs text-on-surface-variant">
-                Quy trình đối chiếu AI gợi ý và thẩm định của giảng viên theo chuẩn BR-GRADE-002
+                Quy trình đối chiếu điểm AI gợi ý và phê duyệt của giảng viên
               </p>
               <div className="mt-4">
                 <div className="flex items-center justify-between text-xs font-semibold">
                   <span className="text-secondary">Đã công bố kết quả (82%)</span>
-                  <span className="text-tertiary">Chờ duyệt HITL (18%)</span>
+                  <span className="text-tertiary">Chờ phê duyệt (18%)</span>
                 </div>
                 <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-surface-container">
                   <div

@@ -73,7 +73,7 @@ export default function QuestionBankPage() {
       if (!activeRubricId) {
         setBanner({
           type: 'error',
-          message: 'CẤM PHÊ DUYỆT (BR-BANK-001): Câu hỏi chưa được liên kết với Rubric nào (rubric_id IS NULL). Vui lòng chọn hoặc gán Rubric trước khi duyệt.',
+          message: 'Không thể phê duyệt: Câu hỏi chưa được gắn thang điểm (Rubric). Vui lòng chọn hoặc gán Rubric trước khi duyệt.',
         })
         return
       }
@@ -87,7 +87,7 @@ export default function QuestionBankPage() {
         if (Math.round(totalWeight) !== 100) {
           setBanner({
             type: 'error',
-            message: `CẤM PHÊ DUYỆT (BR-BANK-001): Rubric "${rubric.name}" chưa hoàn chỉnh (tổng trọng số các tiêu chí = ${totalWeight}% ≠ 100%). Vui lòng bấm "Sửa Rubric" để điều chỉnh đạt đúng 100% trước khi duyệt.`,
+            message: `Không thể phê duyệt: Thang điểm "${rubric.name}" chưa hoàn chỉnh (tổng trọng số các tiêu chí = ${totalWeight}% ≠ 100%). Vui lòng bấm "Sửa Rubric" để điều chỉnh đạt đúng 100% trước khi duyệt.`,
           })
           return
         }
@@ -101,7 +101,7 @@ export default function QuestionBankPage() {
         type: 'success',
         message:
           status === 'APPROVED'
-            ? 'Đã phê duyệt câu hỏi thành công (Đạt chuẩn 100% Rubric BR-BANK-001)!'
+            ? 'Đã phê duyệt câu hỏi thành công!'
             : 'Đã cập nhật trạng thái câu hỏi.',
       })
     } catch (err: any) {
@@ -109,7 +109,7 @@ export default function QuestionBankPage() {
         setQuestions((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)))
         setBanner({
           type: 'success',
-          message: 'Đã duyệt câu hỏi nháp. (Mẹo: Bạn có thể bấm "Sinh câu hỏi AI (RAG)" để AI tự động lưu câu hỏi và rubric 100% chuẩn vào cơ sở dữ liệu).',
+          message: 'Đã duyệt câu hỏi nháp. (Gợi ý: Bạn có thể bấm "Tạo câu hỏi bằng AI" để tự động lưu câu hỏi và thang điểm chuẩn vào hệ thống).',
         })
         return
       }
@@ -161,12 +161,12 @@ export default function QuestionBankPage() {
       if (invalidQuestions.length > 0) {
         setBanner({
           type: 'error',
-          message: `Đã duyệt ${approved} câu hợp lệ. Có ${invalidQuestions.length} câu bị chặn duyệt theo BR-BANK-001 do Rubric chưa đạt đúng 100% trọng số.`,
+          message: `Đã duyệt ${approved} câu hỏi hợp lệ. Còn ${invalidQuestions.length} câu chưa duyệt do thang điểm chưa đủ 100% trọng số.`,
         })
       } else {
         setBanner({
           type: 'success',
-          message: `Đã duyệt thành công toàn bộ ${approved} câu hỏi nháp đạt chuẩn BR-BANK-001.`,
+          message: `Đã duyệt thành công toàn bộ ${approved} câu hỏi nháp.`,
         })
       }
     } catch (err: any) {
@@ -179,7 +179,7 @@ export default function QuestionBankPage() {
     }
   }
 
-  // Khi sinh câu hỏi từ RAG hoàn tất
+  // Khi sinh câu hỏi từ tài liệu hoàn tất
   const handleQuestionsGenerated = (newQuestions: Question[]) => {
     setQuestions((prev) => [...newQuestions, ...prev])
     setSelectedStatus('DRAFT')
@@ -188,7 +188,7 @@ export default function QuestionBankPage() {
     }
     setBanner({
       type: 'success',
-      message: `Đã sinh thành công ${newQuestions.length} câu hỏi Grounded AI từ Slide RAG! Toàn bộ câu hỏi đã mang trạng thái DRAFT và được thiết lập Model Rubric 100% trọng số.`,
+      message: `Đã tạo thành công ${newQuestions.length} câu hỏi từ tài liệu. Các câu hỏi đang ở trạng thái Dự thảo và đã được thiết lập thang điểm chuẩn.`,
     })
     // Tải lại danh sách rubric để đồng bộ rubric vừa tạo
     contentService.getRubrics().then(setRubrics).catch(() => {})
@@ -201,7 +201,7 @@ export default function QuestionBankPage() {
     )
     setBanner({
       type: 'success',
-      message: `Đã cập nhật tiêu chí và trọng số Rubric "${updatedRubric.name}" đạt chuẩn 100% (BR-BANK-001)!`,
+      message: `Đã cập nhật tiêu chí và trọng số thang điểm "${updatedRubric.name}" thành công!`,
     })
   }
 
@@ -240,8 +240,8 @@ export default function QuestionBankPage() {
               to="/lecturer/materials"
               className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/60 bg-surface-container px-4 py-2 text-label-md font-semibold text-primary hover:bg-surface-container-high transition-colors"
             >
-              <Icon name="slideshow" />
-              <span>Quản lý Slide RAG</span>
+              <Icon name="folder_open" />
+              <span>Tài liệu môn học</span>
             </Link>
 
             <button
@@ -250,7 +250,7 @@ export default function QuestionBankPage() {
               className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-primary-container px-5 py-2.5 text-label-md font-bold text-on-primary shadow-md hover:shadow-lg transition-all"
             >
               <Icon name="auto_awesome" />
-              <span>Sinh câu hỏi AI (RAG)</span>
+              <span>Tạo câu hỏi bằng AI</span>
             </button>
 
             <button
@@ -259,7 +259,7 @@ export default function QuestionBankPage() {
               className="inline-flex items-center gap-2 rounded-full border border-outline-variant/60 bg-surface-container-low px-5 py-2.5 text-label-md font-semibold text-on-surface hover:bg-surface-container-high transition-colors"
             >
               <Icon name="upload_file" />
-              <span>Gửi file câu hỏi</span>
+              <span>Nhập câu hỏi từ file</span>
             </button>
           </div>
         </div>
@@ -444,7 +444,7 @@ export default function QuestionBankPage() {
                   {q.modelAnswer && (
                     <div className="rounded-2xl bg-surface-container p-3.5">
                       <span className="text-label-xs font-semibold uppercase text-outline block mb-1">
-                        Ý chính cần đạt (Model Answer):
+                        Ý chính cần đạt (Đáp án tham chiếu):
                       </span>
                       <p className="text-on-surface">{q.modelAnswer}</p>
                     </div>
@@ -463,7 +463,7 @@ export default function QuestionBankPage() {
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-1.5">
                             <span className="text-label-xs font-semibold uppercase text-outline">
-                              Rubric chấm điểm gắn kèm (BR-BANK-001):
+                              Thang điểm chấm (Rubric):
                             </span>
                             {assignedRubric && (
                               <button

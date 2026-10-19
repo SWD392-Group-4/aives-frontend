@@ -842,7 +842,7 @@ function ExamSessionsPage() {
                               <Link
                                 to={`/lecturer/reviews?examId=${encodeURIComponent(item.id)}`}
                                 aria-label={`Thẩm định bài thi ca ${item.title}`}
-                                title="Thẩm định điểm (HITL Board)"
+                                title="Thẩm định điểm thi"
                                 className={`${iconButtonClass} text-secondary hover:bg-secondary-container`}
                               >
                                 <Icon name="fact_check" className="text-xl" />

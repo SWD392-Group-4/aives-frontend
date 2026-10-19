@@ -86,7 +86,7 @@ export default function LecturerReviewPage() {
     if (diff > 2.0 && (!edit.lecturerNote || edit.lecturerNote.trim().length < 5)) {
       setBanner({
         type: 'error',
-        message: 'BR-GRADE-002: Điểm sửa chênh lệch > 2.0 điểm so với gợi ý của AI. Bắt buộc nhập ghi chú giải trình!',
+        message: 'Điểm sửa chênh lệch > 2.0 điểm so với gợi ý của AI. Vui lòng nhập ghi chú giải trình lý do!',
       })
       return
     }
@@ -148,14 +148,14 @@ export default function LecturerReviewPage() {
   }
 
   return (
-    <LecturerLayout breadcrumbs={[{ label: 'Thẩm định điểm (HITL)' }]}>
+    <LecturerLayout breadcrumbs={[{ label: 'Thẩm định điểm thi' }]}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-outline-variant/40 pb-6">
           <div>
-            <h1 className="text-headline-md font-bold text-on-surface">Bảng Thẩm định Điểm Giảng viên (HITL Board)</h1>
+            <h1 className="text-headline-md font-bold text-on-surface">Thẩm định & Phê duyệt Điểm thi</h1>
             <p className="mt-1 text-body-md text-on-surface-variant">
-              Rà soát đối chứng transcript âm thanh, kiểm tra gợi ý của AI và chốt điểm chính thức (Workflow 3).
+              Rà soát đối chứng nội dung trả lời, kiểm tra gợi ý của AI và phê duyệt điểm chính thức.
             </p>
           </div>
 
@@ -393,7 +393,7 @@ export default function LecturerReviewPage() {
                   <div className="rounded-2xl bg-surface-container p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-label-sm font-bold text-primary uppercase flex items-center gap-1.5">
-                        <Icon name="smart_toy" /> AI Scoring & Bằng chứng (BR-GRADE-001):
+                        <Icon name="smart_toy" /> Đánh giá & Bằng chứng từ AI:
                       </span>
                       <span className="text-label-md font-bold text-primary">Điểm AI gợi ý: {qg.aiScore ?? '-'} / 10</span>
                     </div>
@@ -436,10 +436,10 @@ export default function LecturerReviewPage() {
                     </div>
                   </div>
 
-                  {/* Form thẩm định & Ghi đè điểm của Giảng viên (HITL - BR-GRADE-002) */}
+                  {/* Form thẩm định & Ghi đè điểm của Giảng viên */}
                   <div className="rounded-2xl border-2 border-primary/30 bg-surface-container-lowest p-5 space-y-4">
                     <h5 className="text-label-md font-bold text-on-surface flex items-center gap-2">
-                      <Icon name="edit" className="text-primary" /> Quyết định của Giảng viên (Human-in-the-Loop):
+                      <Icon name="edit" className="text-primary" /> Quyết định của Giảng viên:
                     </h5>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
@@ -467,7 +467,7 @@ export default function LecturerReviewPage() {
                         <label className="block text-label-xs font-semibold text-outline uppercase mb-1">
                           {isDiffBig ? (
                             <span className="text-error font-bold flex items-center gap-1">
-                              <Icon name="warning" className="text-xs" /> Bắt buộc ghi chú lý do (Lệch &gt; 2.0 điểm theo BR-GRADE-002):
+                              <Icon name="warning" className="text-xs" /> Bắt buộc ghi chú lý do khi điểm chênh lệch &gt; 2.0 điểm so với AI:
                             </span>
                           ) : (
                             'Ghi chú của Giảng viên (Tùy chọn):'

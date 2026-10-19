@@ -216,11 +216,10 @@ export default function UploadMaterialModal({
   }
 
   return (
-    <Modal title="Tải lên Slide & Nạp RAG Corpus" onClose={handleClose}>
+    <Modal title="Tải lên Tài liệu môn học" onClose={handleClose}>
       <div className="space-y-5">
         <p className="text-body-sm text-on-surface-variant">
-          Slide bài giảng và học liệu tải lên sẽ được lưu trữ an toàn trên Google Cloud Storage và tự động băm vector vào{' '}
-          <strong className="text-on-surface">Vertex AI RAG Corpus</strong> để phục vụ AI sinh câu hỏi phỏng vấn chuẩn xác.
+          Slide bài giảng và tài liệu môn học tải lên sẽ được hệ thống phân tích nội dung để phục vụ tạo câu hỏi và hỗ trợ đánh giá vấn đáp.
         </p>
 
         {error && (
@@ -230,12 +229,12 @@ export default function UploadMaterialModal({
           </div>
         )}
 
-        {/* STEPPER TIẾN TRÌNH RAG KHI SUBMITTING */}
+        {/* STEPPER TIẾN TRÌNH XỬ LÝ */}
         {submitting && (
           <div className="rounded-2xl border border-outline-variant/50 bg-surface-container-low p-4.5 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-primary">
-                Quy trình nạp tri thức Vertex AI
+                Tiến trình xử lý tài liệu
               </span>
               <span className="text-xs font-semibold text-on-surface-variant">
                 {step === 1 ? 'Bước 1 / 3' : step === 2 ? 'Bước 2 / 3' : 'Hoàn tất'}
@@ -265,10 +264,10 @@ export default function UploadMaterialModal({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-bold">
-                    Bước 1: Tải file lên Cloud Storage (GCS)
+                    Bước 1: Tải tệp lên hệ thống
                   </div>
-                  <div className="mt-0.5 truncate text-body-xs font-mono text-on-surface-variant">
-                    gs://exam-slides-bucket-2026/{file?.name}
+                  <div className="mt-0.5 truncate text-body-xs text-on-surface-variant">
+                    {file?.name}
                   </div>
                 </div>
               </div>
@@ -294,10 +293,10 @@ export default function UploadMaterialModal({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-bold">
-                    Bước 2: Kích hoạt Vertex AI RAG Corpus băm vector
+                    Bước 2: Phân tích và xử lý nội dung tài liệu
                   </div>
                   <div className="mt-0.5 text-body-xs text-on-surface-variant">
-                    Corpus: <span className="font-mono font-semibold">6917529027641081856</span> (chunkSize: 1024, chunkOverlap: 256)...
+                    Đang trích xuất nội dung và kiến thức bài giảng...
                   </div>
                 </div>
               </div>
@@ -319,10 +318,10 @@ export default function UploadMaterialModal({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-bold">
-                    Bước 3: Hoàn tất nạp tri thức!
+                    Bước 3: Hoàn tất xử lý tài liệu!
                   </div>
                   <div className="mt-0.5 text-body-xs text-on-surface-variant">
-                    Slide đã sẵn sàng cung cấp ngữ cảnh cho AI sinh câu hỏi phỏng vấn viva.
+                    Tài liệu đã sẵn sàng sử dụng cho việc tạo câu hỏi và hỗ trợ thi vấn đáp.
                   </div>
                 </div>
               </div>
@@ -487,7 +486,7 @@ export default function UploadMaterialModal({
                 name={submitting ? 'progress_activity' : 'auto_awesome'}
                 className={`text-lg ${submitting ? 'animate-spin' : ''}`}
               />
-              <span>{submitting ? 'Đang nạp RAG...' : 'Tải lên & Nạp vào RAG Corpus'}</span>
+              <span>{submitting ? 'Đang xử lý...' : 'Tải lên & Xử lý tài liệu'}</span>
             </button>
           </div>
         </form>

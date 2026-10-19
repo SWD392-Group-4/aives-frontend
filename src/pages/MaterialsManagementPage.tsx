@@ -127,13 +127,13 @@ export default function MaterialsManagementPage() {
       setMaterials((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
       setBanner({
         type: 'success',
-        message: `Đã kích hoạt nạp và băm lại vector Vertex AI cho tài liệu "${material.title}".`,
+        message: `Đang phân tích lại nội dung tài liệu "${material.title}".`,
       })
     } catch (err: any) {
       console.error('Re-index error:', err)
       setBanner({
         type: 'error',
-        message: err?.message || `Lỗi khi nạp lại RAG cho "${material.title}".`,
+        message: err?.message || `Lỗi khi xử lý lại tài liệu "${material.title}".`,
       })
     } finally {
       setReindexingId(null)
@@ -148,7 +148,7 @@ export default function MaterialsManagementPage() {
       setMaterials((prev) => prev.filter((m) => m.id !== deletingMaterial.id))
       setBanner({
         type: 'success',
-        message: `Đã xóa tài liệu "${deletingMaterial.title}" khỏi kho học liệu và RAG Corpus.`,
+        message: `Đã xóa tài liệu "${deletingMaterial.title}".`,
       })
     } catch (err: any) {
       console.error('Delete material error:', err)
@@ -170,13 +170,13 @@ export default function MaterialsManagementPage() {
       setMaterials(synced)
       setBanner({
         type: 'success',
-        message: `Đã đồng bộ thành công ${synced.length} tài liệu từ Vertex AI RAG Corpus về hệ thống!`,
+        message: `Đã đồng bộ thành công ${synced.length} tài liệu về hệ thống!`,
       })
     } catch (err: any) {
       console.error('Sync error:', err)
       setBanner({
         type: 'error',
-        message: err?.message || 'Lỗi khi đồng bộ tài liệu từ Vertex AI RAG Corpus.',
+        message: err?.message || 'Lỗi khi đồng bộ tài liệu từ hệ thống.',
       })
     } finally {
       setSyncing(false)
@@ -196,7 +196,7 @@ export default function MaterialsManagementPage() {
   )
 
   return (
-    <LecturerLayout breadcrumbs={[{ label: 'Học liệu & Slide RAG' }]}>
+    <LecturerLayout breadcrumbs={[{ label: 'Tài liệu môn học' }]}>
       <div className="space-y-6">
         {/* Banner Feedback */}
         {banner && (
@@ -241,21 +241,19 @@ export default function MaterialsManagementPage() {
                 Bảng điều khiển
               </Link>
               <span>/</span>
-              <span>Học liệu & Slide RAG</span>
+              <span>Tài liệu môn học</span>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-bold tracking-tight text-on-surface sm:text-3xl">
-                Quản lý Học liệu & Slide RAG
+                Quản lý Tài liệu & Học liệu môn học
               </h1>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-fixed px-3 py-0.5 text-xs font-bold text-primary">
-                <Icon name="psychology" className="text-sm" />
-                Vertex AI RAG Corpus
+                <Icon name="folder" className="text-sm" />
+                Tài liệu giảng dạy
               </span>
             </div>
             <p className="mt-1 text-sm text-on-surface-variant max-w-3xl">
-              Kho lưu trữ slide bài giảng (.pptx) và tài liệu (.pdf) được đồng bộ hóa với{' '}
-              <strong className="text-on-surface">Google Cloud Storage</strong> và nạp tự động vào{' '}
-              <strong className="text-on-surface">Vertex AI RAG Corpus</strong> để cung cấp tri thức nền cho trợ lý AI vấn đáp.
+              Kho lưu trữ slide bài giảng (.pptx) và tài liệu (.pdf) phục vụ cho việc tạo câu hỏi và tổ chức thi vấn đáp thông minh.
             </p>
           </div>
 
@@ -265,10 +263,10 @@ export default function MaterialsManagementPage() {
               disabled={syncing}
               onClick={handleSyncCloud}
               className="inline-flex items-center gap-2 rounded-full border border-outline-variant/60 bg-surface-container-low px-4 py-2.5 text-label-md font-semibold text-on-surface transition-all hover:bg-surface-container disabled:opacity-50"
-              title="Đồng bộ danh sách file từ Vertex AI RAG Corpus trên Google Cloud về hệ thống"
+              title="Đồng bộ danh sách tài liệu mới nhất về hệ thống"
             >
               <Icon name="sync" className={`text-xl text-primary ${syncing ? 'animate-spin' : ''}`} />
-              <span>{syncing ? 'Đang đồng bộ...' : 'Đồng bộ Cloud RAG'}</span>
+              <span>{syncing ? 'Đang đồng bộ...' : 'Đồng bộ dữ liệu'}</span>
             </button>
 
             <button
@@ -329,10 +327,10 @@ export default function MaterialsManagementPage() {
             <p className="mt-2 text-xs text-outline">Giáo trình & hướng dẫn thực hành</p>
           </div>
 
-          {/* Card 4: RAG Sẵn sàng */}
+          {/* Card 4: Sẵn sàng sử dụng */}
           <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-on-surface-variant">RAG Sẵn sàng</span>
+              <span className="text-sm font-medium text-on-surface-variant">Tài liệu sẵn sàng</span>
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary-fixed/50 text-secondary">
                 <Icon name="verified" className="text-2xl" />
               </div>
@@ -341,7 +339,7 @@ export default function MaterialsManagementPage() {
               <span className="text-3xl font-extrabold text-secondary">{stats.ready}</span>
               <span className="text-xs text-on-surface-variant">/{stats.total} tài liệu</span>
             </div>
-            <p className="mt-2 text-xs text-secondary font-medium">100% băm vector khả dụng cho AI</p>
+            <p className="mt-2 text-xs text-secondary font-medium">Đã xử lý nội dung sẵn sàng sử dụng</p>
           </div>
         </div>
 
@@ -363,7 +361,7 @@ export default function MaterialsManagementPage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm theo tên slide, tên file, URI..."
+                  placeholder="Tìm theo tên bài giảng, tài liệu..."
                   className="w-full rounded-xl border border-outline-variant/60 bg-surface-container-lowest pl-9 pr-4 py-2 text-sm text-on-surface placeholder:text-outline focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
                 />
                 {searchQuery && (
@@ -418,10 +416,10 @@ export default function MaterialsManagementPage() {
               </select>
             </div>
 
-            {/* Filter RAG Status */}
+            {/* Filter Status */}
             <div className="lg:col-span-2">
               <label htmlFor="filter-rag" className="block text-xs font-semibold text-on-surface-variant mb-1">
-                Trạng thái RAG
+                Trạng thái
               </label>
               <select
                 id="filter-rag"
@@ -430,10 +428,10 @@ export default function MaterialsManagementPage() {
                 className="w-full rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
               >
                 <option value="ALL">Tất cả trạng thái</option>
-                <option value="READY">Sẵn sàng (READY)</option>
-                <option value="INDEXING">Đang băm vector (INDEXING)</option>
-                <option value="UPLOADING">Đang tải lên (UPLOADING)</option>
-                <option value="FAILED">Lỗi nạp (FAILED)</option>
+                <option value="READY">Sẵn sàng</option>
+                <option value="INDEXING">Đang xử lý nội dung</option>
+                <option value="UPLOADING">Đang tải lên</option>
+                <option value="FAILED">Lỗi xử lý</option>
               </select>
             </div>
           </div>
@@ -460,7 +458,7 @@ export default function MaterialsManagementPage() {
         {loading ? (
           <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-12 text-center text-sm text-on-surface-variant">
             <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-            Đang tải dữ liệu học liệu & slide RAG...
+            Đang tải dữ liệu học liệu & tài liệu...
           </div>
         ) : filteredMaterials.length === 0 ? (
           <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-12 text-center">
@@ -471,7 +469,7 @@ export default function MaterialsManagementPage() {
             <p className="mt-1 text-sm text-on-surface-variant max-w-md mx-auto">
               {hasActiveFilters
                 ? 'Không có học liệu nào khớp với điều kiện tìm kiếm và bộ lọc hiện tại. Hãy thử thay đổi bộ lọc hoặc từ khóa.'
-                : 'Chưa có slide bài giảng hoặc tài liệu nào được tải lên. Hãy nạp tài liệu đầu tiên để AI có ngữ cảnh sinh câu hỏi viva!'}
+                : 'Chưa có slide bài giảng hoặc tài liệu nào được tải lên. Hãy tải tài liệu đầu tiên để tạo câu hỏi và hỗ trợ thi vấn đáp!'}
             </p>
             <div className="mt-5">
               {hasActiveFilters ? (
@@ -490,7 +488,7 @@ export default function MaterialsManagementPage() {
                   className="inline-flex items-center gap-2 rounded-full bg-primary-container px-5 py-2.5 text-label-md font-semibold text-on-primary shadow-md hover:bg-primary transition-colors"
                 >
                   <Icon name="cloud_upload" className="text-lg" />
-                  Tải lên slide đầu tiên
+                  Tải lên tài liệu đầu tiên
                 </button>
               )}
             </div>
@@ -508,10 +506,10 @@ export default function MaterialsManagementPage() {
                       Bài học & Chủ đề
                     </th>
                     <th scope="col" className="px-6 py-4">
-                      Lưu trữ GCS & RAG Corpus
+                      Thông tin tệp
                     </th>
                     <th scope="col" className="px-6 py-4 text-center">
-                      Trạng thái RAG
+                      Trạng thái
                     </th>
                     <th scope="col" className="px-6 py-4 text-right">
                       Thao tác
@@ -586,58 +584,46 @@ export default function MaterialsManagementPage() {
                           </div>
                         </td>
 
-                        {/* 3. Lưu trữ GCS & RAG Corpus */}
+                        {/* 3. Thông tin tệp */}
                         <td className="px-6 py-4">
-                          <div className="space-y-1.5">
-                            {/* GCS URI */}
-                            <div className="flex items-center gap-1.5">
-                              <span className="truncate max-w-[220px] rounded bg-surface-container px-1.5 py-0.5 font-mono text-[11px] text-on-surface-variant">
-                                {material.gcsUri}
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-xs text-on-surface">
+                                {material.fileName}
                               </span>
-                              <CopyButton
-                                value={material.gcsUri}
-                                label="Sao chép đường dẫn GCS"
-                                copiedLabel="Đã sao chép GCS URI"
-                              />
                             </div>
-
-                            {/* RAG Corpus ID */}
                             <div className="flex items-center gap-2 text-xs text-on-surface-variant">
-                              <span className="font-medium text-primary">
-                                Corpus: <span className="font-mono">{material.ragCorpusId || '6917529027641081856'}</span>
+                              <span className="font-medium uppercase rounded bg-surface-container px-1.5 py-0.5 text-[10px]">
+                                {material.fileType}
                               </span>
-                              {material.chunkCount !== undefined && material.chunkCount > 0 && (
-                                <span className="inline-flex items-center gap-0.5 rounded-full bg-secondary-fixed/50 px-2 py-0.2 text-[10px] font-bold text-secondary">
-                                  <Icon name="segment" className="text-xs" />
-                                  {material.chunkCount} chunks
-                                </span>
-                              )}
+                              <span>&bull;</span>
+                              <span>{formatFileSize(material.fileSize)}</span>
                             </div>
                           </div>
                         </td>
 
-                        {/* 4. Trạng thái RAG */}
+                        {/* 4. Trạng thái */}
                         <td className="px-6 py-4 text-center">
                           {material.ragStatus === 'READY' ? (
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary-fixed/60 px-3 py-1 text-xs font-bold text-secondary">
                               <Icon name="check_circle" className="text-sm" />
-                              Sẵn sàng phục vụ AI
+                              Sẵn sàng
                             </span>
                           ) : material.ragStatus === 'INDEXING' ? (
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-fixed px-3 py-1 text-xs font-bold text-primary">
                               <Icon name="progress_activity" className="text-sm animate-spin" />
-                              Đang băm vector...
+                              Đang xử lý nội dung...
                             </span>
                           ) : material.ragStatus === 'UPLOADING' ? (
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-600">
                               <Icon name="cloud_upload" className="text-sm animate-pulse" />
-                              Đang tải lên GCS...
+                              Đang tải lên...
                             </span>
                           ) : (
                             <div className="inline-flex flex-col items-center">
                               <span className="inline-flex items-center gap-1 rounded-full bg-error-container px-3 py-1 text-xs font-bold text-on-error-container">
                                 <Icon name="error" className="text-sm text-error" />
-                                Lỗi nạp RAG
+                                Lỗi xử lý
                               </span>
                               {material.errorMessage && (
                                 <span className="mt-1 text-[11px] text-error line-clamp-1 max-w-[140px]" title={material.errorMessage}>
@@ -656,7 +642,7 @@ export default function MaterialsManagementPage() {
                               type="button"
                               onClick={() => handleReindex(material)}
                               disabled={isReindexing || material.ragStatus === 'INDEXING'}
-                              title="Nạp lại và băm vector Vertex AI"
+                              title="Xử lý lại nội dung tài liệu"
                               className="inline-flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary disabled:opacity-50"
                             >
                               <Icon
@@ -669,7 +655,7 @@ export default function MaterialsManagementPage() {
                             <button
                               type="button"
                               onClick={() => setDeletingMaterial(material)}
-                              title="Xóa tài liệu khỏi RAG Corpus"
+                              title="Xóa tài liệu"
                               className="inline-flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-error-container hover:text-error"
                             >
                               <Icon name="delete" className="text-lg" />
@@ -690,7 +676,7 @@ export default function MaterialsManagementPage() {
               </span>
               <div className="flex items-center gap-2">
                 <span className="flex h-2 w-2 rounded-full bg-secondary"></span>
-                <span>Vertex AI RAG Corpus ID: 6917529027641081856</span>
+                <span>Hệ thống lưu trữ học liệu sẵn sàng</span>
               </div>
             </div>
           </div>
@@ -707,7 +693,7 @@ export default function MaterialsManagementPage() {
             setMaterials((prev) => [newMaterial, ...prev])
             setBanner({
               type: 'success',
-              message: `Đã nạp thành công slide "${newMaterial.title}" vào Vertex AI RAG Corpus!`,
+              message: `Đã tải lên và xử lý thành công tài liệu "${newMaterial.title}"!`,
             })
           }}
         />
@@ -716,8 +702,8 @@ export default function MaterialsManagementPage() {
       {/* Confirm Delete Modal */}
       {deletingMaterial && (
         <ConfirmModal
-          title="Xóa học liệu khỏi RAG Corpus"
-          message={`Bạn có chắc chắn muốn xóa "${deletingMaterial.title}" (${deletingMaterial.fileName})? Hành động này sẽ gỡ bỏ tài liệu khỏi Google Cloud Storage và hủy các vector đã băm trong Vertex AI RAG Corpus.`}
+          title="Xóa tài liệu môn học"
+          message={`Bạn có chắc chắn muốn xóa "${deletingMaterial.title}" (${deletingMaterial.fileName})? Tài liệu này sẽ không còn được sử dụng để tạo câu hỏi thi.`}
           confirmLabel="Xóa tài liệu"
           pendingLabel="Đang xóa..."
           cancelLabel="Hủy bỏ"

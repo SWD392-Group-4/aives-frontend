@@ -434,7 +434,7 @@ export default function LiveExamMonitorPage() {
                   LIVE MONITOR
                 </span>
                 <span className="rounded-full bg-primary-fixed px-2.5 py-0.5 text-xs font-semibold text-primary">
-                  Phòng thi di động (BR-AUTH-004)
+                  Phòng thi trực tuyến
                 </span>
               </div>
 
