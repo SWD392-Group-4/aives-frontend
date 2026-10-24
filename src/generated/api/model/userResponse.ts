@@ -14,5 +14,9 @@ export interface UserResponse {
   /** @nullable */
   studentCode?: string | null;
   firstLogin?: boolean;
+  /** @nullable */
+  mustChangePassword?: boolean | null;
   active?: boolean;
+  /** @nullable */
+  createdAt?: string | null;
 }

@@ -26,10 +26,13 @@ import type {
 
 import type {
   BaseApiResponse,
+  ErrorResponse,
   LoginApiResponse,
   LoginRequest,
+  RefreshTokenRequest,
   RegisterRequest,
   SendOtpRequest,
+  TokenRefreshApiResponse,
   UserApiResponse
 } from '../../model';
 
@@ -138,6 +141,194 @@ export function useLogin<TData = Awaited<ReturnType<typeof login>>, TError = unk
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getLoginQueryOptions(loginRequest,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * @summary Đăng nhập v1, trả về accessToken và refreshToken
+ */
+export const loginV1 = (
+    loginRequest: LoginRequest,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<LoginApiResponse>(
+      {url: `/api/v1/auth/login`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: loginRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getLoginV1QueryKey = (loginRequest?: LoginRequest,) => {
+    return [
+    'POST', `/api/v1/auth/login`, loginRequest
+    ] as const;
+    }
+
+
+export const getLoginV1QueryOptions = <TData = Awaited<ReturnType<typeof loginV1>>, TError = ErrorResponse>(loginRequest: LoginRequest, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loginV1>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLoginV1QueryKey(loginRequest);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof loginV1>>> = ({ signal }) => loginV1(loginRequest, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof loginV1>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type LoginV1QueryResult = NonNullable<Awaited<ReturnType<typeof loginV1>>>
+export type LoginV1QueryError = ErrorResponse
+
+
+export function useLoginV1<TData = Awaited<ReturnType<typeof loginV1>>, TError = ErrorResponse>(
+ loginRequest: LoginRequest, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof loginV1>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loginV1>>,
+          TError,
+          Awaited<ReturnType<typeof loginV1>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoginV1<TData = Awaited<ReturnType<typeof loginV1>>, TError = ErrorResponse>(
+ loginRequest: LoginRequest, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loginV1>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loginV1>>,
+          TError,
+          Awaited<ReturnType<typeof loginV1>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoginV1<TData = Awaited<ReturnType<typeof loginV1>>, TError = ErrorResponse>(
+ loginRequest: LoginRequest, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loginV1>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Đăng nhập v1, trả về accessToken và refreshToken
+ */
+
+export function useLoginV1<TData = Awaited<ReturnType<typeof loginV1>>, TError = ErrorResponse>(
+ loginRequest: LoginRequest, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loginV1>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getLoginV1QueryOptions(loginRequest,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * @summary Làm mới access token bằng refresh token
+ */
+export const refreshTokenV1 = (
+    refreshTokenRequest: RefreshTokenRequest,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+
+
+      return customInstance<TokenRefreshApiResponse>(
+      {url: `/api/v1/auth/refresh`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: refreshTokenRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getRefreshTokenV1QueryKey = (refreshTokenRequest?: RefreshTokenRequest,) => {
+    return [
+    'POST', `/api/v1/auth/refresh`, refreshTokenRequest
+    ] as const;
+    }
+
+
+export const getRefreshTokenV1QueryOptions = <TData = Awaited<ReturnType<typeof refreshTokenV1>>, TError = ErrorResponse>(refreshTokenRequest: RefreshTokenRequest, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof refreshTokenV1>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getRefreshTokenV1QueryKey(refreshTokenRequest);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof refreshTokenV1>>> = ({ signal }) => refreshTokenV1(refreshTokenRequest, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof refreshTokenV1>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type RefreshTokenV1QueryResult = NonNullable<Awaited<ReturnType<typeof refreshTokenV1>>>
+export type RefreshTokenV1QueryError = ErrorResponse
+
+
+export function useRefreshTokenV1<TData = Awaited<ReturnType<typeof refreshTokenV1>>, TError = ErrorResponse>(
+ refreshTokenRequest: RefreshTokenRequest, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof refreshTokenV1>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof refreshTokenV1>>,
+          TError,
+          Awaited<ReturnType<typeof refreshTokenV1>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRefreshTokenV1<TData = Awaited<ReturnType<typeof refreshTokenV1>>, TError = ErrorResponse>(
+ refreshTokenRequest: RefreshTokenRequest, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof refreshTokenV1>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof refreshTokenV1>>,
+          TError,
+          Awaited<ReturnType<typeof refreshTokenV1>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRefreshTokenV1<TData = Awaited<ReturnType<typeof refreshTokenV1>>, TError = ErrorResponse>(
+ refreshTokenRequest: RefreshTokenRequest, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof refreshTokenV1>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Làm mới access token bằng refresh token
+ */
+
+export function useRefreshTokenV1<TData = Awaited<ReturnType<typeof refreshTokenV1>>, TError = ErrorResponse>(
+ refreshTokenRequest: RefreshTokenRequest, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof refreshTokenV1>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getRefreshTokenV1QueryOptions(refreshTokenRequest,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -41,6 +41,84 @@
         }
       }
     },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Đăng nhập v1, trả về accessToken và refreshToken",
+        "operationId": "loginV1",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Làm mới access token bằng refresh token",
+        "operationId": "refreshTokenV1",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenRefreshApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/register": {
       "post": {
         "tags": ["Auth"],
@@ -170,6 +248,17 @@
         },
         "required": ["success", "code", "message"]
       },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "default": false },
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "details": { "type": "object", "nullable": true }
+        },
+        "required": ["success", "code", "message", "timestamp"]
+      },
       "LoginRequest": {
         "type": "object",
         "properties": {
@@ -178,12 +267,42 @@
         },
         "required": ["email", "password"]
       },
+      "RefreshTokenRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": { "type": "string" }
+        },
+        "required": ["refreshToken"]
+      },
+      "TokenRefreshResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": { "type": "string" },
+          "refreshToken": { "type": "string" },
+          "tokenType": { "type": "string" },
+          "expiresIn": { "type": "integer" },
+          "refreshExpiresIn": { "type": "integer" }
+        },
+        "required": ["accessToken", "refreshToken", "tokenType", "expiresIn", "refreshExpiresIn"]
+      },
+      "TokenRefreshApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "data": { "$ref": "#/components/schemas/TokenRefreshResponse" }
+        },
+        "required": ["success", "code", "message", "data"]
+      },
       "LoginResponse": {
         "type": "object",
         "properties": {
           "accessToken": { "type": "string" },
+          "refreshToken": { "type": "string", "nullable": true },
           "tokenType": { "type": "string" },
           "expiresIn": { "type": "integer" },
+          "refreshExpiresIn": { "type": "integer", "nullable": true },
           "user": { "$ref": "#/components/schemas/UserResponse" }
         },
         "required": ["accessToken", "tokenType", "expiresIn", "user"]
@@ -204,7 +323,7 @@
           "email": { "type": "string" },
           "password": { "type": "string" },
           "fullName": { "type": "string" },
-          "studentCode": { "type": "string" },
+          "studentCode": { "type": "string", "nullable": true },
           "otpCode": { "type": "string" }
         },
         "required": ["email", "password", "fullName", "otpCode"]
@@ -225,7 +344,9 @@
           "role": { "type": "string" },
           "studentCode": { "type": "string", "nullable": true },
           "firstLogin": { "type": "boolean" },
-          "active": { "type": "boolean" }
+          "mustChangePassword": { "type": "boolean", "nullable": true },
+          "active": { "type": "boolean" },
+          "createdAt": { "type": "string", "nullable": true }
         },
         "required": ["id", "email", "fullName", "role"]
       },

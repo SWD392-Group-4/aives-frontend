@@ -10,6 +10,7 @@ export interface RegisterRequest {
   email: string;
   password: string;
   fullName: string;
-  studentCode?: string;
+  /** @nullable */
+  studentCode?: string | null;
   otpCode: string;
 }

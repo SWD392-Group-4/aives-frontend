@@ -9,7 +9,11 @@ import type { UserResponse } from './userResponse';
 
 export interface LoginResponse {
   accessToken: string;
+  /** @nullable */
+  refreshToken?: string | null;
   tokenType: string;
   expiresIn: number;
+  /** @nullable */
+  refreshExpiresIn?: number | null;
   user: UserResponse;
 }
