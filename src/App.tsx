@@ -143,7 +143,7 @@ function App() {
         path="/lecturer/materials"
         element={
           <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <MaterialsManagementPage />
+            <ChapterMaterialsPage />
           </ProtectedRoute>
         }
       />
@@ -151,7 +151,7 @@ function App() {
         path="/lecturer/questions"
         element={
           <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <QuestionBankPage />
+            <ChapterQuestionBankPage />
           </ProtectedRoute>
         }
       />

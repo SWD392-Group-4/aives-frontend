@@ -1,7 +1,17 @@
 import { apiRequest } from '../../services/apiClient'
-import { Chapter, Material } from './types'
+import { Chapter, Course, Material } from './types'
 
 export const materialService = {
+  async getCourses(): Promise<Course[]> {
+    try {
+      const data = await apiRequest<Course[]>('/v1/courses')
+      return Array.isArray(data) ? data : []
+    } catch (err: any) {
+      if (err?.status === 404) return []
+      throw err
+    }
+  },
+
   async getChapters(courseId: string): Promise<Chapter[]> {
     try {
       const data = await apiRequest<Chapter[]>(`/v1/courses/${encodeURIComponent(courseId)}/chapters`)

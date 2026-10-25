@@ -1,48 +1,88 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import LecturerLayout from '../../components/LecturerLayout'
 import GenerateQuestionModal from '../questions/GenerateQuestionModal'
 import { Question } from '../questions/types'
 import { materialService } from './materialService'
-import { Chapter, Material } from './types'
+import { Chapter, Course, Material } from './types'
 
 export default function ChapterMaterialsPage() {
+  const navigate = useNavigate()
   const { chapterId: paramChapterId } = useParams<{ chapterId?: string }>()
-  const chapterId = paramChapterId || 'CHAP_01'
 
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [courses, setCourses] = useState<Course[]>([])
+  const [chapters, setChapters] = useState<Chapter[]>([])
+  const [courseId, setCourseId] = useState<string>('SWD392')
+  const [chapterId, setChapterId] = useState<string>(paramChapterId || 'CHAP_01')
+
   const [materials, setMaterials] = useState<Material[]>([])
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null)
-  const [courseId, setCourseId] = useState('SWD392')
 
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false)
+  const [isCreateChapterOpen, setIsCreateChapterOpen] = useState(false)
+  const [newChapterName, setNewChapterName] = useState('')
+  const [newChapterDesc, setNewChapterDesc] = useState('')
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const loadData = async (cId: string) => {
+  // 1. Tải danh sách môn học
+  useEffect(() => {
+    const initCourses = async () => {
+      try {
+        const courseList = await materialService.getCourses()
+        if (courseList.length > 0) {
+          setCourses(courseList)
+          if (!paramChapterId) {
+            setCourseId(courseList[0].id)
+          }
+        }
+      } catch (err: any) {
+        console.error('Không thể tải danh sách môn học:', err)
+      }
+    }
+    initCourses()
+  }, [])
+
+  // 2. Tải danh sách chương khi courseId thay đổi
+  useEffect(() => {
+    const loadChapters = async () => {
+      if (!courseId) return
+      try {
+        const chapList = await materialService.getChapters(courseId)
+        setChapters(chapList)
+
+        if (chapList.length > 0) {
+          const matched = paramChapterId ? chapList.find((c) => c.id === paramChapterId) : null
+          const activeChapter = matched || chapList[0]
+          setChapterId(activeChapter.id)
+          setCurrentChapter(activeChapter)
+        } else {
+          setChapterId('CHAP_01')
+          setCurrentChapter({
+            id: 'CHAP_01',
+            courseId,
+            name: 'Chương 1: Mặc định',
+            orderNo: 1,
+            description: 'Học liệu slide bài giảng và giáo trình môn học',
+          })
+        }
+      } catch (err: any) {
+        console.error('Không thể tải danh sách chương:', err)
+      }
+    }
+    loadChapters()
+  }, [courseId])
+
+  // 3. Tải danh sách tài liệu của chương
+  const loadMaterials = async () => {
+    if (!chapterId) return
     setLoading(true)
     setBanner(null)
     try {
-      const [matList, chapList] = await Promise.all([
-        materialService.getChapterMaterials(cId),
-        materialService.getChapters(courseId).catch(() => []),
-      ])
+      const matList = await materialService.getChapterMaterials(chapterId)
       setMaterials(matList)
-
-      const foundChapter = chapList.find((ch) => ch.id === cId)
-      if (foundChapter) {
-        setCurrentChapter(foundChapter)
-        if (foundChapter.courseId) setCourseId(foundChapter.courseId)
-      } else {
-        setCurrentChapter({
-          id: cId,
-          courseId,
-          name: `Chương ${cId}`,
-          orderNo: 1,
-          description: 'Học liệu slide bài giảng và giáo trình môn học',
-        })
-      }
     } catch (err: any) {
       setBanner({
         type: 'error',
@@ -54,8 +94,45 @@ export default function ChapterMaterialsPage() {
   }
 
   useEffect(() => {
-    loadData(chapterId)
+    loadMaterials()
   }, [chapterId, courseId])
+
+  const handleCourseChange = (newCourseId: string) => {
+    setCourseId(newCourseId)
+  }
+
+  const handleChapterSelect = (newChapterId: string) => {
+    setChapterId(newChapterId)
+    const found = chapters.find((c) => c.id === newChapterId)
+    if (found) setCurrentChapter(found)
+    navigate(`/lecturer/chapters/${encodeURIComponent(newChapterId)}/materials`)
+  }
+
+  const handleCreateChapter = async () => {
+    if (!newChapterName.trim()) {
+      alert('Vui lòng nhập tên chương.')
+      return
+    }
+    try {
+      const created = await materialService.createChapter(courseId, {
+        name: newChapterName.trim(),
+        description: newChapterDesc.trim() || undefined,
+        orderNo: chapters.length + 1,
+      })
+      setChapters((prev) => [...prev, created])
+      setChapterId(created.id)
+      setCurrentChapter(created)
+      setIsCreateChapterOpen(false)
+      setNewChapterName('')
+      setNewChapterDesc('')
+      setBanner({
+        type: 'success',
+        message: `Đã tạo thành công chương mới: ${created.name}`,
+      })
+    } catch (err: any) {
+      alert(err?.message || 'Lỗi khi tạo chương mới.')
+    }
+  }
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -138,7 +215,74 @@ export default function ChapterMaterialsPage() {
           </div>
         )}
 
-        {/* Khung thông tin chương và chuyển chương nhanh */}
+        {/* Thanh chuyển chọn Môn học & Chương */}
+        <div className="rounded-3xl border border-surface-container-high bg-surface-container-lowest p-5 shadow-xs space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                Môn học:
+              </span>
+              <select
+                value={courseId}
+                onChange={(e) => handleCourseChange(e.target.value)}
+                className="rounded-xl border border-outline bg-surface px-3 py-1.5 text-xs font-bold text-on-surface outline-none focus:border-primary"
+              >
+                {courses.length > 0 ? (
+                  courses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.courseCode} - {c.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value={courseId}>{courseId} - Môn học đang chọn</option>
+                )}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/lecturer/courses/${encodeURIComponent(courseId)}/rubric`}
+                className="rounded-xl border border-outline px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
+              >
+                Tiêu chí Rubric Môn
+              </Link>
+              <Link
+                to={`/lecturer/chapters/${encodeURIComponent(chapterId)}/questions`}
+                className="rounded-xl border border-primary bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary hover:text-white"
+              >
+                Vào Ngân Hàng Câu Hỏi
+              </Link>
+            </div>
+          </div>
+
+          {/* Danh sách tab các Chương thuộc môn */}
+          <div className="flex flex-wrap items-center gap-2 border-t border-surface-container-high pt-3">
+            <span className="text-xs font-semibold text-on-surface-variant mr-1">Chương:</span>
+            {chapters.map((ch) => (
+              <button
+                key={ch.id}
+                type="button"
+                onClick={() => handleChapterSelect(ch.id)}
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  ch.id === chapterId
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'
+                }`}
+              >
+                {ch.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setIsCreateChapterOpen(true)}
+              className="rounded-xl border border-dashed border-outline px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10"
+            >
+              + Tạo Chương Mới
+            </button>
+          </div>
+        </div>
+
+        {/* Khung thông tin chương */}
         <div className="rounded-3xl border border-surface-container-high bg-surface-container-low p-6 shadow-xs">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -154,24 +298,12 @@ export default function ChapterMaterialsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Link
-                to={`/lecturer/courses/${encodeURIComponent(courseId)}/rubric`}
-                className="rounded-xl border border-outline px-3.5 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
-              >
-                Cấu hình Rubric Môn
-              </Link>
-              <Link
-                to={`/lecturer/chapters/${encodeURIComponent(chapterId)}/questions`}
-                className="rounded-xl border border-primary bg-primary/10 px-3.5 py-2 text-xs font-bold text-primary hover:bg-primary hover:text-white"
-              >
-                Vào Ngân Hàng Câu Hỏi
-              </Link>
               <button
                 type="button"
                 onClick={() => setIsGenerateModalOpen(true)}
                 className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-xs transition-all hover:bg-primary/90"
               >
-                Sinh Câu Hỏi AI
+                Sinh Câu Hỏi AI (RAG)
               </button>
             </div>
           </div>
@@ -198,111 +330,160 @@ export default function ChapterMaterialsPage() {
             />
             <label
               htmlFor="file-upload-input"
-              className={`cursor-pointer rounded-xl bg-primary/15 px-5 py-2.5 text-xs font-bold text-primary transition-all hover:bg-primary hover:text-white ${
-                uploading ? 'pointer-events-none opacity-50' : ''
-              }`}
+              className="cursor-pointer rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-white shadow-xs transition-all hover:bg-primary/90"
             >
-              {uploading ? 'Đang tải lên và lập chỉ mục...' : 'Chọn Tệp Slide / Giáo Trình Từ Máy Tính'}
+              {uploading ? 'Đang Tải Lên & Xử Lý...' : 'Chọn Tệp Từ Máy Tính'}
             </label>
-            <span className="mt-2 text-[11px] text-on-surface-variant">
-              Giới hạn kích thước tệp: tối đa 50MB/tệp
-            </span>
+            <p className="mt-2 text-[11px] text-on-surface-variant">
+              Tệp sẽ được lưu trữ an toàn trên GCS và chuyển trạng thái INDEXING sang READY sau khi bóc tách.
+            </p>
           </div>
         </div>
 
-        {/* Danh sách học liệu */}
+        {/* Bảng danh sách tài liệu */}
         <div className="rounded-3xl border border-surface-container-high bg-surface p-6 shadow-xs">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center justify-between pb-4">
             <h3 className="text-title-sm font-bold text-on-surface">
-              Danh Sách Tài Liệu Trong Chương ({materials.length})
+              Danh Sách Slide & Học Liệu ({materials.length})
             </h3>
-            <span className="text-xs text-on-surface-variant">
-              Tài liệu READY mới đủ điều kiện để kích hoạt RAG sinh câu hỏi
-            </span>
+            <button
+              type="button"
+              onClick={loadMaterials}
+              className="rounded-xl border border-outline px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
+            >
+              Làm Mới
+            </button>
           </div>
 
           {loading ? (
             <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
+              {[1, 2].map((i) => (
                 <div
                   key={i}
-                  className="h-16 w-full animate-pulse rounded-2xl bg-surface-container-high"
+                  className="h-20 w-full animate-pulse rounded-2xl bg-surface-container-high"
                 />
               ))}
             </div>
           ) : materials.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-outline p-8 text-center text-xs text-on-surface-variant">
-              Chưa có tài liệu nào được nạp vào chương này. Hãy tải lên slide PDF hoặc PPTX ở trên.
+              Chưa có tài liệu nào cho chương này. Hãy bấm &quot;Chọn Tệp Từ Máy Tính&quot; ở trên để nạp slide bài giảng.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-surface-container-high text-on-surface-variant">
-                    <th className="py-3 px-3 font-semibold">Tên Tài Liệu</th>
-                    <th className="py-3 px-3 font-semibold">Định Dạng</th>
-                    <th className="py-3 px-3 font-semibold">Dung Lượng</th>
-                    <th className="py-3 px-3 font-semibold">Trạng Thái RAG</th>
-                    <th className="py-3 px-3 font-semibold">Đoạn Tri Thức</th>
-                    <th className="py-3 px-3 text-right font-semibold">Thao Tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-container-high">
-                  {materials.map((item) => (
-                    <tr key={item.id} className="hover:bg-surface-container-lowest">
-                      <td className="py-3.5 px-3">
-                        <div className="font-bold text-on-surface">{item.title}</div>
-                        <div className="text-[11px] text-on-surface-variant">{item.fileName}</div>
-                      </td>
-                      <td className="py-3.5 px-3 font-medium uppercase text-on-surface-variant">
-                        {item.fileType || item.fileName.split('.').pop()}
-                      </td>
-                      <td className="py-3.5 px-3 text-on-surface-variant">
-                        {(item.fileSize / 1024 / 1024).toFixed(2)} MB
-                      </td>
-                      <td className="py-3.5 px-3">
-                        {item.ragStatus === 'READY' && (
-                          <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                            Sẵn sàng (READY)
-                          </span>
-                        )}
-                        {item.ragStatus === 'INDEXING' && (
-                          <span className="inline-flex items-center rounded-full bg-sky-500/15 px-2.5 py-1 text-[11px] font-bold text-sky-600 dark:text-sky-400">
-                            Đang lập chỉ mục...
-                          </span>
-                        )}
-                        {item.ragStatus === 'FAILED' && (
-                          <span className="inline-flex items-center rounded-full bg-rose-500/15 px-2.5 py-1 text-[11px] font-bold text-rose-600 dark:text-rose-400">
-                            Lỗi lập chỉ mục
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-3 text-on-surface font-semibold">
-                        {item.chunkCount ?? 0} chunks
-                      </td>
-                      <td className="py-3.5 px-3 text-right">
-                        {item.ragStatus === 'FAILED' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleReindex(item.id, item.fileName)}
-                            className="rounded-lg border border-rose-500/30 px-2.5 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                          >
-                            Thử Lại
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-on-surface-variant">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="divide-y divide-surface-container-high">
+              {materials.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-on-surface">{m.title || m.fileName}</span>
+                      <span className="rounded-md bg-surface-container-high px-2 py-0.5 text-[10px] font-semibold uppercase text-on-surface-variant">
+                        {m.fileType}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-[11px] text-on-surface-variant">
+                      <span>Kích thước: {(m.fileSize / 1024).toFixed(1)} KB</span>
+                      {m.chunkCount ? <span>Số chunks: {m.chunkCount}</span> : null}
+                      {m.createdAt ? (
+                        <span>Nạp ngày: {new Date(m.createdAt).toLocaleDateString('vi-VN')}</span>
+                      ) : null}
+                    </div>
+                    {m.errorMessage && (
+                      <p className="text-[11px] text-rose-500 font-medium">Lỗi: {m.errorMessage}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Badge trạng thái RAG */}
+                    {m.ragStatus === 'READY' && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        Sẵn Sàng (READY)
+                      </span>
+                    )}
+                    {m.ragStatus === 'INDEXING' && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/15 px-3 py-1 text-xs font-bold text-sky-600 dark:text-sky-400">
+                        <span className="h-2 w-2 animate-ping rounded-full bg-sky-500" />
+                        Đang Lập Chỉ Mục (INDEXING)
+                      </span>
+                    )}
+                    {m.ragStatus === 'FAILED' && (
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center rounded-full bg-rose-500/15 px-3 py-1 text-xs font-bold text-rose-600 dark:text-rose-400">
+                          Thất Bại (FAILED)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleReindex(m.id, m.fileName)}
+                          className="rounded-xl border border-rose-500/30 px-2.5 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        >
+                          Thử Lại
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* Modal sinh câu hỏi AI bằng RAG */}
+      {/* Modal tạo chương mới */}
+      {isCreateChapterOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-on-surface/40 backdrop-blur-xs"
+            onClick={() => setIsCreateChapterOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-3xl border border-surface-container-high bg-surface p-6 shadow-xl">
+            <h3 className="text-title-sm font-bold text-on-surface">Tạo Chương Mới</h3>
+            <p className="mt-1 text-xs text-on-surface-variant">
+              Thêm chương mới cho môn học {courseId}.
+            </p>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-on-surface">Tên Chương *</label>
+                <input
+                  type="text"
+                  value={newChapterName}
+                  onChange={(e) => setNewChapterName(e.target.value)}
+                  placeholder="Ví dụ: Chương 3: Microservices Pattern"
+                  className="mt-1 w-full rounded-xl border border-outline px-3 py-2 text-xs text-on-surface outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-on-surface">Mô Tả Chương</label>
+                <textarea
+                  rows={2}
+                  value={newChapterDesc}
+                  onChange={(e) => setNewChapterDesc(e.target.value)}
+                  placeholder="Mô tả nội dung chương..."
+                  className="mt-1 w-full rounded-xl border border-outline px-3 py-2 text-xs text-on-surface outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsCreateChapterOpen(false)}
+                className="rounded-xl border border-outline px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateChapter}
+                className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary/90"
+              >
+                Tạo Chương
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal sinh câu hỏi AI */}
       <GenerateQuestionModal
         isOpen={isGenerateModalOpen}
         onClose={() => setIsGenerateModalOpen(false)}

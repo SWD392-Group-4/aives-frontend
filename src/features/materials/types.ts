@@ -1,5 +1,12 @@
 export type RagStatus = 'INDEXING' | 'READY' | 'FAILED'
 
+export interface Course {
+  id: string
+  courseCode: string
+  name: string
+  description?: string
+}
+
 export interface Chapter {
   id: string
   courseId: string

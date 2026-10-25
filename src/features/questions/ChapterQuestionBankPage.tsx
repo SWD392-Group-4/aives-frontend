@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import LecturerLayout from '../../components/LecturerLayout'
 import { materialService } from '../materials/materialService'
-import { Chapter, Material } from '../materials/types'
+import { Chapter, Course, Material } from '../materials/types'
 import { rubricService } from '../rubric/rubricService'
 import GenerateQuestionModal from './GenerateQuestionModal'
 import { questionService } from './questionService'
@@ -14,14 +14,18 @@ import {
 } from './types'
 
 export default function ChapterQuestionBankPage() {
+  const navigate = useNavigate()
   const { chapterId: paramChapterId } = useParams<{ chapterId?: string }>()
-  const chapterId = paramChapterId || 'CHAP_01'
 
   const [loading, setLoading] = useState(true)
+  const [courses, setCourses] = useState<Course[]>([])
+  const [chapters, setChapters] = useState<Chapter[]>([])
+  const [courseId, setCourseId] = useState<string>('SWD392')
+  const [chapterId, setChapterId] = useState<string>(paramChapterId || 'CHAP_01')
+
   const [questions, setQuestions] = useState<Question[]>([])
   const [materials, setMaterials] = useState<Material[]>([])
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null)
-  const [courseId, setCourseId] = useState('SWD392')
 
   // Trạng thái Rubric môn học (BR-BANK-001)
   const [isRubricReady, setIsRubricReady] = useState(false)
@@ -35,6 +39,9 @@ export default function ChapterQuestionBankPage() {
   // Modals
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isCreateChapterOpen, setIsCreateChapterOpen] = useState(false)
+  const [newChapterName, setNewChapterName] = useState('')
+  const [newChapterDesc, setNewChapterDesc] = useState('')
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
   const [rejectingQuestion, setRejectingQuestion] = useState<Question | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
@@ -48,36 +55,70 @@ export default function ChapterQuestionBankPage() {
   // Banner
   const [banner, setBanner] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null)
 
-  const loadAll = async () => {
+  // 1. Tải danh sách môn học khi mở trang
+  useEffect(() => {
+    const initCourses = async () => {
+      try {
+        const courseList = await materialService.getCourses()
+        if (courseList.length > 0) {
+          setCourses(courseList)
+          // Nếu paramChapterId chưa xác định course, lấy course đầu tiên
+          if (!paramChapterId) {
+            setCourseId(courseList[0].id)
+          }
+        }
+      } catch (err: any) {
+        console.error('Không thể tải danh sách môn học:', err)
+      }
+    }
+    initCourses()
+  }, [])
+
+  // 2. Tải danh sách chương khi courseId thay đổi
+  useEffect(() => {
+    const loadChapters = async () => {
+      if (!courseId) return
+      try {
+        const chapList = await materialService.getChapters(courseId)
+        setChapters(chapList)
+
+        // Chọn chương phù hợp
+        if (chapList.length > 0) {
+          const matched = paramChapterId ? chapList.find((c) => c.id === paramChapterId) : null
+          const activeChapter = matched || chapList[0]
+          setChapterId(activeChapter.id)
+          setCurrentChapter(activeChapter)
+        } else {
+          setChapterId('CHAP_01')
+          setCurrentChapter({
+            id: 'CHAP_01',
+            courseId,
+            name: 'Chương 1: Mặc định',
+            orderNo: 1,
+          })
+        }
+      } catch (err: any) {
+        console.error('Không thể tải danh sách chương:', err)
+      }
+    }
+    loadChapters()
+  }, [courseId])
+
+  // 3. Tải câu hỏi, học liệu và kiểm tra Rubric môn học
+  const loadChapterData = async () => {
+    if (!chapterId) return
     setLoading(true)
     setCheckingRubric(true)
     setBanner(null)
 
     try {
-      // 1. Tải danh sách chương & học liệu
-      const [matList, chapList] = await Promise.all([
-        materialService.getChapterMaterials(chapterId).catch(() => []),
-        materialService.getChapters(courseId).catch(() => []),
-      ])
+      // a. Tải học liệu
+      const matList = await materialService.getChapterMaterials(chapterId).catch(() => [])
       setMaterials(matList)
 
-      const foundChapter = chapList.find((c) => c.id === chapterId)
-      const effectiveCourseId = foundChapter?.courseId || courseId
-      if (foundChapter) {
-        setCurrentChapter(foundChapter)
-        setCourseId(effectiveCourseId)
-      } else {
-        setCurrentChapter({
-          id: chapterId,
-          courseId: effectiveCourseId,
-          name: `Chương ${chapterId}`,
-          orderNo: 1,
-        })
-      }
-
-      // 2. Kiểm tra Rubric của môn học (BR-BANK-001)
+      // b. Kiểm tra Rubric của môn học (BR-BANK-001)
       try {
-        const rubricData = await rubricService.getCourseRubric(effectiveCourseId)
+        const rubricData = await rubricService.getCourseRubric(courseId)
         const sum = (rubricData.criteria || []).reduce(
           (acc, c) => acc + (Number(c.weightPercent) || 0),
           0
@@ -88,7 +129,7 @@ export default function ChapterQuestionBankPage() {
         if (!ready) {
           setBanner({
             type: 'warning',
-            message: `Quy tắc BR-BANK-001: Môn học "${effectiveCourseId}" chưa có Rubric hoàn chỉnh (tổng trọng số hiện tại = ${sum.toFixed(1)}% ≠ 100%). Nút Phê duyệt câu hỏi sẽ bị vô hiệu hóa cho tới khi hoàn tất Rubric môn học.`,
+            message: `Quy tắc BR-BANK-001: Môn học "${courseId}" chưa có Rubric hoàn chỉnh (tổng trọng số = ${sum.toFixed(1)}% ≠ 100%). Nút Phê duyệt câu hỏi sẽ bị vô hiệu hóa cho tới khi hoàn tất Rubric môn học.`,
           })
         }
       } catch {
@@ -98,7 +139,7 @@ export default function ChapterQuestionBankPage() {
         setCheckingRubric(false)
       }
 
-      // 3. Tải danh sách câu hỏi của chương
+      // c. Tải danh sách câu hỏi của chương
       const qData = await questionService.getChapterQuestions(
         chapterId,
         statusFilter,
@@ -116,8 +157,48 @@ export default function ChapterQuestionBankPage() {
   }
 
   useEffect(() => {
-    loadAll()
-  }, [chapterId, statusFilter, difficultyFilter])
+    loadChapterData()
+  }, [chapterId, courseId, statusFilter, difficultyFilter])
+
+  // Chuyển môn học
+  const handleCourseChange = (newCourseId: string) => {
+    setCourseId(newCourseId)
+  }
+
+  // Chuyển chương
+  const handleChapterSelect = (newChapterId: string) => {
+    setChapterId(newChapterId)
+    const found = chapters.find((c) => c.id === newChapterId)
+    if (found) setCurrentChapter(found)
+    navigate(`/lecturer/chapters/${encodeURIComponent(newChapterId)}/questions`)
+  }
+
+  // Tạo chương mới
+  const handleCreateChapter = async () => {
+    if (!newChapterName.trim()) {
+      alert('Vui lòng nhập tên chương.')
+      return
+    }
+    try {
+      const created = await materialService.createChapter(courseId, {
+        name: newChapterName.trim(),
+        description: newChapterDesc.trim() || undefined,
+        orderNo: chapters.length + 1,
+      })
+      setChapters((prev) => [...prev, created])
+      setChapterId(created.id)
+      setCurrentChapter(created)
+      setIsCreateChapterOpen(false)
+      setNewChapterName('')
+      setNewChapterDesc('')
+      setBanner({
+        type: 'success',
+        message: `Đã tạo thành công chương mới: ${created.name}`,
+      })
+    } catch (err: any) {
+      alert(err?.message || 'Lỗi khi tạo chương mới.')
+    }
+  }
 
   // Lọc câu hỏi trên giao diện
   const filteredQuestions = useMemo(() => {
@@ -286,7 +367,74 @@ export default function ChapterQuestionBankPage() {
           </div>
         )}
 
-        {/* Khung trạng thái Rubric & Điều hướng */}
+        {/* Thanh chuyển chọn Môn học & Chương */}
+        <div className="rounded-3xl border border-surface-container-high bg-surface-container-lowest p-5 shadow-xs space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                Môn học:
+              </span>
+              <select
+                value={courseId}
+                onChange={(e) => handleCourseChange(e.target.value)}
+                className="rounded-xl border border-outline bg-surface px-3 py-1.5 text-xs font-bold text-on-surface outline-none focus:border-primary"
+              >
+                {courses.length > 0 ? (
+                  courses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.courseCode} - {c.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value={courseId}>{courseId} - Môn học đang chọn</option>
+                )}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/lecturer/courses/${encodeURIComponent(courseId)}/rubric`}
+                className="rounded-xl border border-outline px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
+              >
+                Tiêu chí Rubric Môn
+              </Link>
+              <Link
+                to={`/lecturer/chapters/${encodeURIComponent(chapterId)}/materials`}
+                className="rounded-xl border border-outline px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
+              >
+                Học liệu & Slide RAG
+              </Link>
+            </div>
+          </div>
+
+          {/* Danh sách tab các Chương thuộc môn */}
+          <div className="flex flex-wrap items-center gap-2 border-t border-surface-container-high pt-3">
+            <span className="text-xs font-semibold text-on-surface-variant mr-1">Chương:</span>
+            {chapters.map((ch) => (
+              <button
+                key={ch.id}
+                type="button"
+                onClick={() => handleChapterSelect(ch.id)}
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  ch.id === chapterId
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'
+                }`}
+              >
+                {ch.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setIsCreateChapterOpen(true)}
+              className="rounded-xl border border-dashed border-outline px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10"
+            >
+              + Tạo Chương Mới
+            </button>
+          </div>
+        </div>
+
+        {/* Khung trạng thái Rubric & Điều hướng hành động */}
         <div className="rounded-3xl border border-surface-container-high bg-surface-container-low p-6 shadow-xs">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -315,18 +463,6 @@ export default function ChapterQuestionBankPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Link
-                to={`/lecturer/courses/${encodeURIComponent(courseId)}/rubric`}
-                className="rounded-xl border border-outline px-3.5 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
-              >
-                Quản lý Rubric Môn
-              </Link>
-              <Link
-                to={`/lecturer/chapters/${encodeURIComponent(chapterId)}`}
-                className="rounded-xl border border-outline px-3.5 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
-              >
-                Quản lý Slide & RAG
-              </Link>
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(true)}
@@ -557,6 +693,60 @@ export default function ChapterQuestionBankPage() {
         }}
       />
 
+      {/* Modal tạo chương mới */}
+      {isCreateChapterOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-on-surface/40 backdrop-blur-xs"
+            onClick={() => setIsCreateChapterOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-3xl border border-surface-container-high bg-surface p-6 shadow-xl">
+            <h3 className="text-title-sm font-bold text-on-surface">Tạo Chương Mới</h3>
+            <p className="mt-1 text-xs text-on-surface-variant">
+              Thêm chương mới cho môn học {courseId}.
+            </p>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-on-surface">Tên Chương *</label>
+                <input
+                  type="text"
+                  value={newChapterName}
+                  onChange={(e) => setNewChapterName(e.target.value)}
+                  placeholder="Ví dụ: Chương 3: Microservices Pattern"
+                  className="mt-1 w-full rounded-xl border border-outline px-3 py-2 text-xs text-on-surface outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-on-surface">Mô Tả Chương</label>
+                <textarea
+                  rows={2}
+                  value={newChapterDesc}
+                  onChange={(e) => setNewChapterDesc(e.target.value)}
+                  placeholder="Mô tả nội dung chương..."
+                  className="mt-1 w-full rounded-xl border border-outline px-3 py-2 text-xs text-on-surface outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsCreateChapterOpen(false)}
+                className="rounded-xl border border-outline px-4 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateChapter}
+                className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary/90"
+              >
+                Tạo Chương
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal soạn câu hỏi thủ công */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -569,7 +759,7 @@ export default function ChapterQuestionBankPage() {
               Soạn Câu Hỏi Mới Vào Ngân Hàng Chương
             </h3>
             <p className="mt-1 text-xs text-on-surface-variant">
-              Câu hỏi được tạo thủ công sẽ đưa vào ngân hàng dùng chung của chương này.
+              Câu hỏi được tạo thủ công sẽ đưa vào ngân hàng dùng chung của chương {currentChapter?.name || chapterId}.
             </p>
 
             <div className="mt-4 space-y-4">
@@ -603,32 +793,32 @@ export default function ChapterQuestionBankPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-on-surface">
-                  Đáp Án Mẫu (Gợi ý cho AI đối soát khi thi)
+                  Đáp Án Mẫu (Gợi ý trả lời cho AI & Giảng viên)
                 </label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={manualModelAnswer}
                   onChange={(e) => setManualModelAnswer(e.target.value)}
-                  placeholder="Nội dung câu trả lời chuẩn..."
+                  placeholder="Nhập câu trả lời mẫu..."
                   className="mt-1 w-full rounded-xl border border-outline px-3 py-2 text-xs text-on-surface outline-none focus:border-primary"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-on-surface">
-                  Từ Khóa Kỳ Vọng (Phân cách bằng dấu phẩy)
+                  Từ Khóa Kỳ Vọng (Phân tách bằng dấu phẩy)
                 </label>
                 <input
                   type="text"
                   value={manualKeywords}
                   onChange={(e) => setManualKeywords(e.target.value)}
-                  placeholder="VD: clean architecture, dependency inversion, loose coupling"
+                  placeholder="Ví dụ: decoupling, interface, loose coupling"
                   className="mt-1 w-full rounded-xl border border-outline px-3 py-2 text-xs text-on-surface outline-none focus:border-primary"
                 />
               </div>
             </div>
 
-            <div className="mt-6 flex items-center justify-end gap-3">
+            <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
@@ -639,9 +829,9 @@ export default function ChapterQuestionBankPage() {
               <button
                 type="button"
                 onClick={handleCreateManual}
-                className="rounded-xl bg-primary px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary/90"
+                className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary/90"
               >
-                Tạo Câu Hỏi
+                Lưu Câu Hỏi
               </button>
             </div>
           </div>
@@ -656,9 +846,7 @@ export default function ChapterQuestionBankPage() {
             onClick={() => setEditingQuestion(null)}
           />
           <div className="relative z-10 w-full max-w-xl rounded-3xl border border-surface-container-high bg-surface p-6 shadow-xl">
-            <h3 className="text-title-sm font-bold text-on-surface">
-              Chỉnh Sửa Câu Hỏi
-            </h3>
+            <h3 className="text-title-sm font-bold text-on-surface">Chỉnh Sửa Câu Hỏi</h3>
 
             <div className="mt-4 space-y-4">
               <div>
@@ -696,11 +884,9 @@ export default function ChapterQuestionBankPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-on-surface">
-                  Đáp Án Mẫu
-                </label>
+                <label className="block text-xs font-semibold text-on-surface">Đáp Án Mẫu</label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={editingQuestion.modelAnswer || ''}
                   onChange={(e) =>
                     setEditingQuestion({ ...editingQuestion, modelAnswer: e.target.value })
@@ -708,9 +894,33 @@ export default function ChapterQuestionBankPage() {
                   className="mt-1 w-full rounded-xl border border-outline px-3 py-2 text-xs text-on-surface outline-none focus:border-primary"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-on-surface">
+                  Từ Khóa Kỳ Vọng (Phân tách bằng dấu phẩy)
+                </label>
+                <input
+                  type="text"
+                  value={
+                    Array.isArray(editingQuestion.expectedKeywords)
+                      ? editingQuestion.expectedKeywords.join(', ')
+                      : ''
+                  }
+                  onChange={(e) =>
+                    setEditingQuestion({
+                      ...editingQuestion,
+                      expectedKeywords: e.target.value
+                        .split(',')
+                        .map((k) => k.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  className="mt-1 w-full rounded-xl border border-outline px-3 py-2 text-xs text-on-surface outline-none focus:border-primary"
+                />
+              </div>
             </div>
 
-            <div className="mt-6 flex items-center justify-end gap-3">
+            <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setEditingQuestion(null)}
@@ -721,7 +931,7 @@ export default function ChapterQuestionBankPage() {
               <button
                 type="button"
                 onClick={handleUpdate}
-                className="rounded-xl bg-primary px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary/90"
+                className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-primary/90"
               >
                 Lưu Thay Đổi
               </button>
@@ -738,11 +948,11 @@ export default function ChapterQuestionBankPage() {
             onClick={() => setRejectingQuestion(null)}
           />
           <div className="relative z-10 w-full max-w-md rounded-3xl border border-surface-container-high bg-surface p-6 shadow-xl">
-            <h3 className="text-title-sm font-bold text-on-surface">
-              Từ Chối Câu Hỏi
+            <h3 className="text-title-sm font-bold text-on-surface text-rose-600 dark:text-rose-400">
+              Từ Chối Phê Duyệt Câu Hỏi
             </h3>
             <p className="mt-1 text-xs text-on-surface-variant">
-              Câu hỏi bị từ chối sẽ chuyển sang trạng thái REJECTED và không được dùng trong đề thi.
+              Câu hỏi bị từ chối sẽ chuyển trạng thái REJECTED và không được dùng trong các ca thi.
             </p>
 
             <div className="mt-4">
@@ -753,12 +963,12 @@ export default function ChapterQuestionBankPage() {
                 rows={3}
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="VD: Câu hỏi chưa đủ rõ ràng, ngoài phạm vi bài học..."
+                placeholder="Nhập lý do câu hỏi chưa đạt yêu cầu..."
                 className="mt-1 w-full rounded-xl border border-outline px-3 py-2 text-xs text-on-surface outline-none focus:border-primary"
               />
             </div>
 
-            <div className="mt-6 flex items-center justify-end gap-3">
+            <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setRejectingQuestion(null)}
@@ -769,7 +979,7 @@ export default function ChapterQuestionBankPage() {
               <button
                 type="button"
                 onClick={handleRejectConfirm}
-                className="rounded-xl bg-rose-600 px-5 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-700"
+                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-700"
               >
                 Xác Nhận Từ Chối
               </button>

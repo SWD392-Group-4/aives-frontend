@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import LecturerLayout from '../../components/LecturerLayout'
+import { materialService } from '../materials/materialService'
+import { Course } from '../materials/types'
 import { rubricService } from './rubricService'
 import { CourseRubric, RubricCriterion } from './types'
 
 export default function CourseRubricPage() {
+  const navigate = useNavigate()
   const { courseId: paramCourseId } = useParams<{ courseId?: string }>()
-  const courseId = paramCourseId || 'SWD392'
+  const [courses, setCourses] = useState<Course[]>([])
+  const [courseId, setCourseId] = useState(paramCourseId || 'SWD392')
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -15,6 +19,21 @@ export default function CourseRubricPage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
+  useEffect(() => {
+    const initCourses = async () => {
+      try {
+        const list = await materialService.getCourses()
+        if (list.length > 0) {
+          setCourses(list)
+          if (!paramCourseId) setCourseId(list[0].id)
+        }
+      } catch (err: any) {
+        console.error('Lỗi tải danh mục môn học:', err)
+      }
+    }
+    initCourses()
+  }, [])
 
   const loadRubric = async (cId: string) => {
     setLoading(true)
@@ -179,6 +198,48 @@ export default function CourseRubricPage() {
             </div>
           </div>
         )}
+
+        {/* Thanh chọn môn học & liên kết nhanh */}
+        <div className="rounded-3xl border border-surface-container-high bg-surface-container-lowest p-5 shadow-xs flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+              Chọn Môn Học:
+            </span>
+            <select
+              value={courseId}
+              onChange={(e) => {
+                setCourseId(e.target.value)
+                navigate(`/lecturer/courses/${encodeURIComponent(e.target.value)}/rubric`)
+              }}
+              className="rounded-xl border border-outline bg-surface px-3 py-1.5 text-xs font-bold text-on-surface outline-none focus:border-primary"
+            >
+              {courses.length > 0 ? (
+                courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.courseCode} - {c.name}
+                  </option>
+                ))
+              ) : (
+                <option value={courseId}>{courseId} - Môn học đang chọn</option>
+              )}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              to="/lecturer/questions"
+              className="rounded-xl border border-outline px-3.5 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
+            >
+              Ngân Hàng Câu Hỏi
+            </Link>
+            <Link
+              to="/lecturer/materials"
+              className="rounded-xl border border-outline px-3.5 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
+            >
+              Học Liệu Slide
+            </Link>
+          </div>
+        </div>
 
         {/* Khung trạng thái khóa và tổng trọng số */}
         <div className="rounded-3xl border border-surface-container-high bg-surface-container-low p-6 shadow-xs">
