@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+﻿import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import { ROLES } from './constants/roles'
 import AdminAuditLogsPage from './pages/AdminAuditLogsPage'
@@ -21,6 +21,9 @@ import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
 import PolicyPage from './pages/PolicyPage'
 import QuestionBankPage from './pages/QuestionBankPage'
+import CourseRubricPage from './features/rubric/pages/CourseRubricPage'
+import ChapterMaterialsPage from './features/materials/pages/ChapterMaterialsPage'
+import ChapterQuestionBankPage from './features/questions/pages/ChapterQuestionBankPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import StudentAppealsPage from './pages/StudentAppealsPage'
@@ -141,6 +144,30 @@ function App() {
         element={
           <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
             <MaterialsManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lecturer/courses/:courseId/rubric"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <CourseRubricPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lecturer/chapters/:chapterId"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <ChapterMaterialsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lecturer/chapters/:chapterId/questions"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <ChapterQuestionBankPage />
           </ProtectedRoute>
         }
       />
