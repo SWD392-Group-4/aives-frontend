@@ -15,7 +15,9 @@ export default function LecturerReviewPage() {
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // Điểm số và ghi chú giảng viên nhập
-  const [editableScores, setEditableScores] = useState<Record<string, { finalScore: number; lecturerNote: string }>>({})
+  const [editableScores, setEditableScores] = useState<
+    Record<string, { finalScore: number; lecturerNote: string; criteriaScores?: Record<string, number> }>
+  >({})
   const [publishing, setPublishing] = useState(false)
   const [regrading, setRegrading] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -47,12 +49,20 @@ export default function LecturerReviewPage() {
       setQuestionGrades(res.questionGrades)
       setAttempts((prev) => prev.map((a) => (a.attemptId === res.attempt.attemptId ? res.attempt : a)))
       setEditableScores((prev) => {
-        const next: Record<string, { finalScore: number; lecturerNote: string }> = {}
+        const next: Record<string, { finalScore: number; lecturerNote: string; criteriaScores?: Record<string, number> }> = {}
         res.questionGrades.forEach((qg) => {
+          const initCriteria: Record<string, number> = {}
+          qg.criteriaGrades?.forEach((cg) => {
+            initCriteria[cg.id] = cg.finalScore ?? cg.aiScore ?? 0
+          })
           next[qg.id] =
             keepEdits && prev[qg.id] && qg.status !== 'APPROVED'
               ? prev[qg.id]
-              : { finalScore: qg.finalScore ?? qg.aiScore ?? 0, lecturerNote: qg.lecturerNote || '' }
+              : {
+                  finalScore: qg.finalScore ?? qg.aiScore ?? 0,
+                  lecturerNote: qg.lecturerNote || '',
+                  criteriaScores: initCriteria,
+                }
         })
         return next
       })
@@ -76,6 +86,28 @@ export default function LecturerReviewPage() {
     return () => window.clearInterval(timer)
   }, [waitingForAi, selectedAttemptId])
 
+  // Giảng viên chỉnh sửa điểm từng tiêu chí của Rubric
+  const handleCriterionScoreChange = (qgId: string, cgId: string, val: number, qg: QuestionGrade) => {
+    const clamped = Math.max(0, Math.min(10, val))
+    setEditableScores((prev) => {
+      const current = prev[qgId] || { finalScore: qg.aiScore || 0, lecturerNote: '' }
+      const nextCriteria = { ...(current.criteriaScores || {}), [cgId]: clamped }
+      let computed = 0
+      qg.criteriaGrades.forEach((cg) => {
+        const score = nextCriteria[cg.id] !== undefined ? nextCriteria[cg.id] : (cg.finalScore ?? cg.aiScore ?? 0)
+        computed += (score * (cg.weightPercent || 0)) / 100
+      })
+      return {
+        ...prev,
+        [qgId]: {
+          ...current,
+          finalScore: Math.round(computed * 100) / 100,
+          criteriaScores: nextCriteria,
+        },
+      }
+    })
+  }
+
   // Lưu và duyệt điểm 1 câu (HITL - BR-GRADE-002)
   const handleSaveQuestion = async (qg: QuestionGrade) => {
     const edit = editableScores[qg.id]
@@ -91,10 +123,20 @@ export default function LecturerReviewPage() {
       return
     }
 
+    const criteriaList = qg.criteriaGrades?.map((cg) => ({
+      criteriaGradeId: cg.id,
+      rubricCriteriaId: cg.rubricCriteriaId,
+      finalScore:
+        edit.criteriaScores?.[cg.id] !== undefined
+          ? edit.criteriaScores[cg.id]
+          : (cg.finalScore ?? cg.aiScore ?? 0),
+    }))
+
     try {
       const updated = await gradingService.saveQuestionGrade(qg.id, {
         finalScore: edit.finalScore,
         lecturerNote: edit.lecturerNote,
+        criteriaScores: criteriaList,
       })
       setQuestionGrades((prev) => prev.map((item) => (item.id === qg.id ? updated : item)))
       setBanner({ type: 'success', message: 'Đã lưu và phê duyệt điểm câu hỏi thành công!' })
@@ -422,17 +464,64 @@ export default function LecturerReviewPage() {
 
                     {/* Tiêu chí rubric chi tiết */}
                     <div className="mt-3 space-y-2">
-                      {qg.criteriaGrades.map((cg) => (
-                        <div key={cg.id} className="rounded-xl bg-surface-container-lowest p-3 border border-outline-variant/30 text-body-xs">
-                          <div className="flex justify-between font-semibold text-on-surface">
-                            <span>{cg.criterionName} ({cg.weightPercent}%)</span>
-                            <span className="text-primary">{cg.aiScore ?? '-'} / 10</span>
+                      <div className="text-label-xs font-bold text-outline uppercase tracking-wider mb-1 flex items-center justify-between">
+                        <span>Chi tiết tiêu chí Rubric & Thẩm định điểm:</span>
+                        <span className="text-[11px] font-normal normal-case text-on-surface-variant">
+                          (Chỉnh điểm tiêu chí sẽ tự động tính lại điểm câu)
+                        </span>
+                      </div>
+                      {qg.criteriaGrades.map((cg) => {
+                        const currentCgScore =
+                          edit.criteriaScores?.[cg.id] !== undefined
+                            ? edit.criteriaScores[cg.id]
+                            : (cg.finalScore ?? cg.aiScore ?? 0)
+                        return (
+                          <div
+                            key={cg.id}
+                            className="rounded-xl bg-surface-container-lowest p-3.5 border border-outline-variant/30 text-body-xs space-y-2"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <span className="font-semibold text-on-surface text-label-sm">{cg.criterionName}</span>
+                                <span className="ml-2 rounded-md bg-secondary-container/60 px-2 py-0.5 text-secondary font-bold text-label-xs">
+                                  Trọng số {cg.weightPercent}%
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-outline text-label-xs">
+                                  AI gợi ý: <strong className="text-primary">{cg.aiScore ?? '-'}</strong>/10
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <label className="text-label-xs font-semibold text-on-surface">Điểm chốt:</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="10"
+                                    step="0.5"
+                                    disabled={isApproved}
+                                    value={currentCgScore}
+                                    onChange={(e) =>
+                                      handleCriterionScoreChange(qg.id, cg.id, parseFloat(e.target.value) || 0, qg)
+                                    }
+                                    className="w-20 rounded-lg border border-outline-variant/50 bg-surface-container px-2 py-1 text-right text-label-sm font-bold text-on-surface focus:border-primary focus:outline-none"
+                                  />
+                                  <span className="text-label-xs text-outline font-semibold">/ 10</span>
+                                </div>
+                              </div>
+                            </div>
+                            {cg.evidenceQuote && (
+                              <p className="mt-1 text-outline italic rounded-lg bg-surface-container-low/50 p-2 border-l-2 border-primary">
+                                Trích dẫn: "{cg.evidenceQuote}"
+                              </p>
+                            )}
+                            {cg.rationale && (
+                              <p className="text-on-surface-variant text-label-xs">
+                                <span className="font-semibold">Lý giải:</span> {cg.rationale}
+                              </p>
+                            )}
                           </div>
-                          {cg.evidenceQuote && (
-                            <p className="mt-1 text-outline italic">Trích dẫn: {cg.evidenceQuote}</p>
-                          )}
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
 

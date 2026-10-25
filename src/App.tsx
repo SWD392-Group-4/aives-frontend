@@ -29,6 +29,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import StudentAppealsPage from './pages/StudentAppealsPage'
 import StudentDashboardPage from './pages/StudentDashboardPage'
 import StudentResultsPage from './pages/StudentResultsPage'
+import ExamResultPage from './pages/ExamResultPage'
 
 function App() {
   return (
@@ -90,6 +91,22 @@ function App() {
         element={
           <ProtectedRoute roles={[ROLES.STUDENT]}>
             <StudentResultsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/exam/result/:attemptId"
+        element={
+          <ProtectedRoute roles={[ROLES.STUDENT]}>
+            <ExamResultPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/exam-results/:attemptId"
+        element={
+          <ProtectedRoute roles={[ROLES.STUDENT]}>
+            <ExamResultPage />
           </ProtectedRoute>
         }
       />
