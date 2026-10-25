@@ -1,10 +1,12 @@
-﻿export interface RubricCriteriaDto {
+export interface RubricCriteriaDto {
   id?: string
   name: string
   description: string
   weightPercent: number
   orderNo: number
 }
+
+export type RubricCriterion = RubricCriteriaDto
 
 export interface CourseRubricResponse {
   id: string
@@ -14,14 +16,22 @@ export interface CourseRubricResponse {
   maxScore: number
   isLocked: boolean
   criteria: RubricCriteriaDto[]
-  createdAt: string
-  updatedAt: string
+  createdAt?: string
+  updatedAt?: string
 }
+
+export type CourseRubric = CourseRubricResponse
 
 export interface UpdateCourseRubricRequest {
   name: string
-  description: string | null
-  criteria: RubricCriteriaDto[]
+  description?: string | null
+  criteria: Array<{
+    id?: string
+    name: string
+    description: string
+    weightPercent: number
+    orderNo: number
+  }>
 }
 
 export interface CourseRubricApiResponse {

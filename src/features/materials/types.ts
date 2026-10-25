@@ -1,4 +1,24 @@
-﻿export type MaterialRagStatus = 'INDEXING' | 'READY' | 'FAILED'
+export type MaterialRagStatus = 'INDEXING' | 'READY' | 'FAILED'
+export type RagStatus = MaterialRagStatus
+
+export interface Course {
+  id: string
+  courseCode: string
+  name: string
+  description?: string
+}
+
+export interface Chapter {
+  id: string
+  courseId: string
+  name: string
+  orderNo: number
+  description?: string | null
+  materialCount?: number
+  questionCount?: number
+}
+
+export type ChapterResponse = Chapter
 
 export interface MaterialResponse {
   id: string
@@ -11,12 +31,19 @@ export interface MaterialResponse {
   createdAt: string
 }
 
-export interface ChapterResponse {
+export interface Material {
   id: string
-  courseId: string
-  name: string
-  orderNo: number
-  description: string | null
-  materialCount?: number
-  questionCount?: number
+  chapterId: string
+  lecturerId?: string
+  title: string
+  fileName: string
+  fileSize: number
+  fileType: string
+  gcsUri?: string
+  fileUrl?: string
+  ragCorpusId?: string
+  ragStatus: RagStatus
+  chunkCount?: number
+  errorMessage?: string
+  createdAt?: string
 }

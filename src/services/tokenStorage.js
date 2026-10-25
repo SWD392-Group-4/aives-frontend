@@ -1,5 +1,5 @@
 /**
- * Lưu phiên đăng nhập (accessToken + thông tin user) vào localStorage
+ * Lưu phiên đăng nhập (accessToken, refreshToken + thông tin user) vào localStorage
  * để tải lại trang không bị đăng xuất.
  */
 const STORAGE_KEY = 'aives.session'
@@ -31,4 +31,27 @@ export function clearSession() {
 
 export function getAccessToken() {
   return loadSession()?.accessToken ?? null
+}
+
+export function getRefreshToken() {
+  return loadSession()?.refreshToken ?? null
+}
+
+export function setAccessToken(token) {
+  const session = loadSession() || {}
+  saveSession({ ...session, accessToken: token })
+}
+
+export function setRefreshToken(token) {
+  const session = loadSession() || {}
+  saveSession({ ...session, refreshToken: token })
+}
+
+export function setTokens(accessToken, refreshToken) {
+  const session = loadSession() || {}
+  saveSession({
+    ...session,
+    accessToken,
+    ...(refreshToken ? { refreshToken } : {}),
+  })
 }

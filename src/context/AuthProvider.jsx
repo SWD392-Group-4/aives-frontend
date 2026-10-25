@@ -47,14 +47,22 @@ function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const result = await authService.login({ email, password })
-    saveSession({ accessToken: result.accessToken, user: result.user })
+    saveSession({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: result.user,
+    })
     setUser(result.user)
     return result.user
   }, [])
 
   const loginWithGoogle = useCallback(async (idToken) => {
     const result = await authService.loginWithGoogle({ idToken })
-    saveSession({ accessToken: result.accessToken, user: result.user })
+    saveSession({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: result.user,
+    })
     setUser(result.user)
     return result.user
   }, [])

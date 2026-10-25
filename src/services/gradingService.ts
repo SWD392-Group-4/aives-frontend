@@ -44,12 +44,20 @@ export const gradingService = {
    */
   async saveQuestionGrade(
     questionGradeId: string,
-    data: { finalScore: number; lecturerNote?: string },
+    data: {
+      finalScore: number
+      lecturerNote?: string
+      criteriaScores?: Array<{ criteriaGradeId?: string; rubricCriteriaId?: string; finalScore: number }>
+    },
   ): Promise<QuestionGrade> {
     return dropNulls(
       await apiRequest<QuestionGrade>(`/grading/question-grades/${encodeURIComponent(questionGradeId)}`, {
         method: 'PUT',
-        body: { finalScore: data.finalScore, lecturerNote: data.lecturerNote ?? '' },
+        body: {
+          finalScore: data.finalScore,
+          lecturerNote: data.lecturerNote ?? '',
+          criteriaScores: data.criteriaScores,
+        },
       }),
     )
   },
