@@ -1,6 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import { ROLES } from './constants/roles'
+import ChapterMaterialsPage from './features/materials/ChapterMaterialsPage'
+import ChapterQuestionBankPage from './features/questions/ChapterQuestionBankPage'
+import CourseRubricPage from './features/rubric/CourseRubricPage'
 import AdminAuditLogsPage from './pages/AdminAuditLogsPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminSettingsPage from './pages/AdminSettingsPage'
@@ -149,6 +152,47 @@ function App() {
         element={
           <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
             <QuestionBankPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* FLOW-02-QUESTION-BANK: Rubric Môn Học, Học Liệu Chương & Ngân Hàng Câu Hỏi */}
+      <Route
+        path="/lecturer/courses/:courseId/rubric"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <CourseRubricPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lecturer/rubric"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <CourseRubricPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lecturer/chapters/:chapterId"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <ChapterMaterialsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lecturer/chapters/:chapterId/materials"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <ChapterMaterialsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lecturer/chapters/:chapterId/questions"
+        element={
+          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
+            <ChapterQuestionBankPage />
           </ProtectedRoute>
         }
       />

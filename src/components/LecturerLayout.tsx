@@ -45,6 +45,7 @@ const LECTURER_GROUPS: NavGroup[] = [
       { to: '/lecturer/curriculum', label: 'Chương trình học', icon: 'account_tree' },
       { to: '/lecturer/materials', label: 'Tài liệu môn học', icon: 'folder_open' },
       { to: '/lecturer/questions', label: 'Ngân hàng câu hỏi', icon: 'quiz' },
+      { to: '/lecturer/rubric', label: 'Tiêu chí Rubric', icon: 'rule' },
     ],
   },
   {
