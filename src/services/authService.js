@@ -1,4 +1,5 @@
 import { apiRequest } from './apiClient'
+import { clearSession, getRefreshToken } from './tokenStorage.js'
 
 /**
  * Các API xác thực và hồ sơ cá nhân của aives-backend (AuthController, prefix /api/auth).
@@ -84,9 +85,31 @@ export function register({ email, password, fullName, otp }) {
   })
 }
 
-/** POST /auth/logout: vô hiệu hoá token hiện tại */
+/**
+ * POST /auth/refresh -> Cấp mới accessToken và xoay vòng refreshToken.
+ */
+export function refreshAccessToken(refreshToken) {
+  const token = refreshToken || getRefreshToken()
+  if (!token) {
+    return Promise.reject(new Error('No refresh token available'))
+  }
+  return apiRequest('/auth/refresh', {
+    method: 'POST',
+    body: { refreshToken: token },
+    auth: false,
+    _skipAuthRefresh: true,
+  })
+}
+
+/** POST /auth/logout: vô hiệu hoá access token và refresh token hiện tại */
 export function logout() {
-  return apiRequest('/auth/logout', { method: 'POST' })
+  const refreshToken = getRefreshToken()
+  return apiRequest('/auth/logout', {
+    method: 'POST',
+    body: refreshToken ? { refreshToken } : undefined,
+  }).finally(() => {
+    clearSession()
+  })
 }
 
 /** GET /auth/me -> user đang đăng nhập */

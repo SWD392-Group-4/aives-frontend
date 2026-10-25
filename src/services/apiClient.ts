@@ -1,4 +1,10 @@
-import { clearSession, getAccessToken } from './tokenStorage'
+import {
+  clearSession,
+  getAccessToken,
+  getRefreshToken,
+  loadSession,
+  saveSession,
+} from './tokenStorage'
 
 /**
  * Địa chỉ gốc của backend.
@@ -46,6 +52,45 @@ export interface ApiRequestOptions {
   // Gửi file (multipart/form-data). Khi có formData thì bỏ qua body.
   formData?: FormData
   auth?: boolean
+  _retry?: boolean
+  _skipAuthRefresh?: boolean
+}
+
+// State quản lý hàng đợi silent token refresh tránh gọi refresh đồng thời nhiều lần
+let isRefreshing = false
+let refreshSubscribers: Array<{
+  resolve: (token: string) => void
+  reject: (err: unknown) => void
+}> = []
+
+function subscribeTokenRefresh(cb: {
+  resolve: (token: string) => void
+  reject: (err: unknown) => void
+}) {
+  refreshSubscribers.push(cb)
+}
+
+function onRefreshed(newToken: string) {
+  refreshSubscribers.forEach((cb) => cb.resolve(newToken))
+  refreshSubscribers = []
+}
+
+function onRefreshError(error: unknown) {
+  refreshSubscribers.forEach((cb) => cb.reject(error))
+  refreshSubscribers = []
+}
+
+function isRefreshExcluded(path: string): boolean {
+  const excluded = [
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/google',
+    '/auth/send-otp',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+  ]
+  return excluded.some((prefix) => path.includes(prefix))
 }
 
 /**
@@ -56,8 +101,17 @@ export interface ApiRequestOptions {
  */
 export async function apiRequest<T = any>(
   path: string,
-  { method = 'GET', body, formData, auth = true }: ApiRequestOptions = {}
+  options: ApiRequestOptions = {}
 ): Promise<T> {
+  const {
+    method = 'GET',
+    body,
+    formData,
+    auth = true,
+    _retry = false,
+    _skipAuthRefresh = false,
+  } = options
+
   const headers: Record<string, string> = { Accept: 'application/json' }
   // Với FormData, trình duyệt tự đặt Content-Type kèm boundary
   if (!formData && body !== undefined) headers['Content-Type'] = 'application/json'
@@ -82,13 +136,85 @@ export async function apiRequest<T = any>(
     })
   }
 
+  // Tự động thử làm mới token (silent refresh) nếu gặp HTTP 401 và chưa từng thử lại
+  if (
+    response.status === 401 &&
+    auth &&
+    !_retry &&
+    !_skipAuthRefresh &&
+    !isRefreshExcluded(path)
+  ) {
+    const currentRefreshToken = getRefreshToken()
+    if (currentRefreshToken) {
+      if (isRefreshing) {
+        // Có request khác đang refresh, xếp hàng chờ và thử lại khi có token mới
+        return new Promise<T>((resolve, reject) => {
+          subscribeTokenRefresh({
+            resolve: () => {
+              apiRequest<T>(path, { ...options, _retry: true })
+                .then(resolve)
+                .catch(reject)
+            },
+            reject: (err) => {
+              reject(err)
+            },
+          })
+        })
+      }
+
+      isRefreshing = true
+
+      try {
+        const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ refreshToken: currentRefreshToken }),
+        })
+
+        const refreshPayload = await refreshResponse.json().catch(() => null)
+        if (!refreshResponse.ok || !refreshPayload?.success || !refreshPayload?.data?.accessToken) {
+          throw new Error(refreshPayload?.message || 'Token refresh failed')
+        }
+
+        const { accessToken: newAccessToken, refreshToken: newRefreshToken } = refreshPayload.data
+        const currentSession = loadSession() || {}
+        saveSession({
+          ...currentSession,
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken || currentRefreshToken,
+        })
+
+        isRefreshing = false
+        onRefreshed(newAccessToken)
+
+        // Thử lại request ban đầu với token mới
+        return await apiRequest<T>(path, { ...options, _retry: true })
+      } catch (refreshErr) {
+        isRefreshing = false
+        onRefreshError(refreshErr)
+        clearSession()
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:unauthorized'))
+        }
+        throw new ApiError({
+          status: 401,
+          code: 'TOKEN_EXPIRED',
+          message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+        })
+      }
+    }
+  }
+
   // Backend luôn trả JSON; nếu không đọc được (ví dụ backend chưa chạy, proxy trả 502, hoặc Vercel trả HTML index.html)
   const isJson = response.headers.get('content-type')?.includes('application/json')
   const payload = isJson ? await response.json().catch(() => null) : null
 
   if (!response.ok || payload?.success === false || payload === null) {
     // Tự động xoá session và kích hoạt sự kiện đăng xuất khi token hết hạn (401)
-    if (response.status === 401 && auth && path !== '/auth/login' && path !== '/auth/register') {
+    if (response.status === 401 && auth && !path.includes('/auth/login') && !path.includes('/auth/register')) {
       clearSession()
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('auth:unauthorized'))
