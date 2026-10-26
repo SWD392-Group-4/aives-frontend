@@ -1,6 +1,41 @@
 import { AuditLog, SystemSetting } from '../types'
 import { apiRequest } from './apiClient'
 
+export interface AuditLogFilters {
+  actorId?: string
+  action?: string
+  entityName?: string
+  page?: number
+  size?: number
+}
+
+export interface AuditLogPageResult {
+  items: AuditLog[]
+  totalItems: number
+  totalPages: number
+  page: number
+  size: number
+}
+
+function normalizeAuditLog(item: any): AuditLog {
+  return {
+    id: item.id || `LOG-${Date.now()}`,
+    actorId: item.actorId || 'AD000001',
+    actorName: item.actorName || item.actorEmail || item.actorId || 'Hệ thống',
+    actorEmail: item.actorEmail,
+    actorRole: item.actorRole,
+    action: item.action || 'UNKNOWN',
+    entityType: item.entityType || item.entityName || 'system',
+    entityId: item.entityId || '-',
+    oldValue: item.oldValue,
+    newValue: item.newValue,
+    reason: item.reason,
+    timestamp: item.timestamp || item.createdAt || new Date().toISOString(),
+    ipAddress: item.ipAddress,
+    metadata: item.metadata,
+  }
+}
+
 let mockSettings: SystemSetting[] = [
   {
     settingKey: 'AI_LLM_MODEL',
@@ -176,9 +211,32 @@ let mockAuditLogs: AuditLog[] = [
     actorRole: 'ADMIN',
     action: 'UPDATE_SETTING',
     entityType: 'system_settings',
-    entityId: 'AI_LLM_MODEL',
-    oldValue: 'gemini-1.5-flash',
-    newValue: 'gemini-2.5-flash',
+    entityId: 'AI_LLM_CONFIG',
+    oldValue: JSON.stringify(
+      {
+        model: 'gemini-1.5-flash',
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+        topP: 0.95,
+        systemInstruction: 'Giám khảo hỏi thi viva viva-exam chuẩn mực.',
+        enforceJsonSchema: false,
+      },
+      null,
+      2,
+    ),
+    newValue: JSON.stringify(
+      {
+        model: 'gemini-2.5-flash',
+        temperature: 0.4,
+        maxOutputTokens: 4096,
+        topP: 0.95,
+        systemInstruction: 'Giám khảo hỏi thi viva AIVES tuân thủ BR-VIVA-001 và BR-VIVA-003.',
+        enforceJsonSchema: true,
+        streamingChunkSize: 128,
+      },
+      null,
+      2,
+    ),
     reason: 'Nâng cấp mô hình LLM lên phiên bản Gemini 2.5 Flash tối ưu tốc độ và hỗ trợ JSON Schema Enforced theo BR-VIVA-001',
     timestamp: '2026-10-17T10:05:00Z',
     ipAddress: '14.225.211.89',
@@ -186,6 +244,52 @@ let mockAuditLogs: AuditLog[] = [
       category: 'AI_MODELS',
       previousLatencyMs: 1400,
       targetLatencyMs: 800,
+    },
+  },
+  {
+    id: 'LOG-2026-1016-013',
+    actorId: 'LE000001',
+    actorName: 'TS. Nguyễn Văn Hùng',
+    actorEmail: 'hung.nv@fe.edu.vn',
+    actorRole: 'LECTURER',
+    action: 'UPDATE_RUBRIC',
+    entityType: 'course_rubrics',
+    entityId: 'RUBRIC-SWE301',
+    oldValue: JSON.stringify(
+      {
+        rubricName: 'Rubric Đánh Giá Vấn Đáp Kiến Trúc Phần Mềm',
+        passingThreshold: 5.0,
+        criteria: [
+          { code: 'CR-01', name: 'Hiểu biết kiến trúc', weight: 40, maxScore: 10 },
+          { code: 'CR-02', name: 'Khả năng phản biện', weight: 30, maxScore: 10 },
+          { code: 'CR-03', name: 'Kỹ năng trình bày', weight: 30, maxScore: 10 },
+        ],
+        strictMode: false,
+      },
+      null,
+      2,
+    ),
+    newValue: JSON.stringify(
+      {
+        rubricName: 'Rubric Đánh Giá Vấn Đáp Kiến Trúc Phần Mềm Chuẩn Fall 2026',
+        passingThreshold: 5.5,
+        criteria: [
+          { code: 'CR-01', name: 'Hiểu biết kiến trúc hệ thống', weight: 40, maxScore: 10 },
+          { code: 'CR-02', name: 'Khả năng phản biện & bảo vệ giải pháp', weight: 40, maxScore: 10 },
+          { code: 'CR-03', name: 'Kỹ năng giao tiếp kỹ thuật', weight: 20, maxScore: 10 },
+        ],
+        strictMode: true,
+        aiConfidenceThreshold: 0.85,
+      },
+      null,
+      2,
+    ),
+    reason: 'Điều chỉnh trọng số tiêu chí phản biện lên 40% và bổ sung ngưỡng tin cậy AI theo phê duyệt của Chủ nhiệm bộ môn',
+    timestamp: '2026-10-16T16:20:00Z',
+    ipAddress: '118.69.182.44',
+    metadata: {
+      courseCode: 'SWE301',
+      version: 2,
     },
   },
   {
@@ -368,12 +472,115 @@ export const systemService = {
     return s
   },
 
-  async getAuditLogs(): Promise<AuditLog[]> {
+  async getAuditLogs(params?: AuditLogFilters): Promise<AuditLog[]> {
     try {
-      const res = await apiRequest<AuditLog[] | { data: AuditLog[] }>('/admin/audit-logs')
-      return Array.isArray(res) ? res : res?.data ?? [...mockAuditLogs]
+      const query = new URLSearchParams()
+      if (params?.actorId) query.append('actorId', params.actorId)
+      if (params?.action && params.action !== 'ALL') query.append('action', params.action)
+      if (params?.entityName && params.entityName !== 'ALL') query.append('entityName', params.entityName)
+      if (params?.page !== undefined) query.append('page', String(params.page))
+      if (params?.size !== undefined) query.append('size', String(params.size))
+      const qs = query.toString() ? `?${query.toString()}` : ''
+
+      const res = await apiRequest<any>(`/admin/audit-logs${qs}`)
+      let list: any[] = []
+      if (Array.isArray(res)) {
+        list = res
+      } else if (res && Array.isArray(res.items)) {
+        list = res.items
+      } else if (res?.data && Array.isArray(res.data.items)) {
+        list = res.data.items
+      } else if (res?.data && Array.isArray(res.data)) {
+        list = res.data
+      } else {
+        list = [...mockAuditLogs]
+      }
+      return list.map(normalizeAuditLog)
     } catch {
-      return [...mockAuditLogs]
+      let filtered = [...mockAuditLogs]
+      if (params?.actorId) {
+        const needle = params.actorId.toLowerCase()
+        filtered = filtered.filter(
+          (l) =>
+            l.actorId.toLowerCase().includes(needle) ||
+            l.actorEmail?.toLowerCase().includes(needle) ||
+            l.actorName?.toLowerCase().includes(needle),
+        )
+      }
+      if (params?.action && params.action !== 'ALL') {
+        filtered = filtered.filter((l) => l.action === params.action)
+      }
+      if (params?.entityName && params.entityName !== 'ALL') {
+        const ent = params.entityName.toLowerCase()
+        filtered = filtered.filter(
+          (l) => l.entityType.toLowerCase() === ent || l.entityType.toLowerCase().startsWith(ent),
+        )
+      }
+      return filtered
+    }
+  },
+
+  async getAuditLogsPaged(params?: AuditLogFilters): Promise<AuditLogPageResult> {
+    const page = params?.page ?? 0
+    const size = params?.size ?? 20
+
+    try {
+      const query = new URLSearchParams()
+      if (params?.actorId) query.append('actorId', params.actorId)
+      if (params?.action && params.action !== 'ALL') query.append('action', params.action)
+      if (params?.entityName && params.entityName !== 'ALL') query.append('entityName', params.entityName)
+      query.append('page', String(page))
+      query.append('size', String(size))
+      const qs = `?${query.toString()}`
+
+      const res = await apiRequest<any>(`/admin/audit-logs${qs}`)
+      const itemsRaw = Array.isArray(res)
+        ? res
+        : res?.items ?? res?.data?.items ?? (Array.isArray(res?.data) ? res.data : null)
+
+      if (itemsRaw) {
+        const totalItems = res?.totalItems ?? res?.data?.totalItems ?? itemsRaw.length
+        const totalPages =
+          res?.totalPages ?? res?.data?.totalPages ?? Math.max(1, Math.ceil(totalItems / size))
+        return {
+          items: itemsRaw.map(normalizeAuditLog),
+          totalItems,
+          totalPages,
+          page,
+          size,
+        }
+      }
+      throw new Error('Fallback to mock')
+    } catch {
+      let filtered = [...mockAuditLogs]
+      if (params?.actorId) {
+        const needle = params.actorId.toLowerCase()
+        filtered = filtered.filter(
+          (l) =>
+            l.actorId.toLowerCase().includes(needle) ||
+            l.actorEmail?.toLowerCase().includes(needle) ||
+            l.actorName?.toLowerCase().includes(needle),
+        )
+      }
+      if (params?.action && params.action !== 'ALL') {
+        filtered = filtered.filter((l) => l.action === params.action)
+      }
+      if (params?.entityName && params.entityName !== 'ALL') {
+        const ent = params.entityName.toLowerCase()
+        filtered = filtered.filter(
+          (l) => l.entityType.toLowerCase() === ent || l.entityType.toLowerCase().startsWith(ent),
+        )
+      }
+      const totalItems = filtered.length
+      const totalPages = Math.max(1, Math.ceil(totalItems / size))
+      const paged = filtered.slice(page * size, (page + 1) * size)
+      return {
+        items: paged,
+        totalItems,
+        totalPages,
+        page,
+        size,
+      }
     }
   },
 
