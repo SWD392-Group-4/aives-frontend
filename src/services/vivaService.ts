@@ -1,4 +1,5 @@
-import { apiRequest } from './apiClient'
+import { API_BASE_URL, ApiError, apiRequest } from './apiClient'
+import { getAccessToken } from './tokenStorage'
 
 /* ---------- STUDENT: phỏng vấn AI trong 1 lượt thi (VivaInterviewController) ---------- */
 
@@ -15,6 +16,8 @@ export interface InterviewState {
   aiEnabled: boolean
   // true: lần quyết định gần nhất AI bị lỗi nên hệ thống tự chuyển câu tiếp theo
   aiFallback: boolean
+  sttEnabled?: boolean
+  ttsEnabled?: boolean
   totalQuestions?: number
 
   // Chỉ có khi status = 'QUESTION'
@@ -56,6 +59,63 @@ export function submitInterviewAnswer(
   return apiRequest<InterviewState>(interviewUrl(attemptId, 'answer'), {
     method: 'POST',
     body: { exchangeId, transcript },
+  })
+}
+
+/**
+ * Trả về đường dẫn audio MP3 của câu hỏi từ backend.
+ * Kèm token qua query param nếu có để hỗ trợ stream trực tiếp.
+ */
+export function getQuestionAudioUrl(attemptId: string, exchangeId: string): string {
+  const token = getAccessToken()
+  const base = `${API_BASE_URL}${interviewUrl(attemptId, 'question-audio')}?exchangeId=${encodeURIComponent(exchangeId)}`
+  return token ? `${base}&token=${encodeURIComponent(token)}` : base
+}
+
+/**
+ * Gọi GET .../interview/question-audio?exchangeId=... kèm Authorization Bearer token để lấy binary MP3 Blob.
+ */
+export async function getQuestionAudioBlob(attemptId: string, exchangeId: string): Promise<Blob> {
+  const token = getAccessToken()
+  const headers: Record<string, string> = {
+    Accept: 'audio/mpeg, audio/*',
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+  const url = `${API_BASE_URL}${interviewUrl(attemptId, 'question-audio')}?exchangeId=${encodeURIComponent(exchangeId)}`
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+  })
+
+  if (!response.ok) {
+    throw new ApiError({
+      status: response.status,
+      code: 'AUDIO_FETCH_FAILED',
+      message: 'Không tải được âm thanh câu hỏi từ máy chủ.',
+    })
+  }
+
+  return await response.blob()
+}
+
+/**
+ * Gửi file WebM/Opus thu âm từ micro của sinh viên qua POST .../interview/answer-audio (FormData).
+ * Backend chuyển đổi bằng Google STT rồi xử lý như submitInterviewAnswer.
+ */
+export function submitInterviewAudioAnswer(
+  attemptId: string,
+  exchangeId: string,
+  audioBlob: Blob,
+): Promise<InterviewState> {
+  const formData = new FormData()
+  formData.append('exchangeId', exchangeId)
+  formData.append('file', audioBlob, 'answer.webm')
+
+  return apiRequest<InterviewState>(interviewUrl(attemptId, 'answer-audio'), {
+    method: 'POST',
+    formData,
   })
 }
 

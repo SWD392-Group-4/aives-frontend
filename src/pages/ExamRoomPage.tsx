@@ -9,9 +9,12 @@ import { ApiError } from '../services/apiClient'
 import { finishExamAttempt, getExamAttempt } from '../services/examSessionService'
 import {
   InterviewState,
+  getQuestionAudioBlob,
+  getQuestionAudioUrl,
   skipInterviewQuestion,
   startInterview,
   submitInterviewAnswer,
+  submitInterviewAudioAnswer,
 } from '../services/vivaService'
 import { VivaAttempt } from '../types'
 import { formatDateTime } from '../utils/dateTime'
@@ -84,6 +87,11 @@ export default function ExamRoomPage() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const microphoneRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
+  const audioElementRef = useRef<HTMLAudioElement | null>(null)
+  const audioObjectUrlRef = useRef<string | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const isSubmittingRef = useRef(false)
 
   // Giá trị mới nhất cho các callback của timer / Web Speech (tránh đọc phải state cũ)
   const phaseRef = useRef<RoomPhase>('MIC_CHECK')
@@ -120,11 +128,99 @@ export default function ExamRoomPage() {
     setPhaseDeadline(Date.now() + seconds * 1000)
   }
 
+  const cleanupAudio = () => {
+    if (audioElementRef.current) {
+      try {
+        audioElementRef.current.pause()
+        audioElementRef.current.src = ''
+      } catch {}
+      audioElementRef.current = null
+    }
+    if (audioObjectUrlRef.current) {
+      try {
+        URL.revokeObjectURL(audioObjectUrlRef.current)
+      } catch {}
+      audioObjectUrlRef.current = null
+    }
+  }
+
   const cancelSpeech = () => {
     window.clearTimeout(speakTimerRef.current)
+    cleanupAudio()
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel()
     }
+  }
+
+  /* ---------- Ghi âm micro (MediaRecorder) gửi lên backend STT ---------- */
+
+  const getAudioMimeType = (): string => {
+    if (typeof window === 'undefined' || typeof MediaRecorder === 'undefined') return ''
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/mp4',
+    ]
+    for (const candidate of candidates) {
+      if (MediaRecorder.isTypeSupported(candidate)) {
+        return candidate
+      }
+    }
+    return ''
+  }
+
+  const startAudioRecording = () => {
+    audioChunksRef.current = []
+    const stream = microphoneRef.current
+    if (!stream || typeof MediaRecorder === 'undefined') return
+    try {
+      const mimeType = getAudioMimeType()
+      const options = mimeType ? { mimeType } : undefined
+      const recorder = new MediaRecorder(stream, options)
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+      mediaRecorderRef.current = recorder
+      recorder.start(250)
+    } catch (err) {
+      console.warn('[AIVES Audio] Không thể khởi tạo MediaRecorder:', err)
+    }
+  }
+
+  const stopAudioRecording = (): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const recorder = mediaRecorderRef.current
+      if (!recorder || recorder.state === 'inactive') {
+        const mime = recorder?.mimeType || 'audio/webm'
+        const blob = audioChunksRef.current.length > 0 ? new Blob(audioChunksRef.current, { type: mime }) : null
+        resolve(blob && blob.size > 0 ? blob : null)
+        return
+      }
+
+      let finished = false
+      const finish = () => {
+        if (finished) return
+        finished = true
+        try {
+          const mime = recorder.mimeType || 'audio/webm'
+          const blob = new Blob(audioChunksRef.current, { type: mime })
+          resolve(blob.size > 0 ? blob : null)
+        } catch {
+          resolve(null)
+        }
+      }
+
+      recorder.onstop = finish
+      window.setTimeout(finish, 800)
+      try {
+        recorder.stop()
+      } catch {
+        finish()
+      }
+    })
   }
 
   /* ---------- Nhận giọng nói (Web Speech API của trình duyệt) ---------- */
@@ -209,7 +305,7 @@ export default function ExamRoomPage() {
       .catch(() => {})
   }
 
-  // AI đọc câu hỏi rồi chuyển sang thời gian chuẩn bị
+  // AI đọc câu hỏi qua backend TTS (Neural MP3) hoặc Web Speech API rồi chuyển sang thời gian chuẩn bị
   const speakQuestion = (state: InterviewState) => {
     changePhase('TTS_PLAY')
     setPhaseDeadline(null)
@@ -221,25 +317,71 @@ export default function ExamRoomPage() {
     const goPrepare = () => {
       if (done) return
       done = true
+      cleanupAudio()
       window.clearTimeout(speakTimerRef.current)
       // Trong lúc đọc đề sinh viên có thể đã bỏ qua câu này hoặc nộp bài
       if (phaseRef.current !== 'TTS_PLAY' || questionRef.current?.exchangeId !== state.exchangeId) return
       beginTimedPhase('STUDENT_PREPARE', prepareSeconds)
     }
 
+    const fallbackSpeechSynthesis = () => {
+      if (done) return
+      window.clearTimeout(speakTimerRef.current)
+      if ('speechSynthesis' in window && text) {
+        try {
+          window.speechSynthesis.cancel()
+          const utter = new SpeechSynthesisUtterance(text)
+          utter.lang = 'vi-VN'
+          utter.rate = 1.0
+          utter.onend = goPrepare
+          utter.onerror = goPrepare
+          window.speechSynthesis.speak(utter)
+          speakTimerRef.current = window.setTimeout(goPrepare, Math.max(6000, text.length * 110) + 4000)
+        } catch {
+          speakTimerRef.current = window.setTimeout(goPrepare, 2500)
+        }
+      } else {
+        speakTimerRef.current = window.setTimeout(goPrepare, 2500)
+      }
+    }
+
+    cleanupAudio()
     window.clearTimeout(speakTimerRef.current)
-    if ('speechSynthesis' in window && text) {
-      window.speechSynthesis.cancel()
-      const utter = new SpeechSynthesisUtterance(text)
-      utter.lang = 'vi-VN'
-      utter.rate = 1.0
-      utter.onend = goPrepare
-      utter.onerror = goPrepare
-      window.speechSynthesis.speak(utter)
-      // Có trình duyệt không báo đọc xong: tự chuyển sau thời gian đọc ước lượng
-      speakTimerRef.current = window.setTimeout(goPrepare, Math.max(6000, text.length * 110) + 4000)
+
+    // Ưu tiên phát qua backend TTS (Google Cloud Neural2 MP3 chất lượng cao)
+    if (state.ttsEnabled && state.exchangeId && attemptId) {
+      getQuestionAudioBlob(attemptId, state.exchangeId)
+        .then((blob) => {
+          if (done || phaseRef.current !== 'TTS_PLAY' || questionRef.current?.exchangeId !== state.exchangeId) {
+            return
+          }
+          const objectUrl = URL.createObjectURL(blob)
+          audioObjectUrlRef.current = objectUrl
+          const audio = new Audio(objectUrl)
+          audioElementRef.current = audio
+
+          audio.onended = () => {
+            goPrepare()
+          }
+          audio.onerror = () => {
+            console.warn('[AIVES TTS] Lỗi phát audio từ backend, tự động fallback sang window.speechSynthesis')
+            fallbackSpeechSynthesis()
+          }
+          audio.play().catch((playErr) => {
+            console.warn('[AIVES TTS] Không thể tự động phát audio, tự động fallback sang window.speechSynthesis', playErr)
+            fallbackSpeechSynthesis()
+          })
+
+          // Đề phòng audio không bắn onended
+          const estimatedMs = Math.max(8000, text.length * 120) + 6000
+          speakTimerRef.current = window.setTimeout(goPrepare, estimatedMs)
+        })
+        .catch((fetchErr) => {
+          console.warn('[AIVES TTS] Lỗi tải binary MP3 từ backend, tự động fallback sang window.speechSynthesis', fetchErr)
+          fallbackSpeechSynthesis()
+        })
     } else {
-      speakTimerRef.current = window.setTimeout(goPrepare, 2500)
+      fallbackSpeechSynthesis()
     }
   }
 
@@ -247,11 +389,17 @@ export default function ExamRoomPage() {
     if (unmountedRef.current) return
     window.clearTimeout(pollTimerRef.current)
     retryRef.current = null
+    isSubmittingRef.current = false
     setRoomError('')
 
     if (state.status === 'COMPLETED') {
       cancelSpeech()
       stopRecognition()
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop()
+        } catch {}
+      }
       setPhaseDeadline(null)
       changePhase('COMPLETED')
       refreshAttempt()
@@ -279,6 +427,7 @@ export default function ExamRoomPage() {
 
   const handleRoomError = (err: unknown) => {
     if (unmountedRef.current) return
+    isSubmittingRef.current = false
     if (err instanceof ApiError) {
       if (err.code === 'EXAM_ATTEMPT_NOT_RUNNING') {
         // Hết giờ hoặc lượt thi đã kết thúc
@@ -312,39 +461,73 @@ export default function ExamRoomPage() {
     lastSoundAtRef.current = Date.now()
     setSilenceSeconds(0)
     updateDraft('')
+    isSubmittingRef.current = false
     beginTimedPhase('STUDENT_SPEAKING', questionRef.current?.answerSeconds ?? 120)
+
+    startAudioRecording()
+
     if (micReady) {
       startRecognition('')
     }
   }
 
-  const sendAnswer = (exchangeId: string, transcript: string) => {
+  const sendAudioAnswer = (exchangeId: string, audioBlob: Blob, fallbackTranscript: string) => {
+    if (!attemptId) return
+    changePhase('EVAL_AND_DECIDE')
+    submitInterviewAudioAnswer(attemptId, exchangeId, audioBlob)
+      .then(applyState)
+      .catch((err) => {
+        // Lỗi mạng hoặc STT: bấm "Thử lại" sẽ gửi lại đúng file audio này
+        retryRef.current = () => sendAudioAnswer(exchangeId, audioBlob, fallbackTranscript)
+        handleRoomError(err)
+      })
+  }
+
+  const sendTextAnswer = (exchangeId: string, transcript: string) => {
     if (!attemptId) return
     changePhase('EVAL_AND_DECIDE')
     submitInterviewAnswer(attemptId, exchangeId, transcript)
       .then(applyState)
       .catch((err) => {
         // Lỗi mạng: bấm "Thử lại" sẽ gửi lại đúng câu trả lời này, không bắt sinh viên trả lời lại
-        retryRef.current = () => sendAnswer(exchangeId, transcript)
+        retryRef.current = () => sendTextAnswer(exchangeId, transcript)
         handleRoomError(err)
       })
   }
 
   // Nộp câu trả lời & AI đánh giá
-  const submitAnswer = () => {
+  const submitAnswer = async () => {
     if (phaseRef.current !== 'STUDENT_SPEAKING') return
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
+
     const exchangeId = questionRef.current?.exchangeId
-    if (!exchangeId) return
+    if (!exchangeId || !attemptId) {
+      isSubmittingRef.current = false
+      return
+    }
+
     const wasListening = listeningWantedRef.current
     stopRecognition()
     setPhaseDeadline(null)
     changePhase('EVAL_AND_DECIDE')
-    // Chờ một nhịp để trình duyệt trả nốt mấy từ cuối vừa nói
-    window.clearTimeout(submitTimerRef.current)
-    submitTimerRef.current = window.setTimeout(
-      () => sendAnswer(exchangeId, draftRef.current.trim()),
-      wasListening ? 500 : 0,
-    )
+
+    // Thu nốt audio từ MediaRecorder
+    const audioBlob = await stopAudioRecording()
+    const transcript = draftRef.current.trim()
+
+    const shouldSendAudio = Boolean(questionRef.current?.sttEnabled && audioBlob && audioBlob.size > 0)
+
+    if (shouldSendAudio && audioBlob) {
+      sendAudioAnswer(exchangeId, audioBlob, transcript)
+    } else {
+      // Chờ một nhịp để trình duyệt trả nốt mấy từ cuối vừa nói
+      window.clearTimeout(submitTimerRef.current)
+      submitTimerRef.current = window.setTimeout(
+        () => sendTextAnswer(exchangeId, transcript),
+        wasListening ? 300 : 0,
+      )
+    }
   }
 
   const skipQuestion = () => {
@@ -353,6 +536,11 @@ export default function ExamRoomPage() {
     if (!exchangeId || !attemptId) return
     cancelSpeech()
     stopRecognition()
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop()
+      } catch {}
+    }
     setPhaseDeadline(null)
     changePhase('EVAL_AND_DECIDE')
     skipInterviewQuestion(attemptId, exchangeId).then(applyState).catch(handleRoomError)
@@ -378,6 +566,7 @@ export default function ExamRoomPage() {
   const handleRetry = () => {
     const retry = retryRef.current
     retryRef.current = null
+    isSubmittingRef.current = false
     setRoomError('')
     if (retry) {
       retry()
@@ -392,12 +581,18 @@ export default function ExamRoomPage() {
     if (!attemptId) return
     cancelSpeech()
     stopRecognition()
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop()
+      } catch {}
+    }
     window.clearTimeout(pollTimerRef.current)
     window.clearTimeout(submitTimerRef.current)
     setPhaseDeadline(null)
     try {
       setAttempt(await finishExamAttempt(attemptId))
       retryRef.current = null
+      isSubmittingRef.current = false
       setRoomError('')
       changePhase('COMPLETED')
     } catch (err) {
@@ -439,11 +634,13 @@ export default function ExamRoomPage() {
     return () => {
       unmountedRef.current = true
       listeningWantedRef.current = false
-      window.clearTimeout(speakTimerRef.current)
+      cancelSpeech()
       window.clearTimeout(pollTimerRef.current)
       window.clearTimeout(submitTimerRef.current)
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel()
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop()
+        } catch {}
       }
       if (microphoneRef.current) {
         microphoneRef.current.getTracks().forEach((track) => track.stop())
@@ -500,9 +697,9 @@ export default function ExamRoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase === 'COMPLETED', attempt?.attemptId])
 
-  // Phát hiện khoảng lặng (>= 10s -> tự nộp theo BR-VIVA-003). Chỉ áp dụng khi đang ghi giọng nói.
+  // Phát hiện khoảng lặng (>= 10s -> tự nộp theo BR-VIVA-003). Áp dụng khi mic sẵn sàng hoặc đang lắng nghe.
   useEffect(() => {
-    if (phase !== 'STUDENT_SPEAKING' || !listening) {
+    if (phase !== 'STUDENT_SPEAKING' || (!listening && !micReady)) {
       setSilenceSeconds(0)
       return
     }
@@ -514,7 +711,7 @@ export default function ExamRoomPage() {
       }
     }, 500)
     return () => window.clearInterval(interval)
-  }, [phase, listening])
+  }, [phase, listening, micReady])
 
   // Xin quyền micro rồi bắt đầu phỏng vấn. Không có micro vẫn thi được bằng bàn phím.
   const handlePassMicCheck = async () => {
@@ -832,7 +1029,7 @@ export default function ExamRoomPage() {
                 {phase === 'STUDENT_SPEAKING' && (
                   <div className="w-full">
                     {/* Visualizer bars */}
-                    {listening && (
+                    {(listening || micReady) && (
                       <div className="flex items-center justify-center gap-1.5 h-16 mb-4">
                         {[...Array(24)].map((_, i) => {
                           const height = Math.max(12, Math.min(60, (audioLevel * (i % 5 + 1)) / 4))
@@ -848,7 +1045,7 @@ export default function ExamRoomPage() {
                     )}
 
                     {/* Cảnh báo im lặng BR-VIVA-003 */}
-                    {listening && silenceSeconds >= SILENCE_HINT_SECONDS && (
+                    {(listening || micReady) && silenceSeconds >= SILENCE_HINT_SECONDS && (
                       <div className="inline-flex items-center gap-2 rounded-full bg-tertiary-fixed px-4 py-1 text-label-sm text-tertiary font-semibold mb-3">
                         <Icon name="warning" />
                         <span>

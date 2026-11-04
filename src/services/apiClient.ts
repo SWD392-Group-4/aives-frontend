@@ -19,7 +19,7 @@ if (rawBaseUrl) {
     normalizedBase = `${normalizedBase}/api`
   }
 }
-const API_BASE_URL = normalizedBase
+export const API_BASE_URL = normalizedBase
 
 export interface ApiErrorParams {
   status: number
