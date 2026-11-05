@@ -13,6 +13,9 @@ export default function LecturerReviewPage() {
   const [currentAttempt, setCurrentAttempt] = useState<VivaAttempt | null>(null)
   const [questionGrades, setQuestionGrades] = useState<QuestionGrade[]>([])
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  // Thông báo hiện ngay dưới nút lưu của từng câu (banner nằm đầu trang nên dễ bị khuất)
+  const [rowMessages, setRowMessages] = useState<Record<string, { type: 'success' | 'error'; message: string }>>({})
+  const [savingId, setSavingId] = useState<string | null>(null)
 
   // Điểm số và ghi chú giảng viên nhập
   const [editableScores, setEditableScores] = useState<
@@ -110,16 +113,16 @@ export default function LecturerReviewPage() {
 
   // Lưu và duyệt điểm 1 câu (HITL - BR-GRADE-002)
   const handleSaveQuestion = async (qg: QuestionGrade) => {
-    const edit = editableScores[qg.id]
-    if (!edit) return
+    const showRow = (type: 'success' | 'error', message: string) => {
+      setRowMessages((prev) => ({ ...prev, [qg.id]: { type, message } }))
+      setBanner({ type, message })
+    }
+    const edit = editableScores[qg.id] || { finalScore: qg.finalScore ?? qg.aiScore ?? 0, lecturerNote: qg.lecturerNote || '' }
 
     // AI không chấm được câu này (aiScore trống) thì không có điểm AI để so sánh
     const diff = qg.aiScore === undefined ? 0 : Math.abs(edit.finalScore - qg.aiScore)
     if (diff > 2.0 && (!edit.lecturerNote || edit.lecturerNote.trim().length < 5)) {
-      setBanner({
-        type: 'error',
-        message: 'Điểm sửa chênh lệch > 2.0 điểm so với gợi ý của AI. Vui lòng nhập ghi chú giải trình lý do!',
-      })
+      showRow('error', 'Điểm sửa chênh lệch hơn 2 điểm so với gợi ý của AI. Vui lòng nhập ghi chú ít nhất 5 ký tự!')
       return
     }
 
@@ -132,6 +135,12 @@ export default function LecturerReviewPage() {
           : (cg.finalScore ?? cg.aiScore ?? 0),
     }))
 
+    setSavingId(qg.id)
+    setRowMessages((prev) => {
+      const next = { ...prev }
+      delete next[qg.id]
+      return next
+    })
     try {
       const updated = await gradingService.saveQuestionGrade(qg.id, {
         finalScore: edit.finalScore,
@@ -139,11 +148,14 @@ export default function LecturerReviewPage() {
         criteriaScores: criteriaList,
       })
       setQuestionGrades((prev) => prev.map((item) => (item.id === qg.id ? updated : item)))
-      setBanner({ type: 'success', message: 'Đã lưu và phê duyệt điểm câu hỏi thành công!' })
+      showRow('success', 'Đã lưu và phê duyệt điểm câu hỏi thành công!')
       // Cập nhật lại tổng điểm chốt của lượt thi
       if (selectedAttemptId) loadDetail(selectedAttemptId, true)
     } catch (err: any) {
-      setBanner({ type: 'error', message: err.message })
+      console.error('Lưu điểm câu hỏi thất bại', err)
+      showRow('error', err?.message || 'Không lưu được điểm. Vui lòng thử lại.')
+    } finally {
+      setSavingId(null)
     }
   }
 
@@ -584,16 +596,29 @@ export default function LecturerReviewPage() {
                       </div>
                     </div>
 
-                    <div className="flex justify-end pt-2">
+                    <div className="flex flex-col items-end gap-2 pt-2">
                       <button
                         type="button"
                         onClick={() => handleSaveQuestion(qg)}
-                        disabled={waitingForAi || currentAttempt?.resultStatus === 'PUBLISHED'}
+                        disabled={savingId === qg.id || waitingForAi || currentAttempt?.resultStatus === 'PUBLISHED'}
                         className="disabled:opacity-50 inline-flex items-center gap-2 rounded-full bg-primary-container px-6 py-2.5 text-label-md font-semibold text-on-primary shadow-md hover:bg-primary"
                       >
                         <Icon name="check" />
-                        <span>Lưu & Phê duyệt câu này</span>
+                        <span>{savingId === qg.id ? 'Đang lưu...' : 'Lưu & Phê duyệt câu này'}</span>
                       </button>
+                      {waitingForAi && (
+                        <span className="text-label-sm text-outline">AI đang chấm, chờ AI chấm xong mới lưu được.</span>
+                      )}
+                      {rowMessages[qg.id] && (
+                        <span
+                          className={`flex items-center gap-1 text-label-sm font-semibold ${
+                            rowMessages[qg.id].type === 'success' ? 'text-secondary' : 'text-error'
+                          }`}
+                        >
+                          <Icon name={rowMessages[qg.id].type === 'success' ? 'check_circle' : 'error'} className="text-sm" />
+                          {rowMessages[qg.id].message}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -1,9 +1,6 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import { ROLES } from './constants/roles'
-import ChapterMaterialsPage from './features/materials/ChapterMaterialsPage'
-import ChapterQuestionBankPage from './features/questions/ChapterQuestionBankPage'
-import CourseRubricPage from './features/rubric/CourseRubricPage'
 import AdminAuditLogsPage from './pages/AdminAuditLogsPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminSettingsPage from './pages/AdminSettingsPage'
@@ -30,6 +27,12 @@ import StudentAppealsPage from './pages/StudentAppealsPage'
 import StudentDashboardPage from './pages/StudentDashboardPage'
 import StudentResultsPage from './pages/StudentResultsPage'
 import ExamResultPage from './pages/ExamResultPage'
+
+/** Đường dẫn cũ /lecturer/courses/:courseId/rubric -> trang Môn học, Bước 2 */
+function CourseRubricRedirect() {
+  const { courseId } = useParams()
+  return <Navigate to={`/lecturer/curriculum?courseId=${encodeURIComponent(courseId || '')}&step=2`} replace />
+}
 
 function App() {
   return (
@@ -156,87 +159,13 @@ function App() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/lecturer/materials"
-        element={
-          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <ChapterMaterialsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/courses/:courseId/rubric"
-        element={
-          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <CourseRubricPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/chapters/:chapterId"
-        element={
-          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <ChapterMaterialsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/chapters/:chapterId/questions"
-        element={
-          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <ChapterQuestionBankPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/questions"
-        element={
-          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <ChapterQuestionBankPage />
-          </ProtectedRoute>
-        }
-      />
-      {/* FLOW-02-QUESTION-BANK: Rubric Môn Học, Học Liệu Chương & Ngân Hàng Câu Hỏi */}
-      <Route
-        path="/lecturer/courses/:courseId/rubric"
-        element={
-          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <CourseRubricPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/rubric"
-        element={
-          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <CourseRubricPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/chapters/:chapterId"
-        element={
-          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <ChapterMaterialsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/chapters/:chapterId/materials"
-        element={
-          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <ChapterMaterialsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lecturer/chapters/:chapterId/questions"
-        element={
-          <ProtectedRoute roles={[ROLES.LECTURER, ROLES.ADMIN]}>
-            <ChapterQuestionBankPage />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/lecturer/materials" element={<Navigate to="/lecturer/curriculum" replace />} />
+      <Route path="/lecturer/courses/:courseId/rubric" element={<CourseRubricRedirect />} />
+      <Route path="/lecturer/chapters/:chapterId" element={<Navigate to="/lecturer/curriculum" replace />} />
+      <Route path="/lecturer/chapters/:chapterId/questions" element={<Navigate to="/lecturer/curriculum" replace />} />
+      <Route path="/lecturer/questions" element={<Navigate to="/lecturer/curriculum" replace />} />
+      <Route path="/lecturer/rubric" element={<Navigate to="/lecturer/curriculum" replace />} />
+      <Route path="/lecturer/chapters/:chapterId/materials" element={<Navigate to="/lecturer/curriculum" replace />} />
       <Route
         path="/lecturer/reviews"
         element={

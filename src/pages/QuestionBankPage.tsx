@@ -20,7 +20,7 @@ export default function QuestionBankPage() {
 
   // Gửi file câu hỏi (.pdf / .docx / .txt) để AI tách thành câu hỏi nháp
   const [importModalOpen, setImportModalOpen] = useState(false)
-  // Sinh câu hỏi AI Grounded từ Slide RAG
+  // Sinh câu hỏi AI từ tài liệu
   const [generateModalOpen, setGenerateModalOpen] = useState(false)
   // Chỉnh sửa tiêu chí & trọng số Rubric (BR-BANK-001)
   const [editingRubric, setEditingRubric] = useState<Rubric | null>(null)
@@ -105,14 +105,6 @@ export default function QuestionBankPage() {
             : 'Đã cập nhật trạng thái câu hỏi.',
       })
     } catch (err: any) {
-      if (id.startsWith('q-rag-') || id.startsWith('mock-')) {
-        setQuestions((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)))
-        setBanner({
-          type: 'success',
-          message: 'Đã duyệt câu hỏi nháp. (Gợi ý: Bạn có thể bấm "Tạo câu hỏi bằng AI" để tự động lưu câu hỏi và thang điểm chuẩn vào hệ thống).',
-        })
-        return
-      }
       setBanner({ type: 'error', message: err.message || 'Lỗi khi cập nhật trạng thái câu hỏi' })
     }
   }
@@ -144,18 +136,9 @@ export default function QuestionBankPage() {
           continue
         }
 
-        try {
-          const updated = await contentService.updateQuestionStatus(question.id, 'APPROVED')
-          setQuestions((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
-          approved += 1
-        } catch (err: any) {
-          if (question.id.startsWith('q-rag-') || question.id.startsWith('mock-')) {
-            setQuestions((prev) => prev.map((item) => (item.id === question.id ? { ...item, status: 'APPROVED' } : item)))
-            approved += 1
-          } else {
-            throw err
-          }
-        }
+        const updated = await contentService.updateQuestionStatus(question.id, 'APPROVED')
+        setQuestions((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+        approved += 1
       }
 
       if (invalidQuestions.length > 0) {
@@ -562,7 +545,7 @@ export default function QuestionBankPage() {
         </div>
       </div>
 
-      {/* Modal sinh câu hỏi Grounded AI từ Slide RAG */}
+      {/* Modal sinh câu hỏi AI từ tài liệu */}
       {generateModalOpen && (
         <GenerateQuestionsModal
           topics={topics}

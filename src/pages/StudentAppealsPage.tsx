@@ -7,82 +7,10 @@ import { gradingService } from '../services/gradingService'
 import { AppealStatus, GradeAppeal } from '../types'
 import { formatDateTime } from '../utils/dateTime'
 
-// Mock appeals phong phú nếu chưa có dữ liệu từ backend
-const MOCK_STUDENT_APPEALS: GradeAppeal[] = [
-  {
-    id: 'APP-2026-0042',
-    questionGradeId: 'qg-101',
-    questionText:
-      'Giải thích nguyên lý Dependency Inversion Principle (DIP) và cách áp dụng trong Spring Boot thông qua Inversion of Control (IoC) Container?',
-    attemptId: 'ATT-2026-001',
-    examId: 'AIVES_EXAM_2026_019283',
-    examTitle: 'Kiểm tra Vấn đáp Kiến trúc Phần mềm - K18',
-    studentId: 'ST180293',
-    studentName: 'Nguyễn Văn Sinh Viên',
-    reason:
-      'Trong phần trả lời vấn đáp của câu hỏi này, em đã trình bày đầy đủ cả 2 vế của nguyên lý DIP: (1) Module cấp cao không được phụ thuộc module cấp thấp, cả hai phải phụ thuộc vào Abstraction; (2) Abstraction không được phụ thuộc vào chi tiết, chi tiết phải phụ thuộc vào Abstraction. Đồng thời em đã nêu rõ ví dụ thực tế về chú thích @Autowired và Bean Lifecycle trong Spring IoC Container. Tuy nhiên điểm số ban đầu do AI gợi ý cho phần Rubric "Tính hoàn thiện giải thuật và kiến trúc" chỉ đạt 6.0/10.',
-    status: 'ACCEPTED',
-    scoreBefore: 6.0,
-    scoreAfter: 8.5,
-    maxScore: 10,
-    response:
-      'Giảng viên đã nghe lại audio bản ghi âm và đối soát với transcript chi tiết của lượt thi. Thí sinh đã giải thích chính xác bản chất DIP và cơ chế Dependency Injection của Spring IoC. Phần nhận diện giọng nói của AI gặp một chút nhiễu sóng âm ở đoạn giải thích ApplicationContext dẫn đến chấm sót ý. Chấp thuận tăng điểm câu này lên 8.5/10 và cập nhật lại điểm tổng kết đợt thi.',
-    resolvedBy: 'LEC-001',
-    resolvedByName: 'TS. Trần Anh Tuấn',
-    createdAt: '2026-10-16T08:30:00Z',
-    resolvedAt: '2026-10-16T15:45:00Z',
-  },
-  {
-    id: 'APP-2026-0043',
-    questionGradeId: 'qg-102',
-    questionText:
-      'Phân biệt sự khác nhau giữa Pessimistic Locking và Optimistic Locking trong quản lý tương tranh cơ sở dữ liệu?',
-    attemptId: 'ATT-2026-002',
-    examId: 'AIVES_EXAM_2026_038174',
-    examTitle: 'Kiểm tra Vấn đáp Cơ sở Dữ liệu Phân tán',
-    studentId: 'ST180293',
-    studentName: 'Nguyễn Văn Sinh Viên',
-    reason:
-      'Em đã phân tích chi tiết cơ chế Versioning column (@Version trong Hibernate JPA) cho Optimistic Locking và SELECT FOR UPDATE trong Pessimistic Locking. Em kiến nghị Giảng viên xem xét lại điểm tiêu chí "Ví dụ tình huống thực tế" vì em đã đưa ra case study thực tế về xung đột đặt chỗ chuyến bay và thanh toán đồng thời.',
-    status: 'PENDING',
-    scoreBefore: 7.0,
-    scoreAfter: undefined,
-    maxScore: 10,
-    response: undefined,
-    resolvedBy: undefined,
-    resolvedByName: undefined,
-    createdAt: '2026-10-17T11:20:00Z',
-    resolvedAt: undefined,
-  },
-  {
-    id: 'APP-2026-0038',
-    questionGradeId: 'qg-103',
-    questionText:
-      'Trình bày cách thức tối ưu hóa hiệu năng render trong React với React.memo, useMemo và useCallback?',
-    attemptId: 'ATT-2026-003',
-    examId: 'AIVES_EXAM_2026_048123',
-    examTitle: 'Vấn đáp Lập trình Web với Framework Hiện đại',
-    studentId: 'ST180293',
-    studentName: 'Nguyễn Văn Sinh Viên',
-    reason:
-      'Em muốn khiếu nại về câu hỏi phụ (follow-up question) của AI xoáy vào việc so sánh tham chiếu (reference equality). Em cho rằng em đã nêu đúng định nghĩa shallow comparison trong React.memo và em xứng đáng nhận điểm tối đa cho câu hỏi này.',
-    status: 'REJECTED',
-    scoreBefore: 5.5,
-    scoreAfter: 5.5,
-    maxScore: 10,
-    response:
-      'Sau khi hội đồng giảng viên thẩm định lại audio tại mốc thời gian 03:25, thí sinh đã nhầm lẫn cơ bản giữa so sánh tham chiếu của Object và Primitive value khi truyền inline arrow function qua component con. AI đã đặt câu hỏi phụ để tạo cơ hội đính chính nhưng thí sinh vẫn khẳng định định nghĩa sai. Điểm đánh giá ban đầu 5.5/10 theo Rubric là hoàn toàn chuẩn xác và giữ nguyên.',
-    resolvedBy: 'LEC-002',
-    resolvedByName: 'ThS. Nguyễn Văn Hải',
-    createdAt: '2026-10-13T14:10:00Z',
-    resolvedAt: '2026-10-14T09:15:00Z',
-  },
-]
-
 export default function StudentAppealsPage() {
   const { locale } = useLanguage()
 
-  const [appeals, setAppeals] = useState<GradeAppeal[]>(MOCK_STUDENT_APPEALS)
+  const [appeals, setAppeals] = useState<GradeAppeal[]>([])
   const [_loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -98,13 +26,10 @@ export default function StudentAppealsPage() {
     gradingService
       .getMyAppeals()
       .then((data) => {
-        if (data && data.length > 0) {
-          setAppeals(data)
-        }
+        setAppeals(Array.isArray(data) ? data : [])
       })
       .catch((err) => {
-        console.warn('Lỗi tải danh sách phúc khảo từ API, dùng dữ liệu mẫu:', err?.message)
-        setErrorMsg('Đang hiển thị dữ liệu mẫu do không kết nối được máy chủ.')
+        setErrorMsg(err?.message || 'Không tải được danh sách đơn phúc khảo.')
       })
       .finally(() => setLoading(false))
   }, [])

@@ -14,8 +14,9 @@ export default function ChapterMaterialsPage() {
   const [uploading, setUploading] = useState(false)
   const [courses, setCourses] = useState<Course[]>([])
   const [chapters, setChapters] = useState<Chapter[]>([])
-  const [courseId, setCourseId] = useState<string>('SWD392')
-  const [chapterId, setChapterId] = useState<string>(paramChapterId || 'CHAP_01')
+  const [courseId, setCourseId] = useState<string>('')
+  const [chapterId, setChapterId] = useState<string>(paramChapterId || '')
+  const [coursesLoaded, setCoursesLoaded] = useState(false)
 
   const [materials, setMaterials] = useState<Material[]>([])
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null)
@@ -27,19 +28,22 @@ export default function ChapterMaterialsPage() {
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  // 1. Tải danh sách môn học
+  // 1. Tải danh sách môn học. Mở theo URL /chapters/:chapterId thì chọn đúng môn chứa chương đó.
   useEffect(() => {
     const initCourses = async () => {
       try {
         const courseList = await materialService.getCourses()
-        if (courseList.length > 0) {
-          setCourses(courseList)
-          if (!paramChapterId) {
-            setCourseId(courseList[0].id)
-          }
+        setCourses(courseList)
+        let initialCourseId = courseList[0]?.id || ''
+        if (paramChapterId) {
+          const owner = await materialService.findCourseOfChapter(courseList, paramChapterId)
+          if (owner) initialCourseId = owner
         }
+        setCourseId(initialCourseId)
       } catch (err: any) {
-        console.error('Không thể tải danh sách môn học:', err)
+        setBanner({ type: 'error', message: err?.message || 'Không thể tải danh sách môn học.' })
+      } finally {
+        setCoursesLoaded(true)
       }
     }
     initCourses()
@@ -48,28 +52,21 @@ export default function ChapterMaterialsPage() {
   // 2. Tải danh sách chương khi courseId thay đổi
   useEffect(() => {
     const loadChapters = async () => {
-      if (!courseId) return
+      if (!courseId) {
+        setChapters([])
+        setChapterId('')
+        setCurrentChapter(null)
+        return
+      }
       try {
         const chapList = await materialService.getChapters(courseId)
         setChapters(chapList)
-
-        if (chapList.length > 0) {
-          const matched = paramChapterId ? chapList.find((c) => c.id === paramChapterId) : null
-          const activeChapter = matched || chapList[0]
-          setChapterId(activeChapter.id)
-          setCurrentChapter(activeChapter)
-        } else {
-          setChapterId('CHAP_01')
-          setCurrentChapter({
-            id: 'CHAP_01',
-            courseId,
-            name: 'Chương 1: Mặc định',
-            orderNo: 1,
-            description: 'Học liệu slide bài giảng và giáo trình môn học',
-          })
-        }
+        const matched = paramChapterId ? chapList.find((c) => c.id === paramChapterId) : null
+        const activeChapter = matched || chapList[0] || null
+        setChapterId(activeChapter?.id || '')
+        setCurrentChapter(activeChapter)
       } catch (err: any) {
-        console.error('Không thể tải danh sách chương:', err)
+        setBanner({ type: 'error', message: err?.message || 'Không thể tải danh sách chương.' })
       }
     }
     loadChapters()
@@ -77,7 +74,11 @@ export default function ChapterMaterialsPage() {
 
   // 3. Tải danh sách tài liệu của chương
   const loadMaterials = async () => {
-    if (!chapterId) return
+    if (!chapterId) {
+      setMaterials([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setBanner(null)
     try {
@@ -145,7 +146,7 @@ export default function ChapterMaterialsPage() {
       setMaterials((prev) => [uploaded, ...prev])
       setBanner({
         type: 'success',
-        message: `Đã nạp tệp "${file.name}" lên Cloud Storage thành công. Vertex AI RAG đang lập chỉ mục vector!`,
+        message: `Đã tải lên tệp "${file.name}" thành công.`,
       })
       if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (err: any) {
@@ -165,12 +166,12 @@ export default function ChapterMaterialsPage() {
       setMaterials((prev) => prev.map((m) => (m.id === matId ? updated : m)))
       setBanner({
         type: 'success',
-        message: `Đã kích hoạt lại tiến trình lập chỉ mục cho tệp "${fileName}".`,
+        message: `Đã đọc lại nội dung tệp "${fileName}".`,
       })
     } catch (err: any) {
       setBanner({
         type: 'error',
-        message: err?.message || 'Không thể kích hoạt lại tiến trình lập chỉ mục.',
+        message: err?.message || 'Không thể đọc lại nội dung tệp.',
       })
     }
   }
@@ -184,11 +185,11 @@ export default function ChapterMaterialsPage() {
 
   return (
     <LecturerLayout
-      title={`Học Liệu & Lập Chỉ Mục RAG: ${currentChapter?.name || chapterId}`}
-      subtitle="Quản lý slide bài giảng, theo dõi trạng thái Vertex AI RAG Corpus và sinh câu hỏi AI"
+      title={`Tài liệu môn học: ${currentChapter?.name || chapterId}`}
+      subtitle="Quản lý tài liệu bài giảng của chương và sinh câu hỏi bằng AI từ nội dung tài liệu"
       breadcrumbs={[
         { label: 'Giảng viên', to: '/lecturer/dashboard' },
-        { label: 'Học liệu & Slide', to: '/lecturer/materials' },
+        { label: 'Tài liệu môn học', to: '/lecturer/materials' },
         { label: currentChapter?.name || chapterId },
       ]}
     >
@@ -234,11 +235,12 @@ export default function ChapterMaterialsPage() {
                     </option>
                   ))
                 ) : (
-                  <option value={courseId}>{courseId} - Môn học đang chọn</option>
+                  <option value="">Chưa có môn học</option>
                 )}
               </select>
             </div>
 
+            {courseId && (
             <div className="flex items-center gap-2">
               <Link
                 to={`/lecturer/courses/${encodeURIComponent(courseId)}/rubric`}
@@ -253,6 +255,7 @@ export default function ChapterMaterialsPage() {
                 Vào Ngân Hàng Câu Hỏi
               </Link>
             </div>
+            )}
           </div>
 
           {/* Danh sách tab các Chương thuộc môn */}
@@ -275,19 +278,43 @@ export default function ChapterMaterialsPage() {
             <button
               type="button"
               onClick={() => setIsCreateChapterOpen(true)}
-              className="rounded-xl border border-dashed border-outline px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10"
+              disabled={!courseId}
+              className="rounded-xl border border-dashed border-outline px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
             >
               + Tạo Chương Mới
             </button>
           </div>
         </div>
 
+        {!currentChapter ? (
+          <div className="rounded-3xl border border-dashed border-outline-variant/80 bg-surface-container-lowest p-10 text-center shadow-xs">
+            <h3 className="text-sm font-bold text-on-surface">
+              {!coursesLoaded
+                ? 'Đang tải dữ liệu...'
+                : courses.length === 0
+                  ? 'Chưa có môn học nào'
+                  : 'Môn học này chưa có chương nào'}
+            </h3>
+            {coursesLoaded && (
+              <p className="mt-1 text-xs text-on-surface-variant">
+                {courses.length === 0
+                  ? 'Admin cần tạo môn học trước ở trang '
+                  : 'Hãy bấm "+ Tạo Chương Mới" ở trên hoặc quản lý chương ở trang '}
+                <Link to="/lecturer/curriculum" className="font-semibold text-primary hover:underline">
+                  Chương trình học
+                </Link>
+                .
+              </p>
+            )}
+          </div>
+        ) : (
+        <>
         {/* Khung thông tin chương */}
         <div className="rounded-3xl border border-surface-container-high bg-surface-container-low p-6 shadow-xs">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-wider">
-                Môn học: {courseId}
+                Môn học: {courses.find((c) => c.id === courseId)?.courseCode || courseId}
               </div>
               <h2 className="mt-1 text-title-md font-bold text-on-surface">
                 {currentChapter?.name || `Chương: ${chapterId}`}
@@ -303,7 +330,7 @@ export default function ChapterMaterialsPage() {
                 onClick={() => setIsGenerateModalOpen(true)}
                 className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-xs transition-all hover:bg-primary/90"
               >
-                Sinh Câu Hỏi AI (RAG)
+                Sinh Câu Hỏi AI
               </button>
             </div>
           </div>
@@ -312,10 +339,10 @@ export default function ChapterMaterialsPage() {
         {/* Khu vực nạp tài liệu mới */}
         <div className="rounded-3xl border border-surface-container-high bg-surface p-6 shadow-xs">
           <h3 className="text-title-sm font-bold text-on-surface">
-            Nạp Tài Liệu Mới Lên Google Cloud Storage & RAG
+            Tải Lên Tài Liệu Mới
           </h3>
           <p className="mt-1 text-xs text-on-surface-variant">
-            Hỗ trợ định dạng PDF, PPTX (tối đa 50MB). Hệ thống sẽ tự động phân mảnh và nạp vào Vertex AI RAG Corpus.
+            Hỗ trợ định dạng PDF, PPTX (tối đa 50MB). Hệ thống tự đọc nội dung tài liệu để AI dùng khi sinh câu hỏi.
           </p>
 
           <div className="mt-4 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-outline p-6 text-center transition-all hover:border-primary/50">
@@ -335,7 +362,7 @@ export default function ChapterMaterialsPage() {
               {uploading ? 'Đang Tải Lên & Xử Lý...' : 'Chọn Tệp Từ Máy Tính'}
             </label>
             <p className="mt-2 text-[11px] text-on-surface-variant">
-              Tệp sẽ được lưu trữ an toàn trên GCS và chuyển trạng thái INDEXING sang READY sau khi bóc tách.
+              Tài liệu chuyển sang trạng thái READY ngay khi đọc được nội dung.
             </p>
           </div>
         </div>
@@ -395,7 +422,7 @@ export default function ChapterMaterialsPage() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {/* Badge trạng thái RAG */}
+                    {/* Badge trạng thái tài liệu */}
                     {m.ragStatus === 'READY' && (
                       <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                         Sẵn Sàng (READY)
@@ -404,7 +431,7 @@ export default function ChapterMaterialsPage() {
                     {m.ragStatus === 'INDEXING' && (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/15 px-3 py-1 text-xs font-bold text-sky-600 dark:text-sky-400">
                         <span className="h-2 w-2 animate-ping rounded-full bg-sky-500" />
-                        Đang Lập Chỉ Mục (INDEXING)
+                        Đang Xử Lý (INDEXING)
                       </span>
                     )}
                     {m.ragStatus === 'FAILED' && (
@@ -427,6 +454,8 @@ export default function ChapterMaterialsPage() {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
 
       {/* Modal tạo chương mới */}

@@ -12,6 +12,8 @@ export const rubricService = {
         description: data.description || '',
         maxScore: data.maxScore ?? 10,
         isLocked: Boolean(data.isLocked),
+        approved: Boolean(data.approved),
+        approvedAt: data.approvedAt ?? null,
         criteria: Array.isArray(data.criteria)
           ? data.criteria.map((c, idx) => ({
               id: c.id,
@@ -29,34 +31,46 @@ export const rubricService = {
         return {
           id: '',
           courseId,
-          name: `Rubric chuẩn môn học ${courseId}`,
-          description: 'Tiêu chí đánh giá thi vấn đáp',
+          name: '',
+          description: '',
           maxScore: 10,
           isLocked: false,
-          criteria: [
-            {
-              name: 'Khái niệm cốt lõi & Định nghĩa',
-              description: 'Nêu chính xác định nghĩa và nguyên lý cơ bản.',
-              weightPercent: 40,
-              orderNo: 1,
-            },
-            {
-              name: 'Ứng dụng thực tiễn & Ví dụ',
-              description: 'Đưa ra ví dụ minh họa và trường hợp sử dụng phù hợp.',
-              weightPercent: 40,
-              orderNo: 2,
-            },
-            {
-              name: 'Khả năng lập luận & Phản biện',
-              description: 'Giải thích logic, bảo vệ quan điểm rõ ràng.',
-              weightPercent: 20,
-              orderNo: 3,
-            },
-          ],
+          approved: false,
+          criteria: [],
         }
       }
       throw err
     }
+  },
+
+  /**
+   * POST /v1/courses/{courseId}/rubric/extract (multipart) -> AI đọc file tiêu chí (.pdf, .docx, .pptx, .txt)
+   * và trả về bản nháp rubric (CHƯA lưu). Trọng số đã được chuẩn hoá về tổng 100%.
+   */
+  async extractRubricFromFile(courseId: string, file: File): Promise<UpdateCourseRubricRequest> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const data = await apiRequest<UpdateCourseRubricRequest>(
+      `/v1/courses/${encodeURIComponent(courseId)}/rubric/extract`,
+      { method: 'POST', formData }
+    )
+    return {
+      name: data?.name || '',
+      description: data?.description || '',
+      criteria: Array.isArray(data?.criteria)
+        ? data.criteria.map((c, idx) => ({
+            name: c.name || '',
+            description: c.description || '',
+            weightPercent: Number(c.weightPercent) || 0,
+            orderNo: c.orderNo ?? idx + 1,
+          }))
+        : [],
+    }
+  },
+
+  /** POST /v1/courses/{courseId}/rubric/approve -> duyệt rubric (tổng trọng số phải đúng 100%) */
+  async approveCourseRubric(courseId: string): Promise<void> {
+    await apiRequest<void>(`/v1/courses/${encodeURIComponent(courseId)}/rubric/approve`, { method: 'POST' })
   },
 
   async updateCourseRubric(courseId: string, req: UpdateCourseRubricRequest): Promise<CourseRubric> {
@@ -86,6 +100,8 @@ export const rubricService = {
       description: data.description,
       maxScore: data.maxScore ?? 10,
       isLocked: Boolean(data.isLocked),
+      approved: Boolean(data.approved),
+      approvedAt: data.approvedAt ?? null,
       criteria: Array.isArray(data.criteria)
         ? data.criteria.map((c, idx) => ({
             id: c.id,

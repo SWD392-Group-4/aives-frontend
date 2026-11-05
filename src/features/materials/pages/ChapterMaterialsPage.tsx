@@ -69,9 +69,9 @@ export default function ChapterMaterialsPage() {
       setSuccessBanner(null)
       const uploaded = await chapterMaterialService.uploadMaterial(chapterId, file)
       setMaterials((prev) => [uploaded, ...prev])
-      setSuccessBanner(`Tai len thanh cong "${file.name}". Vertex AI RAG Corpus dang lap chi muc vector.`)
+      setSuccessBanner(`Tai len thanh cong "${file.name}".`)
     } catch (err: any) {
-      setError(err?.message || 'Loi khi tai len hoc lieu len GCS.')
+      setError(err?.message || 'Loi khi tai len hoc lieu.')
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -84,9 +84,9 @@ export default function ChapterMaterialsPage() {
       setError(null)
       const updated = await chapterMaterialService.reindexMaterial(materialId)
       setMaterials((prev) => prev.map((m) => (m.id === materialId ? updated : m)))
-      setSuccessBanner('Da gui yeu cau lap chi muc lai RAG Corpus thanh cong.')
+      setSuccessBanner('Da doc lai noi dung tai lieu.')
     } catch (err: any) {
-      setError(err?.message || 'Loi khi kich hoat lai tien trinh lap chi muc.')
+      setError(err?.message || 'Loi khi doc lai noi dung tai lieu.')
     } finally {
       setReindexingId(null)
     }
@@ -96,20 +96,20 @@ export default function ChapterMaterialsPage() {
 
   return (
     <LecturerLayout
-      title={`Quan ly Hoc lieu & Slide RAG - Chuong: ${chapterId}`}
-      subtitle="Nap tai lieu PDF / PPTX len Google Cloud Storage va lap chi muc Vertex AI RAG"
+      title={`Quan ly Hoc lieu - Chuong: ${chapterId}`}
+      subtitle="Tai len tai lieu PDF / PPTX cua chuong"
       breadcrumbs={[
         { label: 'Tong quan', to: '/lecturer/dashboard' },
         { label: 'Chuong trinh hoc', to: '/lecturer/curriculum' },
         { label: `Chuong ${chapterId}` },
-        { label: 'Hoc lieu RAG' },
+        { label: 'Hoc lieu' },
       ]}
     >
       <div className="space-y-6">
         {/* Navigation Tabs */}
         <div className="flex items-center gap-4 border-b border-border pb-3">
           <span className="border-b-2 border-primary pb-3 text-sm font-bold text-primary">
-            Hoc lieu RAG ({materials.length})
+            Hoc lieu ({materials.length})
           </span>
           <Link
             to={`/lecturer/chapters/${chapterId}/questions`}
@@ -153,9 +153,9 @@ export default function ChapterMaterialsPage() {
         {/* Action Header & Upload */}
         <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:flex-row sm:items-center sm:justify-between shadow-xs">
           <div>
-            <h2 className="text-sm font-bold text-on-surface">Nap hoc lieu vao bo nho Vertex AI</h2>
+            <h2 className="text-sm font-bold text-on-surface">Tai len hoc lieu</h2>
             <p className="text-xs text-on-surface-variant mt-0.5">
-              Dinh dang ho tro: PDF, PPTX (toi da 50MB). He thong tu dong boc tach vector phuc vu sinh de thi.
+              Dinh dang ho tro: PDF, PPTX (toi da 50MB).
             </p>
           </div>
 
@@ -174,7 +174,7 @@ export default function ChapterMaterialsPage() {
               onClick={() => fileInputRef.current?.click()}
               className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-on-primary hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
-              {uploading ? 'Dang tai len & vector hoa...' : 'Tai len tai lieu'}
+              {uploading ? 'Dang tai len...' : 'Tai len tai lieu'}
             </button>
 
             <button
@@ -199,7 +199,7 @@ export default function ChapterMaterialsPage() {
           <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
             <h3 className="text-base font-semibold text-on-surface">Chua co hoc lieu nao duoc nap</h3>
             <p className="mt-1 text-sm text-on-surface-variant">
-              Hay tai len slide bai giang hoac giao trinh de Vertex AI RAG tao co so tri thuc cho chuong nay.
+              Hay tai len slide bai giang hoac giao trinh cho chuong nay.
             </p>
             <button
               type="button"
@@ -217,7 +217,7 @@ export default function ChapterMaterialsPage() {
                   <th className="px-5 py-3.5">Ten tai lieu</th>
                   <th className="px-4 py-3.5">Dinh dang</th>
                   <th className="px-4 py-3.5">Dung luong</th>
-                  <th className="px-4 py-3.5">Trang thai RAG</th>
+                  <th className="px-4 py-3.5">Trang thai</th>
                   <th className="px-5 py-3.5 text-right">Thao tac</th>
                 </tr>
               </thead>
@@ -250,7 +250,7 @@ export default function ChapterMaterialsPage() {
                       )}
                       {mat.ragStatus === 'FAILED' && (
                         <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-800">
-                          FAILED (Loi lap chi muc)
+                          FAILED (Loi doc noi dung)
                         </span>
                       )}
                     </td>
@@ -266,7 +266,7 @@ export default function ChapterMaterialsPage() {
                         </button>
                       )}
                       {mat.ragStatus === 'READY' && (
-                        <span className="text-xs text-emerald-600 font-medium">Kha dung cho RAG</span>
+                        <span className="text-xs text-emerald-600 font-medium">San sang</span>
                       )}
                     </td>
                   </tr>

@@ -16,6 +16,9 @@ export interface CourseRubricResponse {
   maxScore: number
   isLocked: boolean
   criteria: RubricCriteriaDto[]
+  /** Giảng viên đã duyệt rubric (duyệt xong mới sinh / duyệt câu hỏi được) */
+  approved?: boolean
+  approvedAt?: string | null
   createdAt?: string
   updatedAt?: string
 }

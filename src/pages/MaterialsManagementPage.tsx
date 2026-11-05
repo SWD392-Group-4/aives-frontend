@@ -109,7 +109,7 @@ export default function MaterialsManagementPage() {
         return false
       }
 
-      // Filter RAG Status
+      // Lọc theo trạng thái
       if (selectedRagStatus !== 'ALL' && item.ragStatus !== selectedRagStatus) {
         return false
       }
@@ -161,7 +161,7 @@ export default function MaterialsManagementPage() {
     }
   }
 
-  // Handle Sync from Cloud RAG
+  // Đồng bộ danh sách tài liệu từ máy chủ
   const handleSyncCloud = async () => {
     try {
       setSyncing(true)

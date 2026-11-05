@@ -1,6 +1,7 @@
 import { apiRequest } from '../../services/apiClient'
 import {
   CreateChapterQuestionRequest,
+  GenerateCourseQuestionsRequest,
   GenerateQuestionsRequest,
   Question,
   UpdateQuestionRequest,
@@ -28,10 +29,38 @@ export const questionService = {
     if (Array.isArray(response)) {
       return { content: response, totalElements: response.length }
     }
+    if (Array.isArray(response?.items)) {
+      return { content: response.items, totalElements: response.totalItems ?? response.items.length }
+    }
     if (response?.content && Array.isArray(response.content)) {
       return { content: response.content, totalElements: response.totalElements ?? response.content.length }
     }
     return { content: [], totalElements: 0 }
+  },
+
+  /** GET /v1/courses/{courseId}/questions -> câu hỏi của cả môn (lọc chương / trạng thái / độ khó) */
+  async getCourseQuestions(
+    courseId: string,
+    filters: { chapterId?: string; status?: string; difficulty?: string } = {}
+  ): Promise<Question[]> {
+    const params = new URLSearchParams()
+    if (filters.chapterId && filters.chapterId !== 'ALL') params.append('chapterId', filters.chapterId)
+    if (filters.status && filters.status !== 'ALL') params.append('status', filters.status)
+    if (filters.difficulty && filters.difficulty !== 'ALL') params.append('difficulty', filters.difficulty)
+    params.append('size', '500')
+    const response = await apiRequest<any>(`/v1/courses/${encodeURIComponent(courseId)}/questions?${params.toString()}`)
+    if (Array.isArray(response)) return response
+    if (Array.isArray(response?.items)) return response.items
+    return Array.isArray(response?.content) ? response.content : []
+  },
+
+  /** POST /v1/courses/{courseId}/questions/generate -> AI sinh câu hỏi cho các chương được chọn */
+  async generateCourseQuestions(courseId: string, req: GenerateCourseQuestionsRequest): Promise<Question[]> {
+    const data = await apiRequest<Question[]>(`/v1/courses/${encodeURIComponent(courseId)}/questions/generate`, {
+      method: 'POST',
+      body: req,
+    })
+    return Array.isArray(data) ? data : []
   },
 
   async generateQuestions(

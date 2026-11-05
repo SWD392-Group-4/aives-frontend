@@ -5,6 +5,19 @@ export interface Course {
   id: string
   courseCode: string
   name: string
+  description?: string | null
+  chapterCount?: number
+}
+
+export interface CourseRequest {
+  courseCode: string
+  name: string
+  description?: string
+}
+
+export interface ChapterRequest {
+  name: string
+  orderNo: number
   description?: string
 }
 

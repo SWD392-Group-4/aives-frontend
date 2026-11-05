@@ -34,8 +34,14 @@ export interface DifficultyRatioConfig {
 export interface GenerateQuestionsRequest {
   topicId?: string
   chapterId?: string
-  materialId?: string
+  materialIds?: string[]
   totalQuestions: number
+  difficultyRatio: DifficultyRatioConfig
+}
+
+/** Sinh ngân hàng câu hỏi cho cả môn: mỗi chương được chọn + số câu */
+export interface GenerateCourseQuestionsRequest {
+  chapters: Array<{ chapterId: string; count: number }>
   difficultyRatio: DifficultyRatioConfig
 }
 

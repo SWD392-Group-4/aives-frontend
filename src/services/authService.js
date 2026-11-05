@@ -36,25 +36,12 @@ export function sendOtp({ email }) {
 
 /**
  * POST /auth/forgot-password -> Gửi mã OTP khôi phục mật khẩu.
- * Hỗ trợ fallback gọi sendOtp nếu backend dùng chung endpoint hoặc mock khi dev.
  */
 export function forgotPassword({ email }) {
   return apiRequest('/auth/forgot-password', {
     method: 'POST',
     body: { email },
     auth: false,
-  }).catch((err) => {
-    // Nếu backend chưa có endpoint riêng /auth/forgot-password, thử gửi qua /auth/send-otp
-    if (err.status === 404) {
-      return sendOtp({ email }).catch((subErr) => {
-        // Nếu sendOtp báo lỗi (ví dụ EMAIL_ALREADY_EXISTS do chỉ hỗ trợ đăng ký), fallback mock để trải nghiệm UI không đứt đoạn
-        if (subErr.code === 'EMAIL_ALREADY_EXISTS') {
-          return { success: true }
-        }
-        throw subErr
-      })
-    }
-    throw err
   })
 }
 
@@ -66,11 +53,6 @@ export function resetPassword({ email, otp, newPassword }) {
     method: 'POST',
     body: { email, otp, newPassword },
     auth: false,
-  }).catch((err) => {
-    if (err.status === 404) {
-      return { success: true }
-    }
-    throw err
   })
 }
 

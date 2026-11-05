@@ -30,163 +30,6 @@ export interface StudentExamCardData {
   attemptsUsed?: number
 }
 
-// Mock data phong phú cho ca thi đang mở (Ongoing)
-const MOCK_ONGOING_EXAMS: StudentExamCardData[] = [
-  {
-    id: 'AIVES_EXAM_2026_104829',
-    title: 'Kiểm tra Vấn đáp Kiến trúc Phần mềm - K18',
-    courseCode: 'SWD392',
-    lecturerName: 'TS. Trần Anh Tuấn',
-    durationMinutes: 20,
-    questionCount: 3,
-    startAt: '2026-10-18T08:00:00Z',
-    endAt: '2026-10-18T23:59:00Z',
-    status: 'ONGOING',
-    passcode: '384920',
-    description: 'Vấn đáp kiến trúc Microservices, Clean Architecture, Design Patterns và xử lý bất đồng bộ trong hệ thống phân tán.',
-    topics: ['Microservices', 'Clean Architecture', 'Event-Driven'],
-    maxAttempts: 2,
-    attemptsUsed: 0,
-  },
-  {
-    id: 'AIVES_EXAM_2026_837192',
-    title: 'Vấn đáp Đồ án Phát triển Ứng dụng Di động',
-    courseCode: 'PRM392',
-    lecturerName: 'ThS. Nguyễn Văn Hải',
-    durationMinutes: 15,
-    questionCount: 3,
-    startAt: '2026-10-18T14:00:00Z',
-    endAt: '2026-10-19T12:00:00Z',
-    status: 'ONGOING',
-    passcode: '719284',
-    description: 'Đánh giá kiến trúc MVVM, Jetpack Compose / React Native, State Management và tối ưu hóa tài nguyên mạng.',
-    topics: ['MVVM Pattern', 'State Management', 'Local DB & Network'],
-    maxAttempts: 1,
-    attemptsUsed: 0,
-  },
-]
-
-// Mock data cho ca thi sắp diễn ra (Upcoming)
-const MOCK_UPCOMING_EXAMS: StudentExamCardData[] = [
-  {
-    id: 'AIVES_EXAM_2026_928371',
-    title: 'Thi Vấn đáp Giữa kỳ Trí tuệ Nhân tạo Cơ bản',
-    courseCode: 'AIL302m',
-    lecturerName: 'PGS.TS. Lê Hoàng Minh',
-    durationMinutes: 25,
-    questionCount: 4,
-    startAt: '2026-10-20T09:00:00Z',
-    endAt: '2026-10-20T11:30:00Z',
-    status: 'UPCOMING',
-    description: 'Chủ đề: Search Algorithms (A*, Heuristic), Minimax với Alpha-Beta Pruning, Machine Learning Foundations.',
-    topics: ['Heuristic Search', 'Game Theory', 'Linear Regression'],
-    maxAttempts: 1,
-  },
-  {
-    id: 'AIVES_EXAM_2026_574829',
-    title: 'Vấn đáp Bảo mật Hệ thống Thông tin & Mật mã',
-    courseCode: 'IA1601',
-    lecturerName: 'TS. Đặng Quốc Huy',
-    durationMinutes: 20,
-    questionCount: 3,
-    startAt: '2026-10-22T14:00:00Z',
-    endAt: '2026-10-22T17:00:00Z',
-    status: 'UPCOMING',
-    description: 'Chủ đề: Mã hóa đối xứng / bất đối xứng, cơ chế bắt tay TLS 1.3, JSON Web Token (JWT) và xác thực OAuth2.',
-    topics: ['Cryptography', 'OAuth2/JWT', 'OWASP Top 10'],
-    maxAttempts: 1,
-  },
-]
-
-// Mock data cho ca thi đã hoàn thành (Completed Attempts)
-const MOCK_COMPLETED_ATTEMPTS: (VivaAttempt & { courseCode?: string })[] = [
-  {
-    attemptId: 'ATT-2026-001',
-    examId: 'AIVES_EXAM_2026_019283',
-    title: 'Kiểm tra Vấn đáp Cơ sở Dữ liệu Phân tán',
-    courseCode: 'DBI202',
-    durationMinutes: 20,
-    attemptNo: 1,
-    maxAttempts: 1,
-    status: 'COMPLETED',
-    resultStatus: 'PUBLISHED',
-    totalFinalScore: 8.8,
-    totalAiScore: 8.5,
-    completedAt: '2026-10-15T15:30:00Z',
-    startedAt: '2026-10-15T15:10:00Z',
-    deadlineAt: '2026-10-15T15:30:00Z',
-    serverTime: '2026-10-18T17:54:00Z',
-    remainingSeconds: 0,
-  },
-  {
-    attemptId: 'ATT-2026-002',
-    examId: 'AIVES_EXAM_2026_038174',
-    title: 'Vấn đáp Lập trình Web với Framework Hiện đại',
-    courseCode: 'SWP391',
-    durationMinutes: 25,
-    attemptNo: 1,
-    maxAttempts: 1,
-    status: 'COMPLETED',
-    resultStatus: 'PUBLISHED',
-    totalFinalScore: 8.0,
-    totalAiScore: 7.8,
-    completedAt: '2026-10-12T10:20:00Z',
-    startedAt: '2026-10-12T09:55:00Z',
-    deadlineAt: '2026-10-12T10:20:00Z',
-    serverTime: '2026-10-18T17:54:00Z',
-    remainingSeconds: 0,
-  },
-  {
-    attemptId: 'ATT-2026-003',
-    examId: 'AIVES_EXAM_2026_048123',
-    title: 'Kiểm tra Vấn đáp Mạng Máy Tính & An ninh mạng',
-    courseCode: 'NW101',
-    durationMinutes: 15,
-    attemptNo: 1,
-    maxAttempts: 1,
-    status: 'COMPLETED',
-    resultStatus: 'PENDING_REVIEW',
-    totalFinalScore: undefined,
-    totalAiScore: 8.2,
-    completedAt: '2026-10-17T16:45:00Z',
-    startedAt: '2026-10-17T16:30:00Z',
-    deadlineAt: '2026-10-17T16:45:00Z',
-    serverTime: '2026-10-18T17:54:00Z',
-    remainingSeconds: 0,
-  },
-]
-
-// Mock data đơn phúc khảo dự phòng
-const MOCK_APPEALS_FALLBACK: GradeAppeal[] = [
-  {
-    id: 'APP-2026-001',
-    questionGradeId: 'qg-101',
-    questionText: 'Giải thích nguyên lý Dependency Inversion Principle (DIP)?',
-    attemptId: 'ATT-2026-001',
-    examTitle: 'Kiểm tra Vấn đáp Cơ sở Dữ liệu Phân tán',
-    studentId: 'ST180293',
-    reason: 'Em đã nêu chi tiết về Inversion of Control container và Bean lifecycle trong Spring.',
-    status: 'ACCEPTED',
-    scoreBefore: 6.0,
-    scoreAfter: 8.5,
-    maxScore: 10,
-    createdAt: '2026-10-16T08:30:00Z',
-    resolvedAt: '2026-10-16T15:45:00Z',
-  },
-  {
-    id: 'APP-2026-002',
-    questionGradeId: 'qg-102',
-    questionText: 'Phân biệt Pessimistic Locking và Optimistic Locking?',
-    attemptId: 'ATT-2026-002',
-    examTitle: 'Vấn đáp Lập trình Web với Framework Hiện đại',
-    studentId: 'ST180293',
-    reason: 'Em đã nêu rõ cơ chế @Version trong JPA và SELECT FOR UPDATE.',
-    status: 'PENDING',
-    scoreBefore: 7.0,
-    maxScore: 10,
-    createdAt: '2026-10-17T11:20:00Z',
-  },
-]
 
 const EXAM_CODE_PATTERN = /^AIVES_EXAM_\d{4}_\d{6}$/
 const PASSCODE_PATTERN = /^\d{6}$/
@@ -213,10 +56,11 @@ export default function StudentDashboardPage() {
   const [quickJoinSubmitting, setQuickJoinSubmitting] = useState(false)
 
   // Danh sách lượt thi đã hoàn thành và danh sách đơn phúc khảo
-  const [completedAttempts, setCompletedAttempts] = useState<VivaAttempt[]>(MOCK_COMPLETED_ATTEMPTS)
-  const [myAppeals, setMyAppeals] = useState<GradeAppeal[]>(MOCK_APPEALS_FALLBACK)
-  const [ongoingExams] = useState<StudentExamCardData[]>(MOCK_ONGOING_EXAMS)
-  const [upcomingExams] = useState<StudentExamCardData[]>(MOCK_UPCOMING_EXAMS)
+  const [completedAttempts, setCompletedAttempts] = useState<VivaAttempt[]>([])
+  const [myAppeals, setMyAppeals] = useState<GradeAppeal[]>([])
+  // Backend chưa có API liệt kê ca thi cho sinh viên (sinh viên vào thi bằng mã ca thi + passcode)
+  const [ongoingExams] = useState<StudentExamCardData[]>([])
+  const [upcomingExams] = useState<StudentExamCardData[]>([])
 
   // Tải dữ liệu thực tế từ backend
   useEffect(() => {
@@ -224,24 +68,20 @@ export default function StudentDashboardPage() {
     gradingService
       .getStudentCompletedAttempts(user?.id)
       .then((data) => {
-        if (data && data.length > 0) {
-          setCompletedAttempts(data)
-        }
+        setCompletedAttempts(Array.isArray(data) ? data : [])
       })
       .catch((err) => {
-        console.warn('Dùng dữ liệu mẫu cho bài thi đã hoàn thành:', err?.message)
+        console.warn('Không tải được danh sách bài thi đã hoàn thành:', err?.message)
       })
 
     // 2. Tải các đơn phúc khảo của sinh viên
     gradingService
       .getMyAppeals()
       .then((data) => {
-        if (data && data.length > 0) {
-          setMyAppeals(data)
-        }
+        setMyAppeals(Array.isArray(data) ? data : [])
       })
       .catch((err) => {
-        console.warn('Dùng dữ liệu mẫu cho đơn phúc khảo:', err?.message)
+        console.warn('Không tải được danh sách đơn phúc khảo:', err?.message)
       })
   }, [user?.id])
 
@@ -260,7 +100,7 @@ export default function StudentDashboardPage() {
             publishedAttempts.reduce((sum, a) => sum + (a.totalFinalScore ?? 0), 0) /
             publishedAttempts.length
           ).toFixed(1)
-        : '8.4'
+        : '—'
 
     return {
       upcomingCount,
