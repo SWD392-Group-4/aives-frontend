@@ -20,8 +20,9 @@ export default function ChapterQuestionBankPage() {
   const [loading, setLoading] = useState(true)
   const [courses, setCourses] = useState<Course[]>([])
   const [chapters, setChapters] = useState<Chapter[]>([])
-  const [courseId, setCourseId] = useState<string>('SWD392')
-  const [chapterId, setChapterId] = useState<string>(paramChapterId || 'CHAP_01')
+  const [courseId, setCourseId] = useState<string>('')
+  const [chapterId, setChapterId] = useState<string>(paramChapterId || '')
+  const [coursesLoaded, setCoursesLoaded] = useState(false)
 
   const [questions, setQuestions] = useState<Question[]>([])
   const [materials, setMaterials] = useState<Material[]>([])
@@ -55,20 +56,22 @@ export default function ChapterQuestionBankPage() {
   // Banner
   const [banner, setBanner] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null)
 
-  // 1. Tải danh sách môn học khi mở trang
+  // 1. Tải danh sách môn học. Mở theo URL /chapters/:chapterId thì chọn đúng môn chứa chương đó.
   useEffect(() => {
     const initCourses = async () => {
       try {
         const courseList = await materialService.getCourses()
-        if (courseList.length > 0) {
-          setCourses(courseList)
-          // Nếu paramChapterId chưa xác định course, lấy course đầu tiên
-          if (!paramChapterId) {
-            setCourseId(courseList[0].id)
-          }
+        setCourses(courseList)
+        let initialCourseId = courseList[0]?.id || ''
+        if (paramChapterId) {
+          const owner = await materialService.findCourseOfChapter(courseList, paramChapterId)
+          if (owner) initialCourseId = owner
         }
+        setCourseId(initialCourseId)
       } catch (err: any) {
-        console.error('Không thể tải danh sách môn học:', err)
+        setBanner({ type: 'error', message: err?.message || 'Không thể tải danh sách môn học.' })
+      } finally {
+        setCoursesLoaded(true)
       }
     }
     initCourses()
@@ -77,28 +80,21 @@ export default function ChapterQuestionBankPage() {
   // 2. Tải danh sách chương khi courseId thay đổi
   useEffect(() => {
     const loadChapters = async () => {
-      if (!courseId) return
+      if (!courseId) {
+        setChapters([])
+        setChapterId('')
+        setCurrentChapter(null)
+        return
+      }
       try {
         const chapList = await materialService.getChapters(courseId)
         setChapters(chapList)
-
-        // Chọn chương phù hợp
-        if (chapList.length > 0) {
-          const matched = paramChapterId ? chapList.find((c) => c.id === paramChapterId) : null
-          const activeChapter = matched || chapList[0]
-          setChapterId(activeChapter.id)
-          setCurrentChapter(activeChapter)
-        } else {
-          setChapterId('CHAP_01')
-          setCurrentChapter({
-            id: 'CHAP_01',
-            courseId,
-            name: 'Chương 1: Mặc định',
-            orderNo: 1,
-          })
-        }
+        const matched = paramChapterId ? chapList.find((c) => c.id === paramChapterId) : null
+        const activeChapter = matched || chapList[0] || null
+        setChapterId(activeChapter?.id || '')
+        setCurrentChapter(activeChapter)
       } catch (err: any) {
-        console.error('Không thể tải danh sách chương:', err)
+        setBanner({ type: 'error', message: err?.message || 'Không thể tải danh sách chương.' })
       }
     }
     loadChapters()
@@ -106,7 +102,13 @@ export default function ChapterQuestionBankPage() {
 
   // 3. Tải câu hỏi, học liệu và kiểm tra Rubric môn học
   const loadChapterData = async () => {
-    if (!chapterId) return
+    if (!chapterId) {
+      setQuestions([])
+      setMaterials([])
+      setLoading(false)
+      setCheckingRubric(false)
+      return
+    }
     setLoading(true)
     setCheckingRubric(true)
     setBanner(null)
@@ -129,7 +131,7 @@ export default function ChapterQuestionBankPage() {
         if (!ready) {
           setBanner({
             type: 'warning',
-            message: `Quy tắc BR-BANK-001: Môn học "${courseId}" chưa có Rubric hoàn chỉnh (tổng trọng số = ${sum.toFixed(1)}% ≠ 100%). Nút Phê duyệt câu hỏi sẽ bị vô hiệu hóa cho tới khi hoàn tất Rubric môn học.`,
+            message: `Quy tắc BR-BANK-001: Môn học "${courses.find((c) => c.id === courseId)?.courseCode || courseId}" chưa có Rubric hoàn chỉnh (tổng trọng số = ${sum.toFixed(1)}% ≠ 100%). Nút Phê duyệt câu hỏi sẽ bị vô hiệu hóa cho tới khi hoàn tất Rubric môn học.`,
           })
         }
       } catch {
@@ -386,11 +388,12 @@ export default function ChapterQuestionBankPage() {
                     </option>
                   ))
                 ) : (
-                  <option value={courseId}>{courseId} - Môn học đang chọn</option>
+                  <option value="">Chưa có môn học</option>
                 )}
               </select>
             </div>
 
+            {courseId && (
             <div className="flex items-center gap-2">
               <Link
                 to={`/lecturer/courses/${encodeURIComponent(courseId)}/rubric`}
@@ -402,9 +405,10 @@ export default function ChapterQuestionBankPage() {
                 to={`/lecturer/chapters/${encodeURIComponent(chapterId)}/materials`}
                 className="rounded-xl border border-outline px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
               >
-                Học liệu & Slide RAG
+                Tài liệu môn học
               </Link>
             </div>
+            )}
           </div>
 
           {/* Danh sách tab các Chương thuộc môn */}
@@ -427,20 +431,44 @@ export default function ChapterQuestionBankPage() {
             <button
               type="button"
               onClick={() => setIsCreateChapterOpen(true)}
-              className="rounded-xl border border-dashed border-outline px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10"
+              disabled={!courseId}
+              className="rounded-xl border border-dashed border-outline px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
             >
               + Tạo Chương Mới
             </button>
           </div>
         </div>
 
+        {!currentChapter ? (
+          <div className="rounded-3xl border border-dashed border-outline-variant/80 bg-surface-container-lowest p-10 text-center shadow-xs">
+            <h3 className="text-sm font-bold text-on-surface">
+              {!coursesLoaded
+                ? 'Đang tải dữ liệu...'
+                : courses.length === 0
+                  ? 'Chưa có môn học nào'
+                  : 'Môn học này chưa có chương nào'}
+            </h3>
+            {coursesLoaded && (
+              <p className="mt-1 text-xs text-on-surface-variant">
+                {courses.length === 0
+                  ? 'Admin cần tạo môn học trước ở trang '
+                  : 'Hãy bấm "+ Tạo Chương Mới" ở trên hoặc quản lý chương ở trang '}
+                <Link to="/lecturer/curriculum" className="font-semibold text-primary hover:underline">
+                  Chương trình học
+                </Link>
+                .
+              </p>
+            )}
+          </div>
+        ) : (
+        <>
         {/* Khung trạng thái Rubric & Điều hướng hành động */}
         <div className="rounded-3xl border border-surface-container-high bg-surface-container-low p-6 shadow-xs">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-primary">
-                  Môn học: {courseId}
+                  Môn học: {courses.find((c) => c.id === courseId)?.courseCode || courseId}
                 </span>
                 {checkingRubric ? (
                   <span className="text-xs text-on-surface-variant">Đang kiểm tra Rubric...</span>
@@ -458,7 +486,7 @@ export default function ChapterQuestionBankPage() {
                 {currentChapter?.name || `Chương: ${chapterId}`}
               </h2>
               <p className="mt-1 text-xs text-on-surface-variant">
-                Ngân hàng câu hỏi dùng chung giữa toàn bộ giảng viên giảng dạy môn {courseId} (BR-BANK-005).
+                Ngân hàng câu hỏi dùng chung giữa toàn bộ giảng viên giảng dạy môn {courses.find((c) => c.id === courseId)?.courseCode || courseId} (BR-BANK-005).
               </p>
             </div>
 
@@ -475,7 +503,7 @@ export default function ChapterQuestionBankPage() {
                 onClick={() => setIsGenerateModalOpen(true)}
                 className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-xs transition-all hover:bg-primary/90"
               >
-                Sinh Câu Hỏi AI (RAG)
+                Sinh Câu Hỏi AI
               </button>
             </div>
           </div>
@@ -563,7 +591,7 @@ export default function ChapterQuestionBankPage() {
 
                         {/* Nguồn gốc */}
                         <span className="rounded-full bg-surface-container-high px-2 py-0.5 text-[11px] font-medium text-on-surface-variant">
-                          {q.source === 'AI_GENERATED' ? 'AI Grounded RAG' : 'Thủ công'}
+                          {q.source === 'AI_GENERATED' ? 'AI sinh' : 'Thủ công'}
                         </span>
 
                         {/* Trạng thái */}
@@ -676,6 +704,8 @@ export default function ChapterQuestionBankPage() {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
 
       {/* Modal sinh câu hỏi AI */}

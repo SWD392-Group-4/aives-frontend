@@ -179,11 +179,11 @@ export default function UploadMaterialModal({
     setSubmitting(true)
 
     try {
-      // Bước 1: Đang tải lên Cloud Storage
+      // Bước 1: Đang tải file lên máy chủ
       setStep(1)
       await new Promise((resolve) => setTimeout(resolve, 850))
 
-      // Bước 2: Kích hoạt Vertex AI RAG Corpus băm vector
+      // Bước 2: Máy chủ đọc nội dung tài liệu
       setStep(2)
       const uploaded = await contentService.uploadMaterial(
         file,
@@ -202,8 +202,8 @@ export default function UploadMaterialModal({
       onUploaded(uploaded)
       onClose()
     } catch (err: any) {
-      console.error('Error uploading material to RAG corpus:', err)
-      setError(err?.message || 'Có lỗi xảy ra trong quá trình nạp slide vào Vertex AI RAG Corpus.')
+      console.error('Error uploading material:', err)
+      setError(err?.message || 'Có lỗi xảy ra khi tải tài liệu lên.')
       setSubmitting(false)
       setStep(0)
     }

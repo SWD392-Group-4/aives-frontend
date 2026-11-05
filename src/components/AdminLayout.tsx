@@ -29,9 +29,7 @@ const ADMIN_CORE_ITEMS: NavItem[] = [
 
 const EXAM_OPS_ITEMS: NavItem[] = [
   { to: '/exam-sessions', label: 'Phiên thi & Giám sát', icon: 'event_note' },
-  { to: '/lecturer/curriculum', label: 'Chương trình học', icon: 'account_tree' },
-  { to: '/lecturer/materials', label: 'Học liệu & RAG', icon: 'folder_open' },
-  { to: '/lecturer/questions', label: 'Ngân hàng câu hỏi', icon: 'quiz' },
+  { to: '/lecturer/curriculum', label: 'Môn học & Ngân hàng câu hỏi', icon: 'school' },
   { to: '/lecturer/reviews', label: 'Thẩm định điểm (HITL)', icon: 'rate_review' },
   { to: '/lecturer/appeals', label: 'Đơn phúc khảo', icon: 'gavel' },
 ]
@@ -196,7 +194,7 @@ export default function AdminLayout({
                 <span className="font-mono text-label-2xs text-outline">v1.0.0</span>
               </div>
               <p className="mt-1 text-label-2xs text-on-surface-variant">
-                Google Cloud AI & Supabase
+                Claude AI & PostgreSQL
               </p>
             </div>
           ) : (

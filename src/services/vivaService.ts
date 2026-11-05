@@ -11,7 +11,7 @@ export type InterviewStatus = 'QUESTION' | 'PROCESSING' | 'COMPLETED'
 
 export interface InterviewState {
   status: InterviewStatus
-  // false: backend chưa có GEMINI_API_KEY nên không có câu hỏi xoáy
+  // false: backend chưa có ANTHROPIC_API_KEY nên không có câu hỏi xoáy
   aiEnabled: boolean
   // true: lần quyết định gần nhất AI bị lỗi nên hệ thống tự chuyển câu tiếp theo
   aiFallback: boolean

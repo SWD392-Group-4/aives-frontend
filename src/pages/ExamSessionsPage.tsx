@@ -11,7 +11,9 @@ import { ROLES } from '../constants/roles.js'
 import { useAuth } from '../hooks/useAuth.js'
 import { useLanguage } from '../hooks/useLanguage.js'
 import { getErrorMessage } from '../i18n/errorMessage.js'
-import { contentService } from '../services/contentService'
+import { materialService } from '../features/materials/materialService'
+import { questionService } from '../features/questions/questionService'
+import { rubricService } from '../features/rubric/rubricService'
 import {
   createExamSession,
   deleteExamSession,
@@ -65,7 +67,10 @@ const ERROR_CODE_FIELDS = {
   EXAM_START_TOO_FAR: 'startAt',
   EXAM_DURATION_EXCEEDS_WINDOW: 'durationMinutes',
   EXAM_MAX_ATTEMPTS_CANNOT_REDUCE: 'maxAttempts',
-  EXAM_TOPIC_INVALID: 'topicIds',
+  EXAM_TOPIC_INVALID: 'chapterIds',
+  CHAPTER_NOT_FOUND: 'chapterIds',
+  COURSE_NOT_FOUND: 'courseId',
+  COURSE_RUBRIC_REQUIRED: 'courseId',
   EXAM_NOT_ENOUGH_QUESTIONS: 'questionCount',
 }
 
@@ -81,7 +86,8 @@ function createEmptyForm() {
     endAt: dateToInputValue(end),
     durationMinutes: '60',
     maxAttempts: '1',
-    topicIds: [],
+    courseId: '',
+    chapterIds: [] as string[],
     questionCount: String(DEFAULT_QUESTIONS),
   }
 }
@@ -94,7 +100,8 @@ function sessionToForm(session) {
     endAt: isoToInputValue(session.endAt),
     durationMinutes: String(session.durationMinutes),
     maxAttempts: String(session.maxAttempts ?? 1),
-    topicIds: (session.topics ?? []).map((topic) => topic.id),
+    courseId: session.courseId ?? '',
+    chapterIds: [] as string[],
     questionCount: String(session.questionCount ?? DEFAULT_QUESTIONS),
   }
 }
@@ -112,9 +119,9 @@ function resolveDate(inputValue, originalIso) {
  * Kiểm tra form trước khi gửi. Backend vẫn kiểm tra lại toàn bộ.
  * session = null khi tạo mới. session.scheduleLocked = true khi phiên đã mở
  * (giờ mở, thời lượng, chủ đề và số câu hỏi bị khoá, giờ đóng chỉ được kéo dài).
- * topics: danh sách chủ đề đã tải (null khi chưa tải xong), dùng để so số câu hỏi với số câu đã duyệt.
+ * approvedByChapter: số câu đã duyệt của từng chương (null khi chưa tải xong), dùng để so với số câu hỏi.
  */
-function validate(form: any, session: any, t: any, topics: any[] | null) {
+function validate(form: any, session: any, t: any, approvedByChapter: Record<string, number> | null) {
   const errors: Record<string, string> = {}
   const locked = session?.scheduleLocked === true
 
@@ -156,15 +163,17 @@ function validate(form: any, session: any, t: any, topics: any[] | null) {
       errors.durationMinutes = t('sessions.validation.durationWindow')
     }
 
-    if (form.topicIds.length === 0) {
-      errors.topicIds = t('sessions.validation.topicsRequired')
+    if (!form.courseId) {
+      errors.courseId = t('sessions.validation.courseRequired')
+    } else if (form.chapterIds.length === 0) {
+      errors.chapterIds = t('sessions.validation.chaptersRequired')
     }
     const questionText = form.questionCount.trim()
     const questionCount = Number(questionText)
     if (!/^\d+$/.test(questionText) || questionCount < MIN_QUESTIONS || questionCount > MAX_QUESTIONS) {
       errors.questionCount = t('sessions.validation.questionCountRange', { min: MIN_QUESTIONS, max: MAX_QUESTIONS })
-    } else if (topics && form.topicIds.length > 0) {
-      const available = approvedCountOf(topics, form.topicIds)
+    } else if (approvedByChapter && form.chapterIds.length > 0) {
+      const available = approvedCountOf(approvedByChapter, form.chapterIds)
       if (questionCount > available) {
         errors.questionCount = t('sessions.validation.questionCountExceeds', { available })
       }
@@ -182,11 +191,9 @@ function validate(form: any, session: any, t: any, topics: any[] | null) {
   return errors
 }
 
-/** Tổng số câu đã duyệt của các chủ đề đang chọn. */
-function approvedCountOf(topics: any[], topicIds: string[]) {
-  return topics
-    .filter((topic) => topicIds.includes(topic.id))
-    .reduce((sum, topic) => sum + (topic.approvedQuestionCount ?? 0), 0)
+/** Tổng số câu đã duyệt của các chương đang chọn. */
+function approvedCountOf(approvedByChapter: Record<string, number>, chapterIds: string[]) {
+  return chapterIds.reduce((sum, id) => sum + (approvedByChapter[id] ?? 0), 0)
 }
 
 /* ============ Form tạo / sửa phiên thi ============ */
@@ -198,21 +205,26 @@ function SessionFormModal({ session, onClose, onSaved }) {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  // Chủ đề trong ngân hàng câu hỏi của người đang đăng nhập (admin: tất cả). null = đang tải.
-  const [topics, setTopics] = useState<any[] | null>(null)
-  const [topicsError, setTopicsError] = useState('')
+  // Môn học, chương của môn đang chọn và số câu đã duyệt từng chương
+  const [courses, setCourses] = useState<any[] | null>(null)
+  const [chapters, setChapters] = useState<any[] | null>(null)
+  const [approvedByChapter, setApprovedByChapter] = useState<Record<string, number> | null>(null)
+  const [rubricApproved, setRubricApproved] = useState<boolean | null>(null)
+  const [loadError, setLoadError] = useState('')
+  // true khi người dùng tự tick / bỏ tick chương (khi sửa phiên: chưa tick thì giữ nguyên câu hỏi cũ)
+  const [chaptersTouched, setChaptersTouched] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    contentService
-      .getTopics()
+    materialService
+      .getCourses()
       .then((items) => {
-        if (!cancelled) setTopics(items)
+        if (!cancelled) setCourses(items)
       })
       .catch((error) => {
         if (!cancelled) {
-          setTopics([])
-          setTopicsError(getErrorMessage(error, language))
+          setCourses([])
+          setLoadError(getErrorMessage(error, language))
         }
       })
     return () => {
@@ -222,18 +234,63 @@ function SessionFormModal({ session, onClose, onSaved }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const toggleTopic = (topicId: string) => {
-    setForm((current) => ({
-      ...current,
-      topicIds: current.topicIds.includes(topicId)
-        ? current.topicIds.filter((id) => id !== topicId)
-        : [...current.topicIds, topicId],
-    }))
-    setErrors((current) => ({ ...current, topicIds: undefined as any, questionCount: undefined as any }))
+  useEffect(() => {
+    let cancelled = false
+    setChapters(null)
+    setApprovedByChapter(null)
+    setRubricApproved(null)
+    if (!form.courseId) return
+    Promise.all([
+      materialService.getChapters(form.courseId),
+      questionService.getCourseQuestions(form.courseId, { status: 'APPROVED' }),
+      rubricService.getCourseRubric(form.courseId).catch(() => null),
+    ])
+      .then(([chapterList, approvedQuestions, rubric]) => {
+        if (cancelled) return
+        const counts: Record<string, number> = {}
+        approvedQuestions.forEach((q) => {
+          counts[q.chapterId] = (counts[q.chapterId] ?? 0) + 1
+        })
+        const sorted = [...chapterList].sort((a, b) => a.orderNo - b.orderNo)
+        setChapters(sorted)
+        setApprovedByChapter(counts)
+        setRubricApproved(Boolean(rubric?.approved))
+        // Mặc định chọn mọi chương đã có câu hỏi được duyệt
+        setForm((current) => ({ ...current, chapterIds: sorted.filter((c) => (counts[c.id] ?? 0) > 0).map((c) => c.id) }))
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setChapters([])
+          setApprovedByChapter({})
+          setLoadError(getErrorMessage(error, language))
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.courseId])
+
+  const changeCourse = (courseId: string) => {
+    setForm((current) => ({ ...current, courseId, chapterIds: [] }))
+    setChaptersTouched(true)
+    setErrors((current) => ({ ...current, courseId: undefined as any, chapterIds: undefined as any, questionCount: undefined as any }))
     setFormError('')
   }
 
-  const selectedApproved = topics ? approvedCountOf(topics, form.topicIds) : 0
+  const toggleChapter = (chapterId: string) => {
+    setForm((current) => ({
+      ...current,
+      chapterIds: current.chapterIds.includes(chapterId)
+        ? current.chapterIds.filter((id) => id !== chapterId)
+        : [...current.chapterIds, chapterId],
+    }))
+    setChaptersTouched(true)
+    setErrors((current) => ({ ...current, chapterIds: undefined as any, questionCount: undefined as any }))
+    setFormError('')
+  }
+
+  const selectedApproved = approvedByChapter ? approvedCountOf(approvedByChapter, form.chapterIds) : 0
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -244,7 +301,7 @@ function SessionFormModal({ session, onClose, onSaved }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    const nextErrors = validate(form, session, t, topics)
+    const nextErrors = validate(form, session, t, approvedByChapter)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
@@ -256,9 +313,15 @@ function SessionFormModal({ session, onClose, onSaved }) {
       endAt: resolveDate(form.endAt, session?.endAt).toISOString(),
       durationMinutes: locked ? session.durationMinutes : Number(form.durationMinutes),
       maxAttempts: Number(form.maxAttempts),
-      // Phiên đã mở: gửi lại đúng chủ đề và số câu hỏi cũ, backend không cho đổi.
-      topicIds: locked ? (session.topics ?? []).map((topic) => topic.id) : form.topicIds,
+      // Phiên đã mở: gửi lại đúng môn, chủ đề và số câu hỏi cũ, backend không cho đổi.
+      courseId: locked ? session.courseId ?? undefined : form.courseId,
+      topicIds: locked ? (session.topics ?? []).map((topic) => topic.id) : [],
       questionCount: locked ? session.questionCount ?? undefined : Number(form.questionCount),
+      // Sửa phiên mà không đổi môn / chương / số câu thì không gửi chapterIds để giữ nguyên bộ câu hỏi đã bốc
+      ...(locked ||
+      (isEdit && !chaptersTouched && form.courseId === session.courseId && Number(form.questionCount) === session.questionCount)
+        ? {}
+        : { chapterIds: form.chapterIds }),
     }
 
     setSubmitting(true)
@@ -384,36 +447,84 @@ function SessionFormModal({ session, onClose, onSaved }) {
           }}
         />
 
-        {/* Chủ đề lấy câu hỏi: chọn 1 hoặc nhiều */}
-        <fieldset className="space-y-1.5" disabled={locked} aria-describedby="topicIds-note">
-          <legend className="block text-label-md text-on-surface">
-            {t('sessions.fieldTopics')}
+        {/* Môn học + các chương lấy câu hỏi */}
+        <div className="space-y-1.5">
+          <label htmlFor="courseId" className="block text-label-md text-on-surface">
+            {t('sessions.fieldCourse')}
             <span className="ml-1 text-error">*</span>
-          </legend>
-          {topics === null && <p className="text-body-sm text-on-surface-variant">{t('sessions.topicsLoading')}</p>}
-          {topicsError && <ErrorBanner>{topicsError}</ErrorBanner>}
-          {topics !== null && topics.length === 0 && !topicsError && (
+          </label>
+          {courses !== null && courses.length === 0 && !loadError ? (
             <p className="rounded-2xl bg-surface-container-low px-4 py-3 text-body-sm text-on-surface-variant">
-              {t('sessions.topicsEmpty')}{' '}
-              <Link to="/lecturer/questions" className="font-semibold text-primary hover:underline">
+              {t('sessions.coursesEmpty')}{' '}
+              <Link to="/lecturer/curriculum" className="font-semibold text-primary hover:underline">
                 {t('sessions.topicsEmptyLink')}
               </Link>
             </p>
-          )}
-          {topics !== null && topics.length > 0 && (
-            <div
-              className={`max-h-56 space-y-1 overflow-y-auto rounded-2xl bg-surface-container-low p-2 ${
-                errors.topicIds ? 'ring-2 ring-error' : ''
+          ) : (
+            <select
+              id="courseId"
+              value={form.courseId}
+              disabled={locked || courses === null}
+              onChange={(e) => changeCourse(e.target.value)}
+              className={`w-full rounded-2xl bg-surface-container-low px-4 py-3 text-body-md text-on-surface outline-none focus:ring-2 focus:ring-primary disabled:opacity-60 ${
+                errors.courseId ? 'ring-2 ring-error' : ''
               }`}
             >
-              {topics.map((topic) => {
-                const approved = topic.approvedQuestionCount ?? 0
-                const checked = form.topicIds.includes(topic.id)
-                // Chủ đề chưa có câu nào được duyệt thì không chọn được (nhưng vẫn bỏ chọn được)
+              <option value="">{courses === null ? t('sessions.topicsLoading') : t('sessions.coursePlaceholder')}</option>
+              {(courses ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.courseCode} – {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {errors.courseId && (
+            <p className="flex items-center gap-1 text-body-sm text-error">
+              <Icon name="error" className="text-base" />
+              {errors.courseId}
+            </p>
+          )}
+          {form.courseId && rubricApproved === false && !errors.courseId && (
+            <p className="flex items-center gap-1 text-body-sm text-error">
+              <Icon name="warning" className="text-base" />
+              {t('sessions.rubricNotApproved')}
+            </p>
+          )}
+        </div>
+
+        <fieldset className="space-y-1.5" disabled={locked} aria-describedby="chapterIds-note">
+          <legend className="block text-label-md text-on-surface">
+            {t('sessions.fieldChapters')}
+            <span className="ml-1 text-error">*</span>
+          </legend>
+          {loadError && <ErrorBanner>{loadError}</ErrorBanner>}
+          {!form.courseId ? (
+            <p className="rounded-2xl bg-surface-container-low px-4 py-3 text-body-sm text-on-surface-variant">
+              {t('sessions.chaptersPickCourse')}
+            </p>
+          ) : chapters === null ? (
+            <p className="text-body-sm text-on-surface-variant">{t('sessions.topicsLoading')}</p>
+          ) : chapters.length === 0 ? (
+            <p className="rounded-2xl bg-surface-container-low px-4 py-3 text-body-sm text-on-surface-variant">
+              {t('sessions.chaptersEmpty')}{' '}
+              <Link to="/lecturer/curriculum" className="font-semibold text-primary hover:underline">
+                {t('sessions.topicsEmptyLink')}
+              </Link>
+            </p>
+          ) : (
+            <div
+              className={`max-h-56 space-y-1 overflow-y-auto rounded-2xl bg-surface-container-low p-2 ${
+                errors.chapterIds ? 'ring-2 ring-error' : ''
+              }`}
+            >
+              {chapters.map((chapter) => {
+                const approved = approvedByChapter?.[chapter.id] ?? 0
+                const checked = form.chapterIds.includes(chapter.id)
+                // Chương chưa có câu nào được duyệt thì không chọn được (nhưng vẫn bỏ chọn được)
                 const disabled = locked || (approved === 0 && !checked)
                 return (
                   <label
-                    key={topic.id}
+                    key={chapter.id}
                     className={`flex items-start gap-3 rounded-xl px-3 py-2 transition-colors ${
                       disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-surface-container'
                     } ${checked ? 'bg-surface-container' : ''}`}
@@ -423,12 +534,11 @@ function SessionFormModal({ session, onClose, onSaved }) {
                       className="mt-1 h-4 w-4 shrink-0 accent-primary"
                       checked={checked}
                       disabled={disabled}
-                      onChange={() => toggleTopic(topic.id)}
+                      onChange={() => toggleChapter(chapter.id)}
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-body-md break-words text-on-surface">{topic.name}</span>
+                      <span className="block text-body-md break-words text-on-surface">{chapter.name}</span>
                       <span className="block text-body-sm text-on-surface-variant">
-                        {topic.lessonTitle ? `${topic.lessonTitle} · ` : ''}
                         {t('sessions.topicApproved', { count: approved })}
                       </span>
                     </span>
@@ -437,16 +547,16 @@ function SessionFormModal({ session, onClose, onSaved }) {
               })}
             </div>
           )}
-          {errors.topicIds ? (
-            <p id="topicIds-note" className="flex items-center gap-1 text-body-sm text-error">
+          {errors.chapterIds ? (
+            <p id="chapterIds-note" className="flex items-center gap-1 text-body-sm text-error">
               <Icon name="error" className="text-base" />
-              {errors.topicIds}
+              {errors.chapterIds}
             </p>
           ) : (
-            <p id="topicIds-note" className="text-body-sm text-on-surface-variant">
-              {form.topicIds.length > 0
-                ? t('sessions.topicsSelected', { selected: form.topicIds.length, available: selectedApproved })
-                : t('sessions.topicsHint')}
+            <p id="chapterIds-note" className="text-body-sm text-on-surface-variant">
+              {form.chapterIds.length > 0
+                ? t('sessions.chaptersSelected', { selected: form.chapterIds.length, available: selectedApproved })
+                : t('sessions.chaptersHint')}
             </p>
           )}
         </fieldset>
@@ -781,6 +891,11 @@ function ExamSessionsPage() {
                             </p>
                             {item.description && (
                               <p className="mt-0.5 line-clamp-2 text-body-sm break-words text-on-surface-variant">{item.description}</p>
+                            )}
+                            {item.courseName && (
+                              <p className="mt-0.5 text-body-sm break-words text-on-surface-variant">
+                                {t('sessions.courseOfSession', { name: item.courseName })}
+                              </p>
                             )}
                             {(item.topics ?? []).length > 0 && (
                               <p className="mt-0.5 line-clamp-2 text-body-sm break-words text-on-surface-variant">

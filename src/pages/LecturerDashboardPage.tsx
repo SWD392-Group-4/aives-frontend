@@ -14,11 +14,11 @@ export default function LecturerDashboardPage() {
   const [loading, setLoading] = useState(true)
 
   // Metrics
-  const [activeSessionsCount, setActiveSessionsCount] = useState<number>(1)
-  const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(3)
-  const [pendingAppealsCount, setPendingAppealsCount] = useState<number>(2)
-  const [approvedQuestionsCount, setApprovedQuestionsCount] = useState<number>(48)
-  const [approvedRubricsCount, setApprovedRubricsCount] = useState<number>(6)
+  const [activeSessionsCount, setActiveSessionsCount] = useState<number>(0)
+  const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0)
+  const [pendingAppealsCount, setPendingAppealsCount] = useState<number>(0)
+  const [approvedQuestionsCount, setApprovedQuestionsCount] = useState<number>(0)
+  const [approvedRubricsCount, setApprovedRubricsCount] = useState<number>(0)
 
   // Recent Sessions
   const [recentSessions, setRecentSessions] = useState<ExamSession[]>([])
@@ -52,152 +52,22 @@ export default function LecturerDashboardPage() {
 
         if (!isMounted) return
 
-        if (sessions.length > 0) {
-          setRecentSessions(sessions.slice(0, 5))
-          const ongoing = sessions.filter((s) => s.status === 'ONGOING').length
-          setActiveSessionsCount(ongoing)
-        } else {
-          // Mock data if backend is empty
-          setRecentSessions([
-            {
-              id: 'AIVES_EXAM_2026_049282',
-              title: 'Vấn đáp AI - Software Architecture (SWD392)',
-              passcode: '638291',
-              startAt: new Date(Date.now() - 3600000).toISOString(),
-              endAt: new Date(Date.now() + 7200000).toISOString(),
-              durationMinutes: 30,
-              maxAttempts: 1,
-              maxFollowUpPerQuestion: 2,
-              prepareSeconds: 15,
-              answerSeconds: 120,
-              status: 'ONGOING',
-              ownerId: user?.id || '1',
-              ownerName: user?.fullName || 'Giảng viên',
-              attemptCount: 24,
-              scheduleLocked: true,
-              createdAt: new Date().toISOString(),
-            },
-            {
-              id: 'AIVES_EXAM_2026_049105',
-              title: 'Kiểm tra Viva - Thiết kế Hướng đối tượng & Design Patterns',
-              passcode: '821940',
-              startAt: new Date(Date.now() + 86400000).toISOString(),
-              endAt: new Date(Date.now() + 93600000).toISOString(),
-              durationMinutes: 25,
-              maxAttempts: 1,
-              maxFollowUpPerQuestion: 2,
-              prepareSeconds: 15,
-              answerSeconds: 90,
-              status: 'UPCOMING',
-              ownerId: user?.id || '1',
-              ownerName: user?.fullName || 'Giảng viên',
-              attemptCount: 0,
-              scheduleLocked: false,
-              createdAt: new Date().toISOString(),
-            },
-            {
-              id: 'AIVES_EXAM_2026_048890',
-              title: 'Đánh giá Vấn đáp Microservices & Cloud-Native (PRN231)',
-              passcode: '194723',
-              startAt: new Date(Date.now() - 172800000).toISOString(),
-              endAt: new Date(Date.now() - 165600000).toISOString(),
-              durationMinutes: 30,
-              maxAttempts: 1,
-              maxFollowUpPerQuestion: 3,
-              prepareSeconds: 15,
-              answerSeconds: 120,
-              status: 'ENDED',
-              ownerId: user?.id || '1',
-              ownerName: user?.fullName || 'Giảng viên',
-              attemptCount: 32,
-              scheduleLocked: true,
-              createdAt: new Date().toISOString(),
-            },
-          ])
-          setActiveSessionsCount(1)
-        }
+        setRecentSessions(sessions.slice(0, 5))
+        setActiveSessionsCount(sessions.filter((s) => s.status === 'ONGOING').length)
 
-        // Calculate pending reviews
+        // Bài thi chờ giảng viên thẩm định
         const pending = attempts.filter((a) => a.resultStatus === 'PENDING_REVIEW')
-        if (pending.length > 0) {
-          setPendingReviewsCount(pending.length)
-          setPendingAttempts(pending.slice(0, 3))
-        } else {
-          setPendingReviewsCount(3)
-          setPendingAttempts([
-            {
-              attemptId: 'ATT_2026_0912',
-              examId: 'AIVES_EXAM_2026_049282',
-              title: 'Vấn đáp AI - Software Architecture (SWD392)',
-              durationMinutes: 30,
-              attemptNo: 1,
-              maxAttempts: 1,
-              status: 'COMPLETED',
-              resultStatus: 'PENDING_REVIEW',
-              totalAiScore: 8.5,
-              studentName: 'Trần Văn Cường',
-              studentId: 'ST180123',
-              studentEmail: 'cuongtvse180123@fpt.edu.vn',
-              startedAt: new Date(Date.now() - 2400000).toISOString(),
-              deadlineAt: new Date(Date.now() - 600000).toISOString(),
-              completedAt: new Date(Date.now() - 700000).toISOString(),
-              serverTime: new Date().toISOString(),
-              remainingSeconds: 0,
-            },
-            {
-              attemptId: 'ATT_2026_0913',
-              examId: 'AIVES_EXAM_2026_049282',
-              title: 'Vấn đáp AI - Software Architecture (SWD392)',
-              durationMinutes: 30,
-              attemptNo: 1,
-              maxAttempts: 1,
-              status: 'COMPLETED',
-              resultStatus: 'PENDING_REVIEW',
-              totalAiScore: 7.2,
-              studentName: 'Lê Thị Thu Thảo',
-              studentId: 'ST180456',
-              studentEmail: 'thaolttse180456@fpt.edu.vn',
-              startedAt: new Date(Date.now() - 2000000).toISOString(),
-              deadlineAt: new Date(Date.now() - 200000).toISOString(),
-              completedAt: new Date(Date.now() - 300000).toISOString(),
-              serverTime: new Date().toISOString(),
-              remainingSeconds: 0,
-            },
-          ])
-        }
+        setPendingReviewsCount(pending.length)
+        setPendingAttempts(pending.slice(0, 3))
 
-        // Calculate pending appeals
+        // Đơn phúc khảo đang chờ xử lý
         const activeAppeals = appeals.filter((a) => a.status === 'PENDING')
-        if (activeAppeals.length > 0) {
-          setPendingAppealsCount(activeAppeals.length)
-          setPendingAppeals(activeAppeals.slice(0, 2))
-        } else {
-          setPendingAppealsCount(2)
-          setPendingAppeals([
-            {
-              id: 'APP_2026_001',
-              questionGradeId: 'QG_1001',
-              questionText: 'Giải thích nguyên lý Dependency Inversion và Inversion of Control (IoC).',
-              attemptId: 'ATT_2026_0890',
-              examTitle: 'Vấn đáp AI - Software Architecture (SWD392)',
-              studentName: 'Phạm Minh Khang',
-              studentId: 'ST180889',
-              reason: 'Em đã nêu rõ sự khác biệt giữa IoC và DI container nhưng AI chấm thiếu điểm tiêu chí so sánh thực tiễn.',
-              status: 'PENDING',
-              scoreBefore: 6.5,
-              createdAt: new Date(Date.now() - 3600000).toISOString(),
-            },
-          ])
-        }
+        setPendingAppealsCount(activeAppeals.length)
+        setPendingAppeals(activeAppeals.slice(0, 2))
 
         // Approved counts
-        const approvedQ = questions.filter((q) => q.status === 'APPROVED').length
-        if (approvedQ > 0) {
-          setApprovedQuestionsCount(approvedQ)
-        }
-        if (rubrics.length > 0) {
-          setApprovedRubricsCount(rubrics.length)
-        }
+        setApprovedQuestionsCount(questions.filter((q) => q.status === 'APPROVED').length)
+        setApprovedRubricsCount(rubrics.length)
       } catch (err) {
         console.error('Error fetching lecturer dashboard data:', err)
       } finally {
@@ -211,6 +81,8 @@ export default function LecturerDashboardPage() {
       isMounted = false
     }
   }, [user])
+
+  const ongoingSession = recentSessions.find((s) => s.status === 'ONGOING')
 
   const currentDateStr = useMemo(
     () =>
@@ -330,7 +202,7 @@ export default function LecturerDashboardPage() {
 
           {/* Card 4: Ngân hàng câu hỏi & Rubric đã duyệt */}
           <Link
-            to="/lecturer/questions"
+            to="/lecturer/curriculum"
             className="group relative overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-sm transition-all hover:border-primary hover:shadow-md"
           >
             <div className="flex items-center justify-between">
@@ -367,7 +239,7 @@ export default function LecturerDashboardPage() {
                 Tạo phiên thi mới
               </Link>
               <Link
-                to="/lecturer/questions"
+                to="/lecturer/curriculum"
                 className="inline-flex items-center gap-2 rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-4 py-2.5 text-xs font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
               >
                 <Icon name="auto_awesome" className="text-base text-tertiary" />
@@ -381,7 +253,7 @@ export default function LecturerDashboardPage() {
                 Chương trình học
               </Link>
               <Link
-                to="/lecturer/materials"
+                to="/lecturer/curriculum"
                 className="inline-flex items-center gap-2 rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-4 py-2.5 text-xs font-semibold text-on-surface transition-colors hover:bg-surface-container-high"
               >
                 <Icon name="folder_open" className="text-base text-amber-600" />
@@ -584,26 +456,34 @@ export default function LecturerDashboardPage() {
                   </div>
                 )}
 
-                <div className="rounded-xl border border-outline-variant/40 bg-surface-container-low p-3.5">
-                  <div className="flex items-start gap-2.5">
-                    <Icon name="sensors" className="mt-0.5 text-lg text-secondary" />
-                    <div className="flex-1">
-                      <h4 className="text-xs font-bold text-on-surface">Phòng thi SWD392 đang hoạt động</h4>
-                      <p className="mt-0.5 text-xs text-on-surface-variant">
-                        Ca thi đang có thí sinh làm bài. Giảng viên có thể giám sát âm thanh và tín hiệu mạng realtime.
-                      </p>
-                      <div className="mt-2.5">
-                        <Link
-                          to="/lecturer/exam-sessions/AIVES_EXAM_2026_049282/monitor"
-                          className="inline-flex items-center gap-1 rounded-lg bg-secondary-fixed px-3 py-1.5 text-xs font-bold text-on-secondary-fixed transition-colors hover:bg-secondary hover:text-on-secondary"
-                        >
-                          <span>Mở màn hình giám sát</span>
-                          <Icon name="open_in_new" className="text-xs" />
-                        </Link>
+                {ongoingSession && (
+                  <div className="rounded-xl border border-outline-variant/40 bg-surface-container-low p-3.5">
+                    <div className="flex items-start gap-2.5">
+                      <Icon name="sensors" className="mt-0.5 text-lg text-secondary" />
+                      <div className="flex-1">
+                        <h4 className="text-xs font-bold text-on-surface">{ongoingSession.title} đang diễn ra</h4>
+                        <p className="mt-0.5 text-xs text-on-surface-variant">
+                          Ca thi đang mở. Giảng viên có thể giám sát thí sinh realtime.
+                        </p>
+                        <div className="mt-2.5">
+                          <Link
+                            to={`/lecturer/exam-sessions/${encodeURIComponent(ongoingSession.id)}/monitor`}
+                            className="inline-flex items-center gap-1 rounded-lg bg-secondary-fixed px-3 py-1.5 text-xs font-bold text-on-secondary-fixed transition-colors hover:bg-secondary hover:text-on-secondary"
+                          >
+                            <span>Mở màn hình giám sát</span>
+                            <Icon name="open_in_new" className="text-xs" />
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {!loading && pendingAttempts.length === 0 && pendingAppeals.length === 0 && !ongoingSession && (
+                  <div className="rounded-xl border border-dashed border-outline-variant/60 p-4 text-center text-xs text-on-surface-variant">
+                    Không có việc cần xử lý.
+                  </div>
+                )}
               </div>
             </div>
 

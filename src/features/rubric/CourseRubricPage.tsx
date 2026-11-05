@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import LecturerLayout from '../../components/LecturerLayout'
 import { materialService } from '../materials/materialService'
@@ -10,7 +10,8 @@ export default function CourseRubricPage() {
   const navigate = useNavigate()
   const { courseId: paramCourseId } = useParams<{ courseId?: string }>()
   const [courses, setCourses] = useState<Course[]>([])
-  const [courseId, setCourseId] = useState(paramCourseId || 'SWD392')
+  const [courseId, setCourseId] = useState(paramCourseId || '')
+  const [coursesLoaded, setCoursesLoaded] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -19,29 +20,37 @@ export default function CourseRubricPage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [extracting, setExtracting] = useState(false)
+  const rubricFileRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     const initCourses = async () => {
       try {
         const list = await materialService.getCourses()
-        if (list.length > 0) {
-          setCourses(list)
-          if (!paramCourseId) setCourseId(list[0].id)
-        }
+        setCourses(list)
+        if (!paramCourseId && list.length > 0) setCourseId(list[0].id)
       } catch (err: any) {
-        console.error('Lỗi tải danh mục môn học:', err)
+        setBanner({ type: 'error', message: err?.message || 'Không thể tải danh sách môn học.' })
+      } finally {
+        setCoursesLoaded(true)
       }
     }
     initCourses()
   }, [])
 
   const loadRubric = async (cId: string) => {
+    if (!cId) {
+      setRubric(null)
+      setCriteria([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setBanner(null)
     try {
       const data = await rubricService.getCourseRubric(cId)
       setRubric(data)
-      setName(data.name || `Rubric chuẩn môn ${cId}`)
+      setName(data.name || '')
       setDescription(data.description || '')
       setCriteria(data.criteria || [])
     } catch (err: any) {
@@ -58,6 +67,8 @@ export default function CourseRubricPage() {
     loadRubric(courseId)
   }, [courseId])
 
+  const courseCode = courses.find((c) => c.id === courseId)?.courseCode || courseId
+
   const totalWeight = useMemo(() => {
     return criteria.reduce((sum, item) => sum + (Number(item.weightPercent) || 0), 0)
   }, [criteria])
@@ -72,6 +83,34 @@ export default function CourseRubricPage() {
       updated[index] = { ...updated[index], [field]: value }
       return updated
     })
+  }
+
+  // AI đọc file tiêu chí và điền vào form (chưa lưu, giảng viên kiểm tra rồi bấm Lưu)
+  const handleRubricFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (rubricFileRef.current) rubricFileRef.current.value = ''
+    if (!file || !courseId || isLocked) return
+
+    if (criteria.length > 0 && !window.confirm('Các tiêu chí hiện tại sẽ được thay bằng tiêu chí AI đọc từ file. Tiếp tục?')) {
+      return
+    }
+
+    setExtracting(true)
+    setBanner(null)
+    try {
+      const draft = await rubricService.extractRubricFromFile(courseId, file)
+      setCriteria(draft.criteria.map((c, idx) => ({ ...c, orderNo: idx + 1 })))
+      if (draft.name) setName(draft.name)
+      if (draft.description) setDescription(draft.description)
+      setBanner({
+        type: 'success',
+        message: `AI đã đọc ${draft.criteria.length} tiêu chí từ "${file.name}". Kiểm tra lại rồi bấm "Lưu Thay Đổi Rubric" để áp dụng.`,
+      })
+    } catch (err: any) {
+      setBanner({ type: 'error', message: err?.message || 'AI không đọc được file rubric.' })
+    } finally {
+      setExtracting(false)
+    }
   }
 
   const handleAddCriterion = () => {
@@ -168,12 +207,12 @@ export default function CourseRubricPage() {
 
   return (
     <LecturerLayout
-      title={`Quản Lý Rubric Môn Học: ${courseId}`}
+      title={`Quản Lý Rubric Môn Học: ${courseCode}`}
       subtitle="Thiết lập thang điểm chuẩn duy nhất cấp môn học cho phòng thi vấn đáp (BR-BANK-001, BR-BANK-006)"
       breadcrumbs={[
         { label: 'Giảng viên', to: '/lecturer/dashboard' },
         { label: 'Chương trình học', to: '/lecturer/curriculum' },
-        { label: `Rubric Môn ${courseId}` },
+        { label: `Rubric Môn ${courseCode}` },
       ]}
     >
       <div className="mx-auto max-w-5xl space-y-6">
@@ -220,7 +259,7 @@ export default function CourseRubricPage() {
                   </option>
                 ))
               ) : (
-                <option value={courseId}>{courseId} - Môn học đang chọn</option>
+                <option value="">Chưa có môn học</option>
               )}
             </select>
           </div>
@@ -247,7 +286,7 @@ export default function CourseRubricPage() {
             <div>
               <div className="flex items-center gap-3">
                 <h2 className="text-title-md font-bold text-on-surface">
-                  Rubric Chuẩn Môn Học ({courseId})
+                  Rubric Chuẩn Môn Học ({courseCode})
                 </h2>
                 {isLocked ? (
                   <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
@@ -291,8 +330,19 @@ export default function CourseRubricPage() {
           )}
         </div>
 
-        {/* Loading skeleton */}
-        {loading ? (
+        {/* Chưa có môn học */}
+        {coursesLoaded && courses.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-outline-variant/80 bg-surface-container-lowest p-10 text-center shadow-xs">
+            <h3 className="text-sm font-bold text-on-surface">Chưa có môn học nào</h3>
+            <p className="mt-1 text-xs text-on-surface-variant">
+              Admin cần tạo môn học trước ở trang{' '}
+              <Link to="/lecturer/curriculum" className="font-semibold text-primary hover:underline">
+                Chương trình học
+              </Link>
+              .
+            </p>
+          </div>
+        ) : loading ? (
           <div className="space-y-4 rounded-3xl border border-surface-container-high bg-surface p-6">
             <div className="h-6 w-1/3 animate-pulse rounded-lg bg-surface-container-high" />
             <div className="h-10 w-full animate-pulse rounded-xl bg-surface-container-high" />
@@ -324,7 +374,7 @@ export default function CourseRubricPage() {
                   <input
                     type="text"
                     disabled
-                    value={courseId}
+                    value={courseCode}
                     className="w-full rounded-xl border border-outline bg-surface-container-high px-3.5 py-2.5 text-sm font-medium text-on-surface opacity-80"
                   />
                 </div>
@@ -356,19 +406,37 @@ export default function CourseRubricPage() {
                   </p>
                 </div>
                 {!isLocked && (
-                  <button
-                    type="button"
-                    onClick={handleAddCriterion}
-                    className="rounded-xl border border-primary bg-primary/10 px-3.5 py-2 text-xs font-bold text-primary transition-all hover:bg-primary hover:text-white"
-                  >
-                    + Thêm Tiêu Chí
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      ref={rubricFileRef}
+                      type="file"
+                      accept=".pdf,.docx,.pptx,.txt"
+                      className="hidden"
+                      onChange={handleRubricFile}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => rubricFileRef.current?.click()}
+                      disabled={extracting || !courseId}
+                      title="Tải file PDF / DOCX / PPTX / TXT chứa tiêu chí chấm điểm, AI sẽ điền sẵn vào form"
+                      className="rounded-xl border border-outline px-3.5 py-2 text-xs font-bold text-on-surface transition-all hover:bg-surface-container-high disabled:opacity-50"
+                    >
+                      {extracting ? 'AI đang đọc file...' : 'AI đọc tiêu chí từ file'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddCriterion}
+                      className="rounded-xl border border-primary bg-primary/10 px-3.5 py-2 text-xs font-bold text-primary transition-all hover:bg-primary hover:text-white"
+                    >
+                      + Thêm Tiêu Chí
+                    </button>
+                  </div>
                 )}
               </div>
 
               {criteria.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-outline p-8 text-center text-sm text-on-surface-variant">
-                  Chưa có tiêu chí nào. Bấm &quot;Thêm Tiêu Chí&quot; để thiết lập thang điểm cho môn học.
+                  Chưa có tiêu chí nào. Bấm &quot;Thêm Tiêu Chí&quot; để tự nhập, hoặc &quot;AI đọc tiêu chí từ file&quot; để AI điền sẵn từ file PDF / Word.
                 </div>
               ) : (
                 <div className="space-y-4">

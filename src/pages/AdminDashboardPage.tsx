@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 import Icon from '../components/Icon'
 import { ROLE_BADGE_CLASSES } from '../constants/roles'
-import { systemService } from '../services/systemService'
-import { AdminOperationalMetrics, AuditLog } from '../types'
+import { AdminDashboardStats, systemService } from '../services/systemService'
+import { AuditLog } from '../types'
 import { formatDateTime } from '../utils/dateTime'
 
 function getActionBadge(action: string) {
@@ -62,7 +62,8 @@ function getInitials(fullName: string) {
 }
 
 export default function AdminDashboardPage() {
-  const [metrics, setMetrics] = useState<AdminOperationalMetrics | null>(null)
+  const [metrics, setMetrics] = useState<AdminDashboardStats | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [recentLogs, setRecentLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -71,11 +72,12 @@ export default function AdminDashboardPage() {
   const fetchData = useCallback(async () => {
     try {
       const [m, logs] = await Promise.all([
-        systemService.getOperationalMetrics(),
-        systemService.getAuditLogs(),
+        systemService.getDashboardStats(),
+        systemService.getAuditLogs({ page: 0, size: 5 }).catch(() => []),
       ])
       setMetrics(m)
       setRecentLogs(logs.slice(0, 5))
+      setLoadError(null)
       setLastUpdated(
         new Date().toLocaleTimeString('vi-VN', {
           hour: '2-digit',
@@ -83,6 +85,8 @@ export default function AdminDashboardPage() {
           second: '2-digit',
         }),
       )
+    } catch (err: any) {
+      setLoadError(err?.message || 'Không tải được số liệu hệ thống.')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -137,105 +141,72 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* ============ 4 Thẻ KPI Cốt Lõi (Clean Metric Cards) ============ */}
-        <section aria-label="Chỉ số vận hành cốt lõi" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {loadError && (
+          <div className="rounded-2xl bg-error-container p-4 text-sm font-semibold text-on-error-container">{loadError}</div>
+        )}
+
+        {/* ============ Thẻ KPI (dữ liệu từ /admin/dashboard) ============ */}
+        <section aria-label="Chỉ số vận hành cốt lõi" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {/* Card 1: Tổng người dùng */}
           <div className="rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-xs transition-shadow hover:shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-fixed text-primary">
-                <Icon name="groups" filled className="text-2xl" />
-              </span>
-              <span className="rounded-full bg-secondary-container/60 px-2.5 py-0.5 text-label-2xs font-bold text-secondary">
-                99.2% Active
-              </span>
-            </div>
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-fixed text-primary">
+              <Icon name="groups" filled className="text-2xl" />
+            </span>
             <div className="mt-4">
               <p className="text-body-xs font-medium text-on-surface-variant">Tổng tài khoản</p>
               <p className="text-headline-md font-extrabold text-on-surface tracking-tight mt-0.5">
-                {loading ? '...' : (metrics?.totalUsers ?? 1420).toLocaleString('vi-VN')}
+                {loading ? '...' : (metrics?.totalUsers ?? 0).toLocaleString('vi-VN')}
               </p>
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-outline-variant/20 pt-2.5 text-label-2xs text-on-surface-variant">
-              <span>SV: <strong>{metrics?.studentCount ?? 1200}</strong></span>
-              <span>GV: <strong>{metrics?.lecturerCount ?? 210}</strong></span>
-              <span>Admin: <strong>{metrics?.adminCount ?? 10}</strong></span>
+              <span>SV: <strong>{metrics?.totalStudents ?? 0}</strong></span>
+              <span>GV: <strong>{metrics?.totalLecturers ?? 0}</strong></span>
+              <span>Admin: <strong>{metrics?.totalAdmins ?? 0}</strong></span>
             </div>
           </div>
 
           {/* Card 2: Ca thi đang mở */}
           <div className="rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-xs transition-shadow hover:shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary-container text-on-secondary-fixed-variant">
-                <Icon name="meeting_room" filled className="text-2xl" />
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand-green/10 px-2.5 py-0.5 text-label-2xs font-bold text-brand-green">
-                <span className="h-1.5 w-1.5 rounded-full bg-brand-green animate-ping" />
-                Live
-              </span>
-            </div>
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary-container text-on-secondary-fixed-variant">
+              <Icon name="meeting_room" filled className="text-2xl" />
+            </span>
             <div className="mt-4">
-              <p className="text-body-xs font-medium text-on-surface-variant">Phiên thi hoạt động</p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <p className="text-headline-md font-extrabold text-on-surface tracking-tight">
-                  {loading ? '...' : metrics?.activeExamsCount ?? 8}
-                </p>
-                <span className="text-body-xs text-outline">phiên hôm nay</span>
-              </div>
+              <p className="text-body-xs font-medium text-on-surface-variant">Phiên thi đang mở</p>
+              <p className="text-headline-md font-extrabold text-on-surface tracking-tight mt-0.5">
+                {loading ? '...' : metrics?.ongoingExamSessions ?? 0}
+              </p>
             </div>
-            <div className="mt-3 flex items-center justify-between border-t border-outline-variant/20 pt-2.5 text-label-2xs text-on-surface-variant">
-              <span className="flex items-center gap-1 text-primary font-semibold">
-                <Icon name="mic" className="text-sm" /> 3 phòng thi mở
-              </span>
-              <span className="text-outline">Latency: 1.12s</span>
+            <div className="mt-3 border-t border-outline-variant/20 pt-2.5 text-label-2xs text-on-surface-variant">
+              <Link to="/exam-sessions" className="font-semibold text-primary hover:underline">
+                Xem danh sách phiên thi
+              </Link>
             </div>
           </div>
 
-          {/* Card 3: Thí sinh trực tuyến */}
-          <div className="rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-xs transition-shadow hover:shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-tertiary-fixed text-tertiary">
-                <Icon name="record_voice_over" filled className="text-2xl" />
-              </span>
-              <span className="rounded-full bg-surface-container px-2.5 py-0.5 text-label-2xs font-semibold text-outline">
-                Voice Room
-              </span>
-            </div>
-            <div className="mt-4">
-              <p className="text-body-xs font-medium text-on-surface-variant">Thí sinh đang thi</p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <p className="text-headline-md font-extrabold text-primary tracking-tight">
-                  {loading ? '...' : metrics?.onlineCandidatesCount ?? 142}
-                </p>
-                <span className="text-body-xs text-outline">sinh viên</span>
-              </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between border-t border-outline-variant/20 pt-2.5 text-label-2xs text-on-surface-variant">
-              <span className="flex items-center gap-1 text-brand-green font-medium">
-                <Icon name="task_alt" className="text-sm" /> 265 bài nộp hôm nay
-              </span>
-              <span className="text-outline">0 gián đoạn</span>
-            </div>
-          </div>
-
-          {/* Card 4: Trạng thái AI Cloud */}
+          {/* Card 3: Trạng thái AI */}
           <div className="rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-5 shadow-xs transition-shadow hover:shadow-sm">
             <div className="flex items-center justify-between">
               <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-surface-container-highest text-primary">
                 <Icon name="neurology" filled className="text-2xl" />
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand-green/10 px-2.5 py-0.5 text-label-2xs font-bold text-brand-green">
-                <Icon name="check_circle" className="text-xs" /> 99.98% OK
-              </span>
+              {metrics?.aiStatus && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-label-2xs font-bold ${
+                    metrics.aiStatus.enabled ? 'bg-brand-green/10 text-brand-green' : 'bg-error-container text-on-error-container'
+                  }`}
+                >
+                  {metrics.aiStatus.status || (metrics.aiStatus.enabled ? 'ACTIVE' : 'DISABLED')}
+                </span>
+              )}
             </div>
             <div className="mt-4">
               <p className="text-body-xs font-medium text-on-surface-variant">Mô hình AI vận hành</p>
               <p className="text-headline-sm font-extrabold text-on-surface tracking-tight mt-0.5 truncate">
-                Gemini 2.5 Flash
+                {loading ? '...' : metrics?.aiStatus?.model || '—'}
               </p>
             </div>
-            <div className="mt-3 flex items-center justify-between border-t border-outline-variant/20 pt-2.5 text-label-2xs text-on-surface-variant">
-              <span>Độ trễ TB: <strong className="text-brand-green">840ms</strong></span>
-              <span className="text-primary font-medium">Schema Enforced</span>
+            <div className="mt-3 border-t border-outline-variant/20 pt-2.5 text-label-2xs text-on-surface-variant">
+              Nhà cung cấp: <strong>{metrics?.aiStatus?.provider || '—'}</strong>
             </div>
           </div>
         </section>
@@ -244,98 +215,6 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           {/* Cột Trái (7/12): Hạn ngạch AI & Hoạt động kiểm toán */}
           <div className="lg:col-span-7 space-y-6">
-            {/* Widget 1: Hạn ngạch AI */}
-            <section aria-label="Hạn ngạch AI tiêu thụ" className="rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-xs">
-              <div className="flex items-center justify-between border-b border-outline-variant/20 pb-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-tertiary-fixed text-tertiary">
-                    <Icon name="pie_chart" className="text-lg" />
-                  </span>
-                  <div>
-                    <h2 className="text-label-lg font-bold text-on-surface">Hạn Ngạch AI Tiêu Thụ</h2>
-                    <p className="text-label-2xs text-on-surface-variant">Google Speech & Gemini Flash Quota tháng 10/2026</p>
-                  </div>
-                </div>
-                <Link
-                  to="/admin/settings"
-                  className="rounded-full bg-surface-container px-3 py-1 text-label-xs font-semibold text-primary hover:bg-surface-container-high transition-colors"
-                >
-                  Điều chỉnh
-                </Link>
-              </div>
-
-              <div className="mt-5 space-y-4">
-                {/* Speech STT */}
-                <div>
-                  <div className="flex items-center justify-between text-body-xs font-medium text-on-surface">
-                    <span className="flex items-center gap-1.5">
-                      <Icon name="mic" className="text-base text-primary" />
-                      Google Cloud Speech STT
-                    </span>
-                    <span className="font-mono font-bold text-primary">
-                      {metrics?.quota.stt.used.toLocaleString('vi-VN')} / {metrics?.quota.stt.total.toLocaleString('vi-VN')} phút
-                    </span>
-                  </div>
-                  <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-surface-container">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all duration-500"
-                      style={{ width: `${metrics?.quota.stt.percent ?? 29}%` }}
-                    />
-                  </div>
-                  <div className="mt-1 flex justify-between text-label-2xs text-on-surface-variant">
-                    <span>Đã dùng: {metrics?.quota.stt.percent ?? 29}%</span>
-                    <span className="text-brand-green font-medium">An toàn (&lt; 85%)</span>
-                  </div>
-                </div>
-
-                {/* Speech TTS */}
-                <div>
-                  <div className="flex items-center justify-between text-body-xs font-medium text-on-surface">
-                    <span className="flex items-center gap-1.5">
-                      <Icon name="volume_up" className="text-base text-secondary" />
-                      Google Cloud Text-to-Speech
-                    </span>
-                    <span className="font-mono font-bold text-secondary">
-                      {metrics?.quota.tts.used.toLocaleString('vi-VN')} / {metrics?.quota.tts.total.toLocaleString('vi-VN')} ký tự
-                    </span>
-                  </div>
-                  <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-surface-container">
-                    <div
-                      className="h-full rounded-full bg-brand-green transition-all duration-500"
-                      style={{ width: `${metrics?.quota.tts.percent ?? 24}%` }}
-                    />
-                  </div>
-                  <div className="mt-1 flex justify-between text-label-2xs text-on-surface-variant">
-                    <span>Đã dùng: {metrics?.quota.tts.percent ?? 24}%</span>
-                    <span className="text-brand-green font-medium">An toàn</span>
-                  </div>
-                </div>
-
-                {/* Gemini Tokens */}
-                <div>
-                  <div className="flex items-center justify-between text-body-xs font-medium text-on-surface">
-                    <span className="flex items-center gap-1.5">
-                      <Icon name="neurology" className="text-base text-tertiary" />
-                      Gemini 2.5 Flash Token Quota
-                    </span>
-                    <span className="font-mono font-bold text-tertiary">
-                      {(metrics?.quota.llm.used ?? 8400000) / 1000000}M / {(metrics?.quota.llm.total ?? 20000000) / 1000000}M tokens
-                    </span>
-                  </div>
-                  <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-surface-container">
-                    <div
-                      className="h-full rounded-full bg-brand-orange transition-all duration-500"
-                      style={{ width: `${metrics?.quota.llm.percent ?? 42}%` }}
-                    />
-                  </div>
-                  <div className="mt-1 flex justify-between text-label-2xs text-on-surface-variant">
-                    <span>Đã dùng: {metrics?.quota.llm.percent ?? 42}%</span>
-                    <span className="text-brand-green font-medium">An toàn</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-
             {/* Widget 2: Hoạt động kiểm toán gần nhất */}
             <section aria-label="Hoạt động kiểm toán gần nhất" className="rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-xs">
               <div className="flex items-center justify-between border-b border-outline-variant/20 pb-4">
@@ -398,87 +277,6 @@ export default function AdminDashboardPage() {
 
           {/* Cột Phải (5/12): Service Health & Quick Actions */}
           <div className="lg:col-span-5 space-y-6">
-            {/* Widget 3: Trạng thái dịch vụ nền (Service Health) */}
-            <section aria-label="Trạng thái dịch vụ nền" className="rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-xs">
-              <div className="flex items-center justify-between border-b border-outline-variant/20 pb-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary-container text-on-secondary-fixed-variant">
-                    <Icon name="dns" className="text-lg" />
-                  </span>
-                  <div>
-                    <h2 className="text-label-lg font-bold text-on-surface">Trạng Thái Dịch Vụ</h2>
-                    <p className="text-label-2xs text-on-surface-variant">Hạ tầng Cloud & Cơ sở dữ liệu</p>
-                  </div>
-                </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-brand-green/10 px-2.5 py-0.5 text-label-2xs font-bold text-brand-green">
-                  <Icon name="check_circle" className="text-xs" />
-                  4/4 Sẵn sàng
-                </span>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {/* Supabase */}
-                <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-3.5">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-2.5 w-2.5 rounded-full bg-brand-green ring-4 ring-brand-green/20" />
-                    <div>
-                      <p className="text-label-xs font-bold text-on-surface">PostgreSQL Supabase</p>
-                      <p className="text-label-2xs text-on-surface-variant">Pool 14/50 active</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-mono text-label-xs font-bold text-brand-green">28ms</span>
-                    <p className="text-label-2xs text-outline">99.99%</p>
-                  </div>
-                </div>
-
-                {/* Google Speech */}
-                <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-3.5">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-2.5 w-2.5 rounded-full bg-brand-green ring-4 ring-brand-green/20" />
-                    <div>
-                      <p className="text-label-xs font-bold text-on-surface">Speech STT / TTS</p>
-                      <p className="text-label-2xs text-on-surface-variant">gRPC Streaming (vi-VN)</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-mono text-label-xs font-bold text-brand-green">1.12s</span>
-                    <p className="text-label-2xs text-outline">99.98%</p>
-                  </div>
-                </div>
-
-                {/* Gemini Flash */}
-                <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-3.5">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-2.5 w-2.5 rounded-full bg-brand-green ring-4 ring-brand-green/20" />
-                    <div>
-                      <p className="text-label-xs font-bold text-on-surface">Gemini 2.5 Flash</p>
-                      <p className="text-label-2xs text-on-surface-variant">JSON Schema Enforced</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-mono text-label-xs font-bold text-brand-green">840ms</span>
-                    <p className="text-label-2xs text-outline">99.95%</p>
-                  </div>
-                </div>
-
-                {/* Background Worker */}
-                <div className="flex items-center justify-between rounded-2xl bg-surface-container-low p-3.5">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-2.5 w-2.5 rounded-full bg-brand-green ring-4 ring-brand-green/20" />
-                    <div>
-                      <p className="text-label-xs font-bold text-on-surface">Async Background Worker</p>
-                      <p className="text-label-2xs text-on-surface-variant">2 đang xử lý | 0 lỗi</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-mono text-label-xs font-bold text-primary">Normal</span>
-                    <p className="text-label-2xs text-outline">Spring Async</p>
-                  </div>
-                </div>
-              </div>
-            </section>
-
             {/* Widget 4: Phím tắt quản trị nhanh (Quick Actions) */}
             <section aria-label="Lối tắt quản trị nhanh" className="rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-xs">
               <h2 className="text-label-lg font-bold text-on-surface border-b border-outline-variant/20 pb-3">
@@ -511,7 +309,7 @@ export default function AdminDashboardPage() {
                     </span>
                     <div>
                       <p className="text-label-xs font-bold text-on-surface">Cấu Hình Tham Số AI</p>
-                      <p className="text-label-2xs text-on-surface-variant">Model Gemini, STT & ngưỡng im lặng</p>
+                      <p className="text-label-2xs text-on-surface-variant">Model AI, STT & ngưỡng im lặng</p>
                     </div>
                   </div>
                   <Icon name="arrow_forward" className="text-base text-outline group-hover:text-primary group-hover:translate-x-1 transition-all" />

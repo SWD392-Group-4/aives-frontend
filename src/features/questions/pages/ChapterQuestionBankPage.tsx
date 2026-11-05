@@ -21,7 +21,7 @@ export default function ChapterQuestionBankPage() {
 
   // Ranh gioi phe duyet (BR-BANK-001)
   const [isRubricReady, setIsRubricReady] = useState<boolean>(false)
-  const [courseId, setCourseId] = useState<string>('SWD392')
+  const [courseId, setCourseId] = useState<string>('')
 
   // Modals & Action States
   const [approvingId, setApprovingId] = useState<string | null>(null)
@@ -41,7 +41,7 @@ export default function ChapterQuestionBankPage() {
       })
       setQuestions(data || [])
 
-      const inferredCourseId = data?.[0]?.courseId || courseId || 'SWD392'
+      const inferredCourseId = data?.[0]?.courseId || courseId
       setCourseId(inferredCourseId)
 
       const ready = await rubricService.checkRubricReady(inferredCourseId)
@@ -129,7 +129,7 @@ export default function ChapterQuestionBankPage() {
             to={`/lecturer/chapters/${chapterId}`}
             className="pb-3 text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
           >
-            Hoc lieu RAG
+            Hoc lieu
           </Link>
           <span className="border-b-2 border-primary pb-3 text-sm font-bold text-primary">
             Ngan hang cau hoi dung chung ({questions.length})
@@ -299,7 +299,7 @@ export default function ChapterQuestionBankPage() {
 
                       {/* Nguon goc & Nguoi tao */}
                       <span className="text-[11px] text-on-surface-variant">
-                        Nguon: {q.source === 'AI_GENERATED' ? 'Vertex AI RAG' : 'Thu cong'} | Nguoi tao: {q.creatorName}
+                        Nguon: {q.source === 'AI_GENERATED' ? 'AI sinh' : 'Thu cong'} | Nguoi tao: {q.creatorName}
                       </span>
                     </div>
 
@@ -424,7 +424,7 @@ export default function ChapterQuestionBankPage() {
             onGenerated={() => {
               setGenerateModalOpen(false)
               loadData()
-              setSuccessBanner('Da sinh cau hoi moi bang Vertex AI.')
+              setSuccessBanner('Da sinh cau hoi moi bang AI.')
             }}
           />
         )}

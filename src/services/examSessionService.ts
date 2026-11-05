@@ -125,3 +125,32 @@ export function finishExamAttempt(attemptId: string): Promise<VivaAttempt> {
 export function getExamAttempt(attemptId: string): Promise<VivaAttempt> {
   return apiRequest<VivaAttempt>(`/exam-sessions/attempts/${encodeURIComponent(attemptId)}`)
 }
+
+/** Một thí sinh trong màn giám sát phòng thi trực tiếp. */
+export interface LiveExaminee {
+  studentId: string
+  fullName: string
+  email: string
+  attemptId: string
+  status: 'IN_PROGRESS' | 'COMPLETED'
+  currentQuestionIndex?: number | null
+  totalQuestions?: number | null
+  currentExchangeCount?: number | null
+  remainingSeconds?: number | null
+  isSpeaking?: boolean | null
+  lastActiveAt?: string | null
+}
+
+export interface LiveExamMonitor {
+  examId: string
+  examTitle: string
+  totalStudentsJoined: number
+  totalCompleted: number
+  totalInProgress: number
+  examinees: LiveExaminee[]
+}
+
+/** GET /exam-sessions/{id}/monitor -> trạng thái realtime các lượt thi của phiên */
+export function getLiveExamMonitor(id: string): Promise<LiveExamMonitor> {
+  return apiRequest<LiveExamMonitor>(`/exam-sessions/${encodeURIComponent(id)}/monitor`)
+}

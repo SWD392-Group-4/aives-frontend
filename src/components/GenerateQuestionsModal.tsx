@@ -125,7 +125,7 @@ export default function GenerateQuestionsModal({
     }
   }, [defaultTopicId])
 
-  // Load materials from backend - only materials ready for RAG
+  // Tải tài liệu đã sẵn sàng (READY) từ backend
   useEffect(() => {
     let isMounted = true
     const load = async () => {
@@ -343,7 +343,7 @@ export default function GenerateQuestionsModal({
       onGenerated(generated)
       onClose()
     } catch (err: any) {
-      console.error('Error generating questions from RAG:', err)
+      console.error('Error generating questions:', err)
       setError(err?.message || 'Có lỗi xảy ra khi tạo câu hỏi từ tài liệu. Vui lòng thử lại.')
     } finally {
       clearTimeout(stage2Timer)

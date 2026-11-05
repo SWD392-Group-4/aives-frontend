@@ -40,6 +40,61 @@ const MAX_RECOGNITION_RESTARTS = 30
 // AI đang xử lý thì hỏi lại backend sau bấy nhiêu ms
 const PROCESSING_POLL_MS = 2500
 
+// Lỗi mạng: tự thử gửi lại sau bấy nhiêu giây
+const AUTO_RETRY_SECONDS = 5
+// Bản nháp câu trả lời lưu tạm trên máy (localStorage) để mất mạng / tải lại trang không mất bài
+const DRAFT_PREFIX = 'aives.answerDraft.'
+const DRAFT_MAX_AGE_MS = 12 * 60 * 60 * 1000
+
+function draftKey(attemptId: string, exchangeId: string) {
+  return `${DRAFT_PREFIX}${attemptId}.${exchangeId}`
+}
+
+function saveDraft(attemptId: string, exchangeId: string, text: string) {
+  try {
+    if (!text.trim()) {
+      localStorage.removeItem(draftKey(attemptId, exchangeId))
+    } else {
+      localStorage.setItem(draftKey(attemptId, exchangeId), JSON.stringify({ text, savedAt: Date.now() }))
+    }
+  } catch {
+    // Trình duyệt chặn localStorage (chế độ ẩn danh...): bỏ qua, vẫn thi bình thường
+  }
+}
+
+function loadDraft(attemptId: string, exchangeId: string): string {
+  try {
+    const raw = localStorage.getItem(draftKey(attemptId, exchangeId))
+    if (!raw) return ''
+    const data = JSON.parse(raw) as { text?: string; savedAt?: number }
+    if (!data.text || !data.savedAt || Date.now() - data.savedAt > DRAFT_MAX_AGE_MS) {
+      localStorage.removeItem(draftKey(attemptId, exchangeId))
+      return ''
+    }
+    return data.text
+  } catch {
+    return ''
+  }
+}
+
+// Xoá nháp của lượt thi, giữ lại nháp của câu đang làm (nếu có)
+function clearAttemptDrafts(attemptId: string, keepExchangeId?: string) {
+  try {
+    const prefix = `${DRAFT_PREFIX}${attemptId}.`
+    const keep = keepExchangeId ? draftKey(attemptId, keepExchangeId) : null
+    const keys: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith(prefix) && key !== keep) keys.push(key)
+    }
+    keys.forEach((key) => localStorage.removeItem(key))
+  } catch {}
+}
+
+function isNetworkErrorCode(code: string) {
+  return code === 'NETWORK_ERROR' || code === 'SERVER_UNAVAILABLE'
+}
+
 function getSpeechRecognition(): any {
   if (typeof window === 'undefined') return null
   return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null
@@ -77,6 +132,12 @@ export default function ExamRoomPage() {
   const [answerDraft, setAnswerDraft] = useState('')
   const [listening, setListening] = useState(false)
   const [micReady, setMicReady] = useState(false)
+  const [restoredDraft, setRestoredDraft] = useState(false)
+
+  // Trạng thái mạng
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
+  const [justReconnected, setJustReconnected] = useState(false)
+  const [retryIn, setRetryIn] = useState<number | null>(null)
   const [audioLevel, setAudioLevel] = useState(0)
 
   // Tham chiếu Web Speech & Media
@@ -99,6 +160,10 @@ export default function ExamRoomPage() {
   const submitTimerRef = useRef<number | undefined>(undefined)
   const examEndsAtRef = useRef<number | null>(null) // theo performance.now(), không phụ thuộc đồng hồ máy
   const retryRef = useRef<(() => void) | null>(null)
+  const micReadyRef = useRef(false)
+  const roomErrorCodeRef = useRef('')
+  const speechLostByNetworkRef = useRef(false) // nhận giọng nói bị ngắt vì mất mạng: có mạng lại thì tự bật
+  const reconnectTimerRef = useRef<number | undefined>(undefined)
   const unmountedRef = useRef(false)
 
   const speechSupported = getSpeechRecognition() !== null
@@ -112,6 +177,13 @@ export default function ExamRoomPage() {
     const limited = text.slice(0, MAX_TRANSCRIPT_LENGTH)
     draftRef.current = limited
     setAnswerDraft(limited)
+  }
+
+  // Lưu nháp câu đang trả lời xuống máy
+  const persistDraft = () => {
+    const exchangeId = questionRef.current?.exchangeId
+    if (!attemptId || !exchangeId || phaseRef.current !== 'STUDENT_SPEAKING') return
+    saveDraft(attemptId, exchangeId, draftRef.current)
   }
 
   const beginTimedPhase = (next: RoomPhase, seconds: number) => {
@@ -157,12 +229,16 @@ export default function ExamRoomPage() {
           full += event.results[i][0].transcript + ' '
         }
         updateDraft((base + full).trim())
+        persistDraft()
       }
       recognition.onerror = (event: any) => {
         // Bị chặn quyền micro, không có thiết bị hoặc không kết nối được dịch vụ nhận giọng nói:
         // không bật lại nữa, sinh viên nhập bằng bàn phím
         if (['not-allowed', 'service-not-allowed', 'audio-capture', 'network'].includes(event?.error)) {
           listeningWantedRef.current = false
+        }
+        if (event?.error === 'network') {
+          speechLostByNetworkRef.current = true
         }
       }
       recognition.onend = () => {
@@ -250,6 +326,7 @@ export default function ExamRoomPage() {
     setRoomError('')
 
     if (state.status === 'COMPLETED') {
+      if (attemptId) clearAttemptDrafts(attemptId)
       cancelSpeech()
       stopRecognition()
       setPhaseDeadline(null)
@@ -266,19 +343,37 @@ export default function ExamRoomPage() {
     }
 
     if (!state.aiEnabled) {
-      console.warn('[AIVES] Backend chưa bật AI (thiếu GEMINI_API_KEY): sẽ không có câu hỏi xoáy')
+      console.warn('[AIVES] Backend chưa bật AI (thiếu ANTHROPIC_API_KEY): sẽ không có câu hỏi xoáy')
     } else if (state.aiFallback) {
       console.warn('[AIVES] AI không trả được quyết định ở câu trước nên hệ thống tự chuyển câu tiếp theo')
     }
     questionRef.current = state
     setQuestion(state)
-    updateDraft('')
     setSilenceSeconds(0)
+
+    // Câu này đang trả lời dở trước khi mất mạng / tải lại trang: vào thẳng phần trả lời với nội dung cũ
+    if (attemptId && state.exchangeId) {
+      clearAttemptDrafts(attemptId, state.exchangeId)
+      const saved = loadDraft(attemptId, state.exchangeId)
+      if (saved) {
+        setRestoredDraft(true)
+        enterSpeakingPhase(saved)
+        return
+      }
+    }
+    setRestoredDraft(false)
+    updateDraft('')
     speakQuestion(state)
   }
 
   const handleRoomError = (err: unknown) => {
     if (unmountedRef.current) return
+    roomErrorCodeRef.current =
+      typeof navigator !== 'undefined' && !navigator.onLine
+        ? 'NETWORK_ERROR'
+        : err instanceof ApiError
+          ? err.code
+          : ''
     if (err instanceof ApiError) {
       if (err.code === 'EXAM_ATTEMPT_NOT_RUNNING') {
         // Hết giờ hoặc lượt thi đã kết thúc
@@ -305,24 +400,37 @@ export default function ExamRoomPage() {
   /* ---------- Hành động của sinh viên ---------- */
 
   // Bắt đầu trả lời
-  const startSpeakingPhase = () => {
-    if (phaseRef.current !== 'STUDENT_PREPARE') return
+  function enterSpeakingPhase(initialText: string) {
     cancelSpeech()
     restartCountRef.current = 0
     lastSoundAtRef.current = Date.now()
+    speechLostByNetworkRef.current = false
     setSilenceSeconds(0)
-    updateDraft('')
+    updateDraft(initialText)
     beginTimedPhase('STUDENT_SPEAKING', questionRef.current?.answerSeconds ?? 120)
-    if (micReady) {
-      startRecognition('')
+    if (micReadyRef.current) {
+      startRecognition(initialText)
     }
+  }
+
+  const startSpeakingPhase = () => {
+    if (phaseRef.current !== 'STUDENT_PREPARE') return
+    setRestoredDraft(false)
+    enterSpeakingPhase('')
+  }
+
+  const clearDraftOf = (exchangeId: string) => {
+    if (attemptId) saveDraft(attemptId, exchangeId, '')
   }
 
   const sendAnswer = (exchangeId: string, transcript: string) => {
     if (!attemptId) return
     changePhase('EVAL_AND_DECIDE')
     submitInterviewAnswer(attemptId, exchangeId, transcript)
-      .then(applyState)
+      .then((state) => {
+        clearDraftOf(exchangeId)
+        applyState(state)
+      })
       .catch((err) => {
         // Lỗi mạng: bấm "Thử lại" sẽ gửi lại đúng câu trả lời này, không bắt sinh viên trả lời lại
         retryRef.current = () => sendAnswer(exchangeId, transcript)
@@ -355,7 +463,12 @@ export default function ExamRoomPage() {
     stopRecognition()
     setPhaseDeadline(null)
     changePhase('EVAL_AND_DECIDE')
-    skipInterviewQuestion(attemptId, exchangeId).then(applyState).catch(handleRoomError)
+    skipInterviewQuestion(attemptId, exchangeId)
+      .then((state) => {
+        clearDraftOf(exchangeId)
+        applyState(state)
+      })
+      .catch(handleRoomError)
   }
 
   // Sinh viên sửa câu trả lời bằng bàn phím: dừng ghi giọng nói để không bị ghi đè
@@ -365,6 +478,7 @@ export default function ExamRoomPage() {
       stopRecognition()
     }
     updateDraft(value)
+    persistDraft()
   }
 
   const resumeListening = () => {
@@ -397,6 +511,7 @@ export default function ExamRoomPage() {
     setPhaseDeadline(null)
     try {
       setAttempt(await finishExamAttempt(attemptId))
+      clearAttemptDrafts(attemptId)
       retryRef.current = null
       setRoomError('')
       changePhase('COMPLETED')
@@ -409,8 +524,8 @@ export default function ExamRoomPage() {
   }
 
   // Timer luôn gọi bản mới nhất của các hàm trên
-  const handlersRef = useRef({ startSpeakingPhase, submitAnswer, syncInterview })
-  handlersRef.current = { startSpeakingPhase, submitAnswer, syncInterview }
+  const handlersRef = useRef({ startSpeakingPhase, submitAnswer, syncInterview, handleRetry, resumeListening })
+  handlersRef.current = { startSpeakingPhase, submitAnswer, syncInterview, handleRetry, resumeListening }
 
   /* ---------- Effect ---------- */
 
@@ -432,6 +547,60 @@ export default function ExamRoomPage() {
       })
       .finally(() => setLoading(false))
   }, [attemptId])
+
+  // Theo dõi mất mạng / có mạng lại
+  useEffect(() => {
+    const goOffline = () => {
+      setOnline(false)
+      setJustReconnected(false)
+    }
+    const goOnline = () => {
+      setOnline(true)
+      setJustReconnected(true)
+      window.clearTimeout(reconnectTimerRef.current)
+      reconnectTimerRef.current = window.setTimeout(() => setJustReconnected(false), 4000)
+      if (phaseRef.current === 'ERROR') {
+        // Có mạng lại: gửi lại ngay phần đang dở (câu trả lời, bỏ qua câu, nộp bài)
+        handlersRef.current.handleRetry()
+      } else if (
+        phaseRef.current === 'STUDENT_SPEAKING' &&
+        speechLostByNetworkRef.current &&
+        micReadyRef.current &&
+        !ignoreResultsRef.current
+      ) {
+        speechLostByNetworkRef.current = false
+        handlersRef.current.resumeListening()
+      }
+    }
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+      window.clearTimeout(reconnectTimerRef.current)
+    }
+  }, [])
+
+  // Lỗi do mạng / máy chủ tạm không phản hồi: tự thử lại sau vài giây (mất mạng hẳn thì chờ có mạng)
+  useEffect(() => {
+    if (phase !== 'ERROR' || !online || !isNetworkErrorCode(roomErrorCodeRef.current)) {
+      setRetryIn(null)
+      return
+    }
+    let left = AUTO_RETRY_SECONDS
+    setRetryIn(left)
+    const timer = window.setInterval(() => {
+      left -= 1
+      if (left > 0) {
+        setRetryIn(left)
+        return
+      }
+      window.clearInterval(timer)
+      setRetryIn(null)
+      handlersRef.current.handleRetry()
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [phase, online, roomError])
 
   // Dọn dẹp media khi unmount
   useEffect(() => {
@@ -559,6 +728,7 @@ export default function ExamRoomPage() {
     } catch (err) {
       console.warn('Không dùng được micro, chuyển sang trả lời bằng bàn phím', err)
     }
+    micReadyRef.current = hasMic
     setMicReady(hasMic)
 
     try {
@@ -659,6 +829,23 @@ export default function ExamRoomPage() {
           <LanguageSwitch />
         </div>
       </header>
+
+      {/* Trạng thái mạng */}
+      {!online && phase !== 'COMPLETED' && (
+        <div role="alert" className="sticky top-[57px] z-30 flex items-start justify-center gap-2 bg-error-container px-4 py-2.5 text-body-sm text-on-error-container">
+          <Icon name="wifi_off" className="text-base" />
+          <span>
+            <strong>Mất kết nối mạng.</strong> Câu trả lời đang làm được lưu tạm trên máy này, có mạng lại hệ thống tự gửi
+            tiếp. Lưu ý: đồng hồ bài thi vẫn chạy.
+          </span>
+        </div>
+      )}
+      {online && justReconnected && phase !== 'COMPLETED' && (
+        <div role="status" className="sticky top-[57px] z-30 flex items-center justify-center gap-2 bg-secondary-container px-4 py-2 text-body-sm text-on-secondary-container">
+          <Icon name="wifi" className="text-base" />
+          <span>Đã kết nối lại mạng.</span>
+        </div>
+      )}
 
       {/* Main Container */}
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col p-4 sm:p-6 lg:p-8">
@@ -867,6 +1054,12 @@ export default function ExamRoomPage() {
                           ? 'Câu trả lời của bạn (đang ghi từ giọng nói, sửa được bằng bàn phím):'
                           : 'Câu trả lời của bạn (nhập bằng bàn phím):'}
                       </label>
+                      {restoredDraft && (
+                        <p className="mb-2 flex items-center gap-1 text-label-sm font-semibold text-secondary">
+                          <Icon name="restore" className="text-sm" />
+                          Đã khôi phục câu trả lời bạn đang làm dở. Bạn trả lời tiếp rồi bấm nộp.
+                        </p>
+                      )}
                       <textarea
                         id="answer-draft"
                         value={answerDraft}
@@ -878,6 +1071,7 @@ export default function ExamRoomPage() {
                       />
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-label-xs text-outline">
                         <span>
+                          {!online && voiceMode && 'Mất mạng nên tạm không ghi được giọng nói, bạn gõ tiếp bằng bàn phím. '}
                           {listening && 'Micro đang ghi. Gõ vào ô trên sẽ tạm dừng ghi giọng nói.'}
                           {!listening && voiceMode && 'Đã tạm dừng ghi giọng nói.'}
                           {!listening && !micReady && 'Không dùng được micro nên bạn trả lời bằng bàn phím.'}
@@ -919,7 +1113,15 @@ export default function ExamRoomPage() {
                   <div className="flex flex-col items-center gap-3">
                     <Icon name="cloud_off" className="text-error text-5xl" />
                     <p className="text-headline-xs font-semibold text-on-surface">Có lỗi khi kết nối máy chủ</p>
-                    <p className="text-body-sm text-on-surface-variant max-w-sm">{roomError}</p>
+                    <p className="text-body-sm text-on-surface-variant max-w-sm">
+                      {!online ? 'Bạn đang mất kết nối mạng. Câu trả lời vẫn được giữ lại.' : roomError}
+                    </p>
+                    {!online && (
+                      <p className="text-label-sm font-semibold text-primary">Có mạng lại hệ thống sẽ tự gửi tiếp.</p>
+                    )}
+                    {online && retryIn !== null && (
+                      <p className="text-label-sm font-semibold text-primary">Tự thử lại sau {retryIn} giây...</p>
+                    )}
                     <button
                       type="button"
                       onClick={handleRetry}

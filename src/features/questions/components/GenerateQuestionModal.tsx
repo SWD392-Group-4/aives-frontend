@@ -77,7 +77,7 @@ export default function GenerateQuestionModal({
       })
       onGenerated(result)
     } catch (err: any) {
-      setError(err?.message || 'Loi khi yeu cau Vertex AI sinh cau hoi.')
+      setError(err?.message || 'Loi khi yeu cau AI sinh cau hoi.')
     } finally {
       setGenerating(false)
     }
@@ -88,9 +88,9 @@ export default function GenerateQuestionModal({
       <div className="w-full max-w-2xl rounded-2xl border border-border bg-surface p-6 shadow-xl">
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div>
-            <h2 className="text-lg font-bold text-on-surface">Sinh cau hoi thi bang Vertex AI RAG</h2>
+            <h2 className="text-lg font-bold text-on-surface">Sinh cau hoi thi bang AI</h2>
             <p className="text-xs text-on-surface-variant mt-0.5">
-              Cau hoi duoc trich xuat grounded tu tai lieu READY va mang trang thai DRAFT (BR-BANK-002)
+              Cau hoi duoc sinh tu noi dung tai lieu READY va mang trang thai DRAFT (BR-BANK-002)
             </p>
           </div>
           <button
@@ -276,7 +276,7 @@ export default function GenerateQuestionModal({
           </div>
 
           <div className="rounded-xl bg-surface-container-high p-3 text-[11px] text-on-surface-variant">
-            Luu y nghiep vu (BR-BANK-002): RAG engine chi sinh noi dung cau hoi, do kho, dap an mau va tu khoa. Tuyet doi khong sinh Rubric. Cau hoi mac dinh mang trang thai DRAFT cho giang vien tham dinh.
+            Luu y nghiep vu (BR-BANK-002): AI chi sinh noi dung cau hoi, do kho, dap an mau va tu khoa. Tuyet doi khong sinh Rubric. Cau hoi mac dinh mang trang thai DRAFT cho giang vien tham dinh.
           </div>
         </div>
 
@@ -295,7 +295,7 @@ export default function GenerateQuestionModal({
             onClick={handleGenerate}
             className="rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-on-primary hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
-            {generating ? 'Vertex AI dang sinh cau hoi...' : 'Sinh cau hoi bang AI'}
+            {generating ? 'AI dang sinh cau hoi...' : 'Sinh cau hoi bang AI'}
           </button>
         </div>
       </div>

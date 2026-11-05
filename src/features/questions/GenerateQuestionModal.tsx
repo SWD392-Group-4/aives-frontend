@@ -90,7 +90,7 @@ export default function GenerateQuestionModal({
     } catch (err: any) {
       setErrorMessage(
         err?.message ||
-          'Không thể sinh câu hỏi bằng Vertex AI RAG Engine. Vui lòng kiểm tra lại trạng thái lập chỉ mục của tài liệu.'
+          'Không thể sinh câu hỏi bằng AI. Vui lòng kiểm tra lại trạng thái của tài liệu.'
       )
     } finally {
       setLoading(false)
@@ -114,7 +114,7 @@ export default function GenerateQuestionModal({
         <div className="flex items-start justify-between border-b border-surface-container-high pb-4">
           <div>
             <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-              Vertex AI Grounded RAG
+              AI sinh câu hỏi
             </span>
             <h2 className="mt-2 text-title-md font-bold text-on-surface">
               Sinh Câu Hỏi AI Từ Tài Liệu Chương
@@ -145,7 +145,7 @@ export default function GenerateQuestionModal({
           <div>
             <div className="flex items-center justify-between">
               <label className="text-label-md font-bold text-on-surface">
-                1. Chọn Tài Liệu Ngữ Cảnh (RAG Ready)
+                1. Chọn Tài Liệu Làm Ngữ Cảnh
               </label>
               {readyMaterials.length > 0 && (
                 <button
@@ -162,7 +162,7 @@ export default function GenerateQuestionModal({
 
             {readyMaterials.length === 0 ? (
               <div className="mt-2 rounded-2xl border border-dashed border-outline bg-surface-container-lowest p-4 text-center text-xs text-on-surface-variant">
-                Chưa có tài liệu nào đạt trạng thái Sẵn sàng (READY). Vui lòng nạp slide và đợi hệ thống lập chỉ mục trước khi sinh câu hỏi.
+                Chưa có tài liệu nào đạt trạng thái Sẵn sàng (READY). Vui lòng tải lên tài liệu trước khi sinh câu hỏi.
               </div>
             ) : (
               <div className="mt-3 max-h-44 space-y-2 overflow-y-auto rounded-2xl border border-surface-container-high bg-surface-container-lowest p-3">
@@ -187,7 +187,7 @@ export default function GenerateQuestionModal({
                         <div>
                           <div className="text-xs font-bold text-on-surface">{mat.title}</div>
                           <div className="text-[11px] text-on-surface-variant">
-                            {mat.fileName} • {(mat.fileSize / 1024 / 1024).toFixed(2)} MB • {mat.chunkCount ?? 0} đoạn tri thức
+                            {mat.fileName} • {(mat.fileSize / 1024 / 1024).toFixed(2)} MB • {mat.chunkCount ?? 0} đoạn nội dung
                           </div>
                         </div>
                       </div>
@@ -352,7 +352,7 @@ export default function GenerateQuestionModal({
             onClick={handleGenerate}
             className="rounded-xl bg-primary px-6 py-2 text-xs font-bold text-white shadow-xs transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? 'Đang gọi AI RAG...' : 'Sinh Câu Hỏi Bằng AI'}
+            {loading ? 'Đang gọi AI...' : 'Sinh Câu Hỏi Bằng AI'}
           </button>
         </div>
       </div>

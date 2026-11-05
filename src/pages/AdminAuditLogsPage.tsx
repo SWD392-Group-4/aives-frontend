@@ -861,6 +861,9 @@ export default function AdminAuditLogsPage() {
         entityName: entityFilter !== 'ALL' ? entityFilter : undefined,
       })
       setLogs(data)
+    } catch (err) {
+      console.error('Không tải được nhật ký kiểm toán:', err)
+      setLogs([])
     } finally {
       setLoading(false)
     }

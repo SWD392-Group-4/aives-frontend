@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import CopyButton from '../components/CopyButton'
 import Icon from '../components/Icon'
 import Modal from '../components/Modal'
 import LecturerLayout from '../components/LecturerLayout'
-import { getExamSessionById } from '../services/examSessionService'
+import { getExamSessionById, getLiveExamMonitor, LiveExaminee } from '../services/examSessionService'
 import { ExamSession } from '../types'
 import { formatDateTime } from '../utils/dateTime'
 
@@ -28,161 +28,42 @@ export interface LiveCandidate {
   lastTranscript?: string
 }
 
-const MOCK_CANDIDATES: LiveCandidate[] = [
-  {
-    id: 'cand-01',
-    studentId: 'ST180123',
-    fullName: 'Trần Văn Cường',
-    email: 'cuongtvse180123@fpt.edu.vn',
+/** Quá 60 giây không có hoạt động thì coi như thí sinh mất kết nối. */
+const INACTIVE_AFTER_MS = 60_000
+
+function toLiveCandidate(e: LiveExaminee): LiveCandidate {
+  const lastActiveMs = e.lastActiveAt ? new Date(e.lastActiveAt).getTime() : 0
+  const inactive = e.status === 'IN_PROGRESS' && lastActiveMs > 0 && Date.now() - lastActiveMs > INACTIVE_AFTER_MS
+  const exchanges = e.currentExchangeCount ?? 0
+  const phase: LiveCandidate['currentPhase'] =
+    e.status === 'COMPLETED' ? 'COMPLETED' : inactive ? 'DISCONNECTED' : exchanges > 1 ? 'FOLLOW_UP' : 'ANSWERING'
+
+  return {
+    id: e.attemptId,
+    studentId: e.studentId,
+    fullName: e.fullName,
+    email: e.email,
     platform: 'WEB',
-    clientDetails: 'Chrome 128 / Windows 11',
-    currentQuestion: 2,
-    totalQuestions: 4,
-    currentPhase: 'ANSWERING',
-    remainingSeconds: 1145,
-    micStatus: 'SPEAKING',
-    networkStatus: 'EXCELLENT',
-    pingMs: 16,
-    startedAt: new Date(Date.now() - 655000).toISOString(),
-    currentQuestionText: 'Trình bày cách thức triển khai Factory Method Pattern và ưu điểm của nó so với việc khởi tạo đối tượng trực tiếp bằng từ khóa new.',
-    lastTranscript: 'Theo em, Factory Method giúp đóng gói việc tạo đối tượng con, tuân thủ nguyên lý Open/Closed...',
-  },
-  {
-    id: 'cand-02',
-    studentId: 'ST180456',
-    fullName: 'Lê Thị Thu Thảo',
-    email: 'thaolttse180456@fpt.edu.vn',
-    platform: 'MOBILE_IOS',
-    clientDetails: 'AIVES iOS App / iPhone 15 Pro',
-    currentQuestion: 1,
-    totalQuestions: 4,
-    currentPhase: 'FOLLOW_UP',
-    followUpDepth: 1,
-    remainingSeconds: 1420,
-    micStatus: 'SILENT',
-    networkStatus: 'GOOD',
-    pingMs: 42,
-    startedAt: new Date(Date.now() - 380000).toISOString(),
-    currentQuestionText: '[Câu hỏi xoáy AI] Em vừa nhắc đến Loose Coupling, hãy giải thích trường hợp cụ thể nếu không dùng Dependency Injection thì code sẽ bị Tight Coupling như thế nào?',
-    lastTranscript: 'Thưa giám khảo AI, nếu một Service tự new Repository bên trong constructor...',
-  },
-  {
-    id: 'cand-03',
-    studentId: 'ST180789',
-    fullName: 'Nguyễn Đăng Khoa',
-    email: 'khoandse180789@fpt.edu.vn',
-    platform: 'WEB',
-    clientDetails: 'Edge 127 / macOS Sequoia',
-    currentQuestion: 3,
-    totalQuestions: 4,
-    currentPhase: 'PREPARING',
-    remainingSeconds: 610,
-    micStatus: 'SILENT',
-    networkStatus: 'EXCELLENT',
-    pingMs: 22,
-    startedAt: new Date(Date.now() - 1190000).toISOString(),
-    currentQuestionText: 'Phân tích sự khác biệt giữa kiến trúc Microservices và Modular Monolith. Khi nào một startup nên chọn Monolith?',
-    lastTranscript: 'Em đang chuẩn bị câu trả lời...',
-  },
-  {
-    id: 'cand-04',
-    studentId: 'ST180321',
-    fullName: 'Phạm Minh Khang',
-    email: 'khangpmse180321@fpt.edu.vn',
-    platform: 'MOBILE_ANDROID',
-    clientDetails: 'AIVES Android App / Galaxy S24',
-    currentQuestion: 4,
-    totalQuestions: 4,
-    currentPhase: 'COMPLETED',
-    remainingSeconds: 0,
-    micStatus: 'MUTED',
-    networkStatus: 'EXCELLENT',
-    pingMs: 28,
-    startedAt: new Date(Date.now() - 1700000).toISOString(),
-    currentQuestionText: 'Đã hoàn thành toàn bộ 4 câu hỏi chính và 2 câu hỏi xoáy.',
-    lastTranscript: 'Em đã nộp bài thành công lúc 09:45.',
-  },
-  {
-    id: 'cand-05',
-    studentId: 'ST180654',
-    fullName: 'Hoàng Quốc Bảo',
-    email: 'baohqse180654@fpt.edu.vn',
-    platform: 'WEB',
-    clientDetails: 'Chrome 128 / Ubuntu Linux',
-    currentQuestion: 2,
-    totalQuestions: 4,
-    currentPhase: 'DISCONNECTED',
-    remainingSeconds: 890,
-    micStatus: 'MUTED',
-    networkStatus: 'DISCONNECTED',
-    pingMs: 999,
-    startedAt: new Date(Date.now() - 910000).toISOString(),
-    currentQuestionText: 'Giải thích cơ chế Circuit Breaker trong hệ thống phân tán chịu tải cao.',
-    lastTranscript: 'Mất kết nối mạng đột ngột (Socket timeout 5000ms)...',
-  },
-  {
-    id: 'cand-06',
-    studentId: 'ST180992',
-    fullName: 'Vũ Hải Đăng',
-    email: 'dangvhse180992@fpt.edu.vn',
-    platform: 'WEB',
-    clientDetails: 'Firefox 129 / Windows 11',
-    currentQuestion: 3,
-    totalQuestions: 4,
-    currentPhase: 'ANSWERING',
-    remainingSeconds: 520,
-    micStatus: 'SPEAKING',
-    networkStatus: 'GOOD',
-    pingMs: 55,
-    startedAt: new Date(Date.now() - 1280000).toISOString(),
-    currentQuestionText: 'Sự khác biệt giữa Two-Phase Commit (2PC) và Saga Pattern khi quản lý giao dịch phân tán?',
-    lastTranscript: 'Theo em, 2PC có nhược điểm là khóa tài nguyên dạng đồng bộ gây nghẽn cổ chai...',
-  },
-  {
-    id: 'cand-07',
-    studentId: 'ST180210',
-    fullName: 'Đỗ Thùy Trang',
-    email: 'trangdtse180210@fpt.edu.vn',
-    platform: 'MOBILE_IOS',
-    clientDetails: 'AIVES iOS App / iPad Air 5',
-    currentQuestion: 4,
-    totalQuestions: 4,
-    currentPhase: 'COMPLETED',
-    remainingSeconds: 0,
-    micStatus: 'MUTED',
-    networkStatus: 'EXCELLENT',
-    pingMs: 19,
-    startedAt: new Date(Date.now() - 1750000).toISOString(),
-    currentQuestionText: 'Đã hoàn thành lượt thi.',
-    lastTranscript: 'Em cảm ơn thầy cô và ban giám khảo.',
-  },
-  {
-    id: 'cand-08',
-    studentId: 'ST180447',
-    fullName: 'Bùi Gia Huy',
-    email: 'huybgse180447@fpt.edu.vn',
-    platform: 'WEB',
-    clientDetails: 'Chrome 128 / Windows 11',
-    currentQuestion: 2,
-    totalQuestions: 4,
-    currentPhase: 'FOLLOW_UP',
-    followUpDepth: 2,
-    remainingSeconds: 830,
-    micStatus: 'SPEAKING',
-    networkStatus: 'POOR',
-    pingMs: 310,
-    startedAt: new Date(Date.now() - 970000).toISOString(),
-    currentQuestionText: '[Câu hỏi xoáy cấp 2] Nếu áp dụng Saga Choreography, khi một microservice trung gian gặp lỗi thì làm sao các service trước đó biết để kích hoạt compensating transaction?',
-    lastTranscript: 'Mỗi service sẽ publish event thất bại lên message broker, các service khác lắng nghe để rollback...',
-  },
-]
+    clientDetails: '',
+    currentQuestion: e.currentQuestionIndex ?? 0,
+    totalQuestions: e.totalQuestions ?? 0,
+    currentPhase: phase,
+    followUpDepth: exchanges > 1 ? exchanges - 1 : undefined,
+    remainingSeconds: Math.max(0, e.remainingSeconds ?? 0),
+    micStatus: e.isSpeaking ? 'SPEAKING' : 'SILENT',
+    networkStatus: inactive ? 'DISCONNECTED' : 'GOOD',
+    pingMs: 0,
+    startedAt: e.lastActiveAt || '',
+  }
+}
 
 export default function LiveExamMonitorPage() {
   const { id } = useParams<{ id: string }>()
-  const examId = id || 'AIVES_EXAM_2026_049282'
+  const examId = id || ''
 
   const [session, setSession] = useState<ExamSession | null>(null)
-  const [candidates, setCandidates] = useState<LiveCandidate[]>(MOCK_CANDIDATES)
+  const [candidates, setCandidates] = useState<LiveCandidate[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [_loading, setLoading] = useState(true)
 
   // Filters
@@ -196,7 +77,6 @@ export default function LiveExamMonitorPage() {
 
   // Inspector Modal
   const [inspectingCandidate, setInspectingCandidate] = useState<LiveCandidate | null>(null)
-  const [alertNotice, setAlertNotice] = useState<string | null>(null)
 
   // Load Session Info
   useEffect(() => {
@@ -209,29 +89,8 @@ export default function LiveExamMonitorPage() {
         if (isMounted && data) {
           setSession(data)
         }
-      } catch (err) {
-        // Fallback session info
-        console.debug('Using mock session info:', err)
-        if (isMounted) {
-          setSession({
-            id: examId,
-            title: 'Vấn đáp AI - Software Architecture (SWD392)',
-            passcode: '638291',
-            startAt: new Date(Date.now() - 3600000).toISOString(),
-            endAt: new Date(Date.now() + 7200000).toISOString(),
-            durationMinutes: 30,
-            maxAttempts: 1,
-            maxFollowUpPerQuestion: 2,
-            prepareSeconds: 15,
-            answerSeconds: 120,
-            status: 'ONGOING',
-            ownerId: '1',
-            ownerName: 'TS. Nguyễn Hoài Nam',
-            attemptCount: 28,
-            scheduleLocked: true,
-            createdAt: new Date().toISOString(),
-          })
-        }
+      } catch (err: any) {
+        if (isMounted) setLoadError(err?.message || 'Không tải được thông tin phiên thi.')
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -263,54 +122,32 @@ export default function LiveExamMonitorPage() {
     return () => clearInterval(timer)
   }, [])
 
-  // Auto-refresh simulation effect every 5 seconds
+  // Lấy danh sách thí sinh thật từ backend
+  const fetchMonitor = useCallback(async () => {
+    if (!examId) return
+    try {
+      const data = await getLiveExamMonitor(examId)
+      setCandidates((data.examinees || []).map(toLiveCandidate))
+      setLastUpdated(new Date())
+      setLoadError(null)
+    } catch (err: any) {
+      setLoadError(err?.message || 'Không tải được dữ liệu giám sát phòng thi.')
+    }
+  }, [examId])
+
+  useEffect(() => {
+    fetchMonitor()
+  }, [fetchMonitor])
+
+  // Tự làm mới mỗi 5 giây
   useEffect(() => {
     if (!autoRefresh) return
-
-    const refreshTimer = setInterval(() => {
-      setLastUpdated(new Date())
-      // Randomly tweak mic status or ping to demonstrate real-time vitality
-      setCandidates((prev) =>
-        prev.map((c) => {
-          if (c.currentPhase === 'ANSWERING') {
-            const isSpeaking = Math.random() > 0.35
-            return {
-              ...c,
-              micStatus: isSpeaking ? 'SPEAKING' : 'SILENT',
-              pingMs: Math.max(12, Math.min(180, c.pingMs + Math.floor(Math.random() * 9 - 4))),
-            }
-          }
-          return c
-        }),
-      )
-    }, 5000)
-
+    const refreshTimer = setInterval(fetchMonitor, 5000)
     return () => clearInterval(refreshTimer)
-  }, [autoRefresh])
+  }, [autoRefresh, fetchMonitor])
 
   const handleManualRefresh = () => {
-    setLastUpdated(new Date())
-  }
-
-  const handleSendReminder = (student: LiveCandidate) => {
-    setAlertNotice(`Đã gửi thông báo nhắc nhở giữ trật tự và tập trung tới sinh viên ${student.fullName} (${student.studentId}).`)
-    setTimeout(() => setAlertNotice(null), 4000)
-  }
-
-  const handleInterveneCandidate = (student: LiveCandidate) => {
-    setAlertNotice(`Đã gửi tín hiệu khôi phục phiên kết nối khẩn cấp cho ${student.fullName}. Thí sinh có thể reload trang để tiếp tục lượt thi.`)
-    setTimeout(() => setAlertNotice(null), 4000)
-    // Update local state to reconnecting
-    setCandidates((prev) =>
-      prev.map((c) =>
-        c.id === student.id
-          ? { ...c, currentPhase: 'ANSWERING', networkStatus: 'GOOD', pingMs: 45 }
-          : c,
-      ),
-    )
-    if (inspectingCandidate?.id === student.id) {
-      setInspectingCandidate(null)
-    }
+    fetchMonitor()
   }
 
   // Filter logic
@@ -404,16 +241,16 @@ export default function LiveExamMonitorPage() {
           </div>
         </div>
 
-        {/* Global Notice Toast */}
-        {alertNotice && (
-          <div className="mb-6 flex items-center justify-between rounded-2xl bg-primary-fixed/80 p-4 text-xs font-bold text-primary shadow-md">
+        {/* Lỗi tải dữ liệu */}
+        {loadError && (
+          <div className="mb-6 flex items-center justify-between rounded-2xl bg-error-container p-4 text-xs font-bold text-on-error-container shadow-md">
             <div className="flex items-center gap-2">
-              <Icon name="campaign" className="text-xl" />
-              <span>{alertNotice}</span>
+              <Icon name="error" className="text-xl" />
+              <span>{loadError}</span>
             </div>
             <button
               type="button"
-              onClick={() => setAlertNotice(null)}
+              onClick={() => setLoadError(null)}
               className="rounded-full p-1 hover:bg-black/10"
             >
               <Icon name="close" className="text-sm" />
@@ -810,27 +647,27 @@ export default function LiveExamMonitorPage() {
                             {/* Network Ping */}
                             {candidate.networkStatus === 'EXCELLENT' ? (
                               <span
-                                title={`Tín hiệu mạng tuyệt vời: ${candidate.pingMs}ms`}
+                                title="Đang kết nối"
                                 className="flex items-center gap-1 text-[11px] font-semibold text-secondary"
                               >
                                 <span className="h-2 w-2 rounded-full bg-secondary"></span>
-                                {candidate.pingMs}ms
+                                Online
                               </span>
                             ) : candidate.networkStatus === 'GOOD' ? (
                               <span
-                                title={`Tín hiệu mạng tốt: ${candidate.pingMs}ms`}
+                                title="Đang kết nối"
                                 className="flex items-center gap-1 text-[11px] font-semibold text-primary"
                               >
                                 <span className="h-2 w-2 rounded-full bg-primary"></span>
-                                {candidate.pingMs}ms
+                                Online
                               </span>
                             ) : candidate.networkStatus === 'POOR' ? (
                               <span
-                                title={`Tín hiệu mạng chập chờn: ${candidate.pingMs}ms`}
+                                title="Đang kết nối"
                                 className="flex items-center gap-1 text-[11px] font-semibold text-tertiary"
                               >
                                 <span className="h-2 w-2 rounded-full bg-tertiary"></span>
-                                {candidate.pingMs}ms
+                                Online
                               </span>
                             ) : (
                               <span
@@ -856,26 +693,6 @@ export default function LiveExamMonitorPage() {
                               Soi phòng
                             </button>
 
-                            {isDisconnected ? (
-                              <button
-                                type="button"
-                                onClick={() => handleInterveneCandidate(candidate)}
-                                title="Khôi phục kết nối khẩn cấp"
-                                className="inline-flex items-center gap-1 rounded-lg bg-error px-2 py-1 text-xs font-bold text-on-error hover:bg-error/90"
-                              >
-                                <Icon name="restart_alt" className="text-xs" />
-                                Cấp lại
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleSendReminder(candidate)}
-                                title="Gửi nhắc nhở thí sinh"
-                                className="flex h-7 w-7 items-center justify-center rounded-lg text-outline hover:bg-surface-container hover:text-on-surface"
-                              >
-                                <Icon name="notification_important" className="text-sm" />
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>
@@ -946,8 +763,10 @@ export default function LiveExamMonitorPage() {
               {/* Technical Diagnostics */}
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-lg bg-surface-container-low p-2.5">
-                  <span className="text-on-surface-variant block text-[10px]">Độ trễ WebSocket:</span>
-                  <span className="font-bold text-secondary">{inspectingCandidate.pingMs} ms</span>
+                  <span className="text-on-surface-variant block text-[10px]">Hoạt động gần nhất:</span>
+                  <span className="font-bold text-secondary">
+                    {inspectingCandidate.startedAt ? formatDateTime(inspectingCandidate.startedAt) : '—'}
+                  </span>
                 </div>
                 <div className="rounded-lg bg-surface-container-low p-2.5">
                   <span className="text-on-surface-variant block text-[10px]">Trạng thái Microphone:</span>
@@ -959,25 +778,8 @@ export default function LiveExamMonitorPage() {
 
               {/* Modal Actions */}
               <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-outline-variant/20 pt-4">
-                <button
-                  type="button"
-                  onClick={() => handleSendReminder(inspectingCandidate)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/60 bg-surface-container px-3.5 py-2 text-xs font-semibold text-on-surface hover:bg-surface-container-high"
-                >
-                  <Icon name="campaign" className="text-base text-tertiary" />
-                  Gửi nhắc nhở
-                </button>
-
+                <span />
                 <div className="flex items-center gap-2">
-                  {inspectingCandidate.currentPhase === 'DISCONNECTED' && (
-                    <button
-                      type="button"
-                      onClick={() => handleInterveneCandidate(inspectingCandidate)}
-                      className="rounded-xl bg-error px-4 py-2 text-xs font-bold text-on-error hover:bg-error/90"
-                    >
-                      Khôi phục kết nối
-                    </button>
-                  )}
                   <button
                     type="button"
                     onClick={() => setInspectingCandidate(null)}
